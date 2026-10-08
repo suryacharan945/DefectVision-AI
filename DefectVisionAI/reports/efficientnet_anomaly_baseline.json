@@ -1,0 +1,20 @@
+{
+    "model": "EfficientNet-B0 pretrained feature extractor",
+    "method": "Mahalanobis distance anomaly detection",
+    "training_protocol": "Normal images only",
+    "categories": [
+        "bottle",
+        "cable",
+        "metal_nut",
+        "wood"
+    ],
+    "image_size": 224,
+    "batch_size": 32,
+    "threshold": 894.785011595584,
+    "image_AUROC": 0.9062534104550911,
+    "average_precision": 0.9659093092194839,
+    "accuracy": 0.7213114754098361,
+    "precision": 0.7213114754098361,
+    "recall": 1.0,
+    "f1": 0.8380952380952381
+}

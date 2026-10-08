@@ -1,0 +1,16 @@
+{
+    "image_size": 224,
+    "batch_size": 32,
+    "validation_split": 0.2,
+    "random_seed": 42,
+    "reduced_dimension": 100,
+    "regularization": 0.0001,
+    "gaussian_sigma": 4,
+    "threshold_percentile": 99,
+    "categories": [
+        "bottle",
+        "cable",
+        "metal_nut",
+        "wood"
+    ]
+}

@@ -1,0 +1,16 @@
+category,best_val_loss,best_epoch,status
+bottle,0.0012181467609480023,60,skipped (already done)
+cable,0.005127584096044302,58,skipped (already done)
+capsule,0.00040725042345002294,60,skipped (already done)
+carpet,0.006336764898151159,60,skipped (already done)
+grid,0.003856305032968521,60,skipped (already done)
+hazelnut,0.00047591770999133587,54,skipped (already done)
+leather,0.0010491986759006977,57,skipped (already done)
+metal_nut,0.002361051505431533,60,skipped (already done)
+pill,0.0003742394910659641,60,skipped (already done)
+screw,0.0006452017114497721,60,trained
+tile,0.00509212352335453,60,trained
+toothbrush,0.002179705537855625,60,trained
+transistor,0.0018854913068935275,60,trained
+wood,0.002066611545160413,60,trained
+zipper,0.00229558814316988,60,trained

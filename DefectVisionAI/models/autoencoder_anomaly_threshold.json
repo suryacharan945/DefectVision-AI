@@ -1,0 +1,5 @@
+{
+    "threshold": 0.004891305696219206,
+    "method": "99th_percentile_of_normal_validation_reconstruction_scores",
+    "validation_samples": 180
+}

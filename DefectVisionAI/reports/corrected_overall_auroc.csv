@@ -1,0 +1,4 @@
+model,mean_category_auroc
+Autoencoder,0.6861
+PaDiM,0.9049
+PatchCore,0.9715

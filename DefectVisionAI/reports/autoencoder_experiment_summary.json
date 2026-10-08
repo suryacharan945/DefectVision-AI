@@ -1,0 +1,23 @@
+{
+    "model": "Convolutional Autoencoder",
+    "training_protocol": "Normal images only",
+    "categories": [
+        "bottle",
+        "cable",
+        "metal_nut",
+        "wood"
+    ],
+    "image_size": 224,
+    "batch_size": 32,
+    "epochs": 30,
+    "learning_rate": 0.001,
+    "validation_split": 0.2,
+    "threshold": 0.004891305696219206,
+    "image_AUROC": 0.4282167412419513,
+    "average_precision": 0.6872096100437923,
+    "accuracy": 0.2810304449648712,
+    "precision": 1.0,
+    "recall": 0.003246753246753247,
+    "f1": 0.006472491909385114,
+    "best_validation_loss": 0.0015848065985159742
+}

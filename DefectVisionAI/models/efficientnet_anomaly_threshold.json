@@ -1,0 +1,4 @@
+{
+    "threshold": 894.785011595584,
+    "method": "99th_percentile_of_normal_training_scores"
+}

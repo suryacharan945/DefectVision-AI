@@ -1,0 +1,5 @@
+category,samples,normal_samples,defective_samples,image_AUROC
+bottle,83,20,63,0.9984126984126984
+cable,150,58,92,0.9523988005997001
+metal_nut,115,22,93,0.9369501466275659
+wood,79,19,60,0.9824561403508772

@@ -1,0 +1,2 @@
+model,test_accuracy,test_precision,test_recall,test_f1,best_val_f1,best_epoch
+EfficientNet-B0,0.9791411042944785,0.9836065573770492,0.9278350515463918,0.9549071618037135,0.9555555555555556,20

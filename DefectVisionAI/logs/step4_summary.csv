@@ -1,0 +1,2 @@
+Step,Total Images Processed,Avg Confidence (defective),Avg Confidence (normal),Avg Defect Area % (defective only),Avg GT IoU (where mask available)
+Grad-CAM Explainability,815,0.9767623711340205,0.9936573268921095,10.779845360824742,0.18415051546391753

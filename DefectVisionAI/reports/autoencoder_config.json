@@ -1,0 +1,15 @@
+{
+    "image_size": 224,
+    "batch_size": 32,
+    "epochs": 30,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05,
+    "validation_split": 0.2,
+    "random_seed": 42,
+    "categories": [
+        "bottle",
+        "cable",
+        "metal_nut",
+        "wood"
+    ]
+}

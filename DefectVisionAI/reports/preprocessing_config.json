@@ -1,0 +1,10 @@
+{
+    "img_size": 224,
+    "batch_size": 32,
+    "categories": [
+        "bottle",
+        "cable",
+        "metal_nut",
+        "wood"
+    ]
+}
