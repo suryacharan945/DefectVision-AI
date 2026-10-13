@@ -45,3 +45,11 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Presentation materials and non-code documentation
+*.pdf
+*.pptx
+*.ppt
+Mini project literature survey/
+Mini project paper 1st pages/
+
