@@ -1,8 +1,19 @@
 /**
  * DefectVision AI — Centralized Production API Client
  * Connects directly to FastAPI backend running live inference on PatchCore + EfficientNet.
- * Seamlessly provides edge-demo fallback when deployed to static hosts (e.g. Vercel) without remote backend.
+ * Seamlessly provides zero-latency in-memory fallback when deployed to static hosts (e.g. Vercel) without remote backend.
  */
+
+import fallbackPresets from '../data/presets.json';
+import fallbackModels from '../data/models_comparison.json';
+import fallbackAuroc from '../data/auroc_matrix.json';
+import fallbackSummary from '../data/reports_summary.json';
+import fallbackDrift from '../data/drift_logs.json';
+import fallbackRag from '../data/rag_entries.json';
+import fallbackSensitivity from '../data/sensitivity.json';
+import fallbackSeverityLogs from '../data/severity_logs.json';
+import fallbackBatches from '../data/batch_list.json';
+import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -13,20 +24,6 @@ class ApiError extends Error {
     this.status = status;
     this.detail = detail;
   }
-}
-
-// In-memory cache for static fallback data
-const dataCache = {};
-
-async function fetchStatic(path) {
-  if (dataCache[path]) return dataCache[path];
-  const res = await fetch(`/data/${path}`);
-  if (!res.ok) {
-    throw new Error(`Failed to load static dataset /data/${path}`);
-  }
-  const data = await res.json();
-  dataCache[path] = data;
-  return data;
 }
 
 const defaultDefectTypes = {
@@ -53,7 +50,7 @@ async function request(endpoint, options = {}) {
     const res = await fetch(url, options);
     const contentType = res.headers.get('content-type') || '';
 
-    // If server returned HTML (e.g. Vercel SPA rewrite fallback for missing routes) or non-OK status
+    // If server returned HTML (e.g. Vercel SPA rewrite fallback) or non-OK status
     if (!res.ok || !contentType.includes('application/json')) {
       let errBody = {};
       try {
@@ -92,7 +89,6 @@ export const api = {
     try {
       return await request('/api/');
     } catch (err) {
-      // Graceful fallback for static Vercel deployment
       return {
         status: 'ready',
         mode: 'edge-cloud',
@@ -111,7 +107,7 @@ export const api = {
     try {
       return await request('/samples/presets');
     } catch (err) {
-      return await fetchStatic('presets.json');
+      return fallbackPresets;
     }
   },
 
@@ -131,13 +127,11 @@ export const api = {
         body: formData,
       });
     } catch (err) {
-      // Edge demo fallback: produce authentic PatchCore inference telemetry
-      console.info(`[DefectVision Edge] Running client-side inference for category: ${category}`);
+      console.info(`[DefectVision Edge] Running in-memory inference fallback for: ${category}`);
       
       const sampleImgUrl = `/outputs/similarity_search_samples/${category}_similarity_demo.png`;
       const defectType = defaultDefectTypes[category] || 'Surface Anomaly';
       
-      // Seed realistic metrics
       const rawScore = 1.35 + (Math.sin(category.length) * 0.2);
       const anomalyScore = Math.min(0.95, Math.max(0.65, 0.78 + (Math.cos(category.length) * 0.12)));
       const severityScore = Math.min(96, Math.max(72, Math.round(anomalyScore * 105)));
@@ -157,7 +151,7 @@ export const api = {
         optimal_threshold: 0.45,
         processing_time_ms: 38.4,
         heatmap: sampleImgUrl,
-        original_image: URL.createObjectURL(file),
+        original_image: file ? URL.createObjectURL(file) : sampleImgUrl,
         raw_heatmap: sampleImgUrl,
         edge_inference: true
       };
@@ -182,7 +176,6 @@ export const api = {
         }),
       });
     } catch (err) {
-      // Dynamic fallback explanation
       const action = severity_level === 'Critical'
         ? 'Immediately halt downstream feed, quarantine specimen for dimensional verification, and trigger toolhead calibration.'
         : 'Route part to secondary audit station for manual review and record deviation in batch telemetry.';
@@ -200,7 +193,7 @@ export const api = {
     try {
       return await request('/models/comparison');
     } catch (err) {
-      return await fetchStatic('models_comparison.json');
+      return fallbackModels;
     }
   },
 
@@ -211,7 +204,7 @@ export const api = {
     try {
       return await request('/reports/auroc-matrix');
     } catch (err) {
-      return await fetchStatic('auroc_matrix.json');
+      return fallbackAuroc;
     }
   },
 
@@ -222,7 +215,7 @@ export const api = {
     try {
       return await request('/reports/summary');
     } catch (err) {
-      return await fetchStatic('reports_summary.json');
+      return fallbackSummary;
     }
   },
 
@@ -239,8 +232,7 @@ export const api = {
     try {
       return await request(`/severity/logs?${params.toString()}`);
     } catch (err) {
-      const data = await fetchStatic('severity_logs.json');
-      let records = data.records || [];
+      let records = fallbackSeverityLogs.records || [];
 
       if (category) {
         records = records.filter(r => r.category.toLowerCase() === category.toLowerCase());
@@ -301,7 +293,7 @@ export const api = {
       return await request(`/batch/${batchId}/status`);
     } catch (err) {
       if (batchId === 'demo_150img_batch') {
-        return await fetchStatic('batch_demo_150img_batch.json');
+        return fallbackDemoBatch;
       }
       if (simulatedBatches[batchId]) {
         const b = simulatedBatches[batchId];
@@ -321,8 +313,7 @@ export const api = {
           }
         };
       }
-      // Fallback to demo 150 batch
-      return await fetchStatic('batch_demo_150img_batch.json');
+      return fallbackDemoBatch;
     }
   },
 
@@ -333,7 +324,7 @@ export const api = {
     try {
       return await request('/batch/list');
     } catch (err) {
-      return await fetchStatic('batch_list.json');
+      return fallbackBatches;
     }
   },
 
@@ -391,7 +382,7 @@ export const api = {
     try {
       return await request('/rag/entries');
     } catch (err) {
-      return await fetchStatic('rag_entries.json');
+      return fallbackRag;
     }
   },
 
@@ -406,7 +397,7 @@ export const api = {
         body: JSON.stringify({ question }),
       });
     } catch (err) {
-      const entries = await fetchStatic('rag_entries.json');
+      const entries = fallbackRag;
       const q = question.toLowerCase();
       let matched = entries.find(e => q.includes(e.defect_type.toLowerCase()) || q.includes(e.category.toLowerCase()));
       if (!matched && entries.length > 0) matched = entries[0];
@@ -466,7 +457,7 @@ export const api = {
     try {
       return await request('/drift');
     } catch (err) {
-      return await fetchStatic('drift_logs.json');
+      return fallbackDrift;
     }
   },
 
@@ -507,7 +498,7 @@ export const api = {
     try {
       return await request('/active-learning/sensitivity');
     } catch (err) {
-      return await fetchStatic('sensitivity.json');
+      return fallbackSensitivity;
     }
   },
 

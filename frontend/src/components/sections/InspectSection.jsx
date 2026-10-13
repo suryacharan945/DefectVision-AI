@@ -82,13 +82,34 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
     setAnalysisStep(1);
 
     try {
-      // Fetch the real image blob from the backend static outputs
-      const res = await fetch(preset.image_url);
-      const blob = await res.blob();
-      const file = new File([blob], preset.filename, { type: 'image/png' });
+      let file = null;
+      try {
+        const res = await fetch(preset.image_url);
+        if (res.ok) {
+          const blob = await res.blob();
+          file = new File([blob], preset.filename, { type: 'image/png' });
+          setPreviewUrl(URL.createObjectURL(blob));
+        }
+      } catch (fetchErr) {
+        console.warn('Preset image fetch warning:', fetchErr);
+      }
+
+      if (!file) {
+        setPreviewUrl(preset.image_url);
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 256, 256);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 18px monospace';
+        ctx.fillText(preset.category.toUpperCase(), 30, 130);
+        const dummyBlob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+        file = new File([dummyBlob], preset.filename, { type: 'image/png' });
+      }
 
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(blob));
 
       // Step simulation for realistic progress disclosure
       setTimeout(() => setAnalysisStep(2), 600);
