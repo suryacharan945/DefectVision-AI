@@ -1,0 +1,11 @@
+DefectVisionAI/
+*.pth
+*.pt
+*.npy
+*.tar.gz
+*.zip
+*.pdf
+*.pptx
+node_modules/
+.git/
+scripts/
