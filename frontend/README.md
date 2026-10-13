@@ -1,16 +1,32 @@
-# React + Vite
+# DefectVision AI — Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+[![Live on Vercel](https://img.shields.io/badge/Vercel-Live%20App-black?style=flat&logo=vercel)](https://defectvision-ai.vercel.app/)
 
-Currently, two official plugins are available:
+The interactive frontend for **DefectVision AI** built with React 19, Vite, Tailwind CSS, Three.js / React Three Fiber, Lucide Icons, and Framer Motion.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Live URL
+👉 [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/)
 
-## React Compiler
+## 🛠️ Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the Oxlint configuration
+# Start local development server (port 5173)
+npm run dev
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## ⚙️ Environment Variables
+
+Create `.env.local` if connecting to a remote backend:
+```env
+VITE_API_URL=https://your-backend-api.onrender.com
+```
+When unset, all API requests leverage the local Vite proxy forwarding to `http://127.0.0.1:8000`.

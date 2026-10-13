@@ -219,8 +219,23 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
             </div>
           </div>
 
-          <div className="text-[10px] font-mono text-slate-400 text-center">
-            DefectVision AI • Port 8000 / 5173
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 px-1 pt-0.5">
+            <a
+              href="https://defectvision-ai.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 font-semibold"
+            >
+              <span>Vercel Live ↗</span>
+            </a>
+            <a
+              href="https://github.com/suryacharan945/DefectVision-AI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-violet-400 transition-colors"
+            >
+              GitHub ↗
+            </a>
           </div>
         </div>
       </aside>

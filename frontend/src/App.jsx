@@ -160,10 +160,29 @@ export default function App() {
             </button>
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400 text-center md:text-right">
-            FastAPI Backend: <span className="text-emerald-400">127.0.0.1:8000</span>
-            <br />
-            React Frontend: <span className="text-cyan-400">127.0.0.1:5173</span>
+          <div className="text-[11px] font-mono text-slate-400 text-center md:text-right space-y-1">
+            <div>
+              Live URL:{' '}
+              <a
+                href="https://defectvision-ai.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2"
+              >
+                defectvision-ai.vercel.app ↗
+              </a>
+            </div>
+            <div>
+              GitHub:{' '}
+              <a
+                href="https://github.com/suryacharan945/DefectVision-AI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-400 hover:text-violet-300 hover:underline"
+              >
+                suryacharan945/DefectVision-AI ↗
+              </a>
+            </div>
           </div>
         </div>
       </footer>

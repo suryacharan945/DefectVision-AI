@@ -1,13 +1,25 @@
 # 🔬 DefectVision AI — Autonomous 3D Industrial Defect Inspection Platform
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+[![Live Demo on Vercel](https://img.shields.io/badge/Live%20Demo-defectvision--ai.vercel.app-success?style=for-the-badge&logo=vercel)](https://defectvision-ai.vercel.app/)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/suryacharan945/DefectVision-AI)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![React](https://img.shields.io/badge/react-19.2-cyan)
 ![TailwindCSS](https://img.shields.io/badge/tailwindcss-4.3-teal)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
 
+> 🚀 **Live Production Deployment**: [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/)
+
 **DefectVision AI** is a production-grade, full-stack industrial defect inspection platform powered by resident memory-bank anomaly detection (PatchCore), leak-free classification (EfficientNet-B0 v3), real-time optical video streaming, grounded RAG explanation assistance, and interactive 3D sensor core rendering across all 15 categories of the MVTec AD benchmark.
+
+---
+
+## 🌐 Live Access
+
+- **Production UI**: [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/)
+- **GitHub Repository**: [**https://github.com/suryacharan945/DefectVision-AI**](https://github.com/suryacharan945/DefectVision-AI)
+- **Local Dev Server**: `http://localhost:5173/`
+- **FastAPI Inference Engine**: `http://localhost:8000/`
 
 ---
 
@@ -61,21 +73,19 @@ DefectVision AI
 
 ## 🚀 Deployment to Vercel
 
-### Step 1: Import Repository in Vercel
-1. Go to [vercel.com](https://vercel.com/) and click **"Add New Project"**.
-2. Select your repository: **`suryacharan945/DefectVision-AI`**.
+The application is deployed on Vercel at [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/).
 
-### Step 2: Configure Project Settings
+### Build Configuration:
 - **Framework Preset**: `Vite`
-- **Root Directory**: Keep `./` (default) or select `frontend`
-- **Build Command**: `cd frontend && npm install && npm run build` (or leave default if Root Directory is `frontend`)
-- **Output Directory**: `frontend/dist` (or `dist` if Root Directory is `frontend`)
+- **Build Command**: `cd frontend && npm install && npm run build`
+- **Output Directory**: `frontend/dist`
+- **Routing**: SPA rewrites configured via [`vercel.json`](./vercel.json)
 
-### Step 3: (Optional) Environment Variables
-If your FastAPI backend is deployed on a cloud provider (Render, Railway, Fly.io, AWS EC2):
-- Add `VITE_API_URL`: `https://your-backend-api.onrender.com`
-
-Click **Deploy**! Vercel will build the frontend and serve your live application.
+### Backend Connection:
+To connect the live Vercel frontend with a remote FastAPI server (e.g., hosted on Render, Railway, Fly.io, or AWS EC2), set the environment variable in the Vercel project settings:
+```env
+VITE_API_URL=https://your-backend-api.onrender.com
+```
 
 ---
 
