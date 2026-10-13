@@ -54,7 +54,7 @@ export default function KnowledgeBaseRAGSection({ initialQuery = '' }) {
       setFilteredEntries(entries);
       return;
     }
-    const q = searchKb.toLowerCase();
+    const q = String(searchKb || '').toLowerCase();
     setFilteredEntries(
       entries.filter(
         (e) =>
@@ -275,7 +275,7 @@ export default function KnowledgeBaseRAGSection({ initialQuery = '' }) {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-heading font-bold text-sm text-cyan-300 capitalize group-hover:text-white transition-colors">
-                        {entry.defect_type.replace('_', ' ')}
+                        {String(entry.defect_type || '').replace(/_/g, ' ')}
                       </span>
                       <span className="text-[10px] font-mono text-slate-400 group-hover:text-cyan-400">
                         Ask Copilot →
