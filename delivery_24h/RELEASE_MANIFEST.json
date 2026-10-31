@@ -1,0 +1,80 @@
+{
+  "release_package": "DefectVision AI v1.0.0 Production Release Candidate",
+  "build_identifier": "DV-REL-20261031-PROD",
+  "release_date": "2026-10-31T20:45:00+05:30",
+  "git_commit": "42facb48fb6b12c8a733f721d3e501a5a2d485bf",
+  "verification_status": "VERIFIED_AND_CERTIFIED",
+  "primary_workflows_verified": [
+    "1. Single-Image Live Inspection (Inference, Heatmap, Provenance Drawer)",
+    "2. High-Throughput Batch Inspection (Queue, Polling, Severity Distribution, CSV/JSON Export)",
+    "3. Model Architecture & Provenance Metadata Inspection",
+    "4. Inspection History & Benchmark Browser (1,725 Specimen Query, Multi-Filter, Modal View, CSV Export)",
+    "5. Advanced Assisted Analysis (Drift Monitoring, Similarity Search, RAG Copilot, Webcam Stream)"
+  ],
+  "delivery_documentation": {
+    "PROJECT_STATE_AUDIT.md": {
+      "path": "delivery_24h/PROJECT_STATE_AUDIT.md",
+      "sha256": "E228932FA41C834DBE1AB7A9128EBC7BBC360756D32B904F384D8D0091B6462D"
+    },
+    "FINAL_STATUS.md": {
+      "path": "delivery_24h/FINAL_STATUS.md",
+      "sha256": "08C152D31FCDAF3910FB03D54430A1D4C4FB3498E02579ED2806811B1D621AD8"
+    },
+    "FEATURE_MATRIX.md": {
+      "path": "delivery_24h/FEATURE_MATRIX.md",
+      "sha256": "254830202B7ED7DED9343CF11FA497ABBC3EE120FB884ADA23B426DD07E8F073"
+    },
+    "TEST_RESULTS.md": {
+      "path": "delivery_24h/TEST_RESULTS.md",
+      "sha256": "6F99431BD40204A3D2397283E98F9A789C1F80E793B0BA6547979E7909BE62CA"
+    },
+    "DEMO_GUIDE.md": {
+      "path": "delivery_24h/DEMO_GUIDE.md",
+      "sha256": "9BD92A5B19D1784B452479857746E9E585A45481FD81CECB81724FCBB0B41BE5"
+    },
+    "KNOWN_LIMITATIONS.md": {
+      "path": "delivery_24h/KNOWN_LIMITATIONS.md",
+      "sha256": "6BA6B5EF2E4CDE26B64FB035595CC67B4FD95B3CB1DE71B1179FB232D5332DD6"
+    }
+  },
+  "research_suite": {
+    "EXPERIMENT_INTEGRITY_AUDIT.md": {
+      "path": "research/reports/EXPERIMENT_INTEGRITY_AUDIT.md",
+      "sha256": "6B676D6F2C6D2A0A2ABF2A5F4AEE4C76356CA1756CBF3C55DDD95B7DDCB542E5"
+    },
+    "Q1_RESEARCH_DIRECTION.md": {
+      "path": "research/Q1_RESEARCH_DIRECTION.md",
+      "sha256": "EB01E3913AD110F619CD1F3AC600F72D61B69F6B1886D63FD6756AA2C5D5088E"
+    },
+    "EXPERIMENT_MATRIX.md": {
+      "path": "research/EXPERIMENT_MATRIX.md",
+      "sha256": "6FB9010F4FC878EB559890B8EF1A9F00481152ABC0AD358A1EA0C8AA91AC5350"
+    },
+    "REPRODUCIBILITY_MANIFEST.json": {
+      "path": "research/REPRODUCIBILITY_MANIFEST.json",
+      "sha256": "49959ED393CC32315BE3BAB237FF4EF6FB6B727AB4BB3BA0052635992B41AB2B"
+    }
+  },
+  "frontend_build_artifacts": {
+    "build_tool": "Vite v8.3.0",
+    "bundle_duration_seconds": 2.42,
+    "modules_transformed": 2459,
+    "entrypoint": "frontend/dist/index.html",
+    "css_bundle": "frontend/dist/assets/index-BO1oc4j9.css",
+    "js_bundle": "frontend/dist/assets/index-DFDPHh7S.js"
+  },
+  "frozen_reference_benchmarks": {
+    "fair_held_out_856": {
+      "path": "DefectVisionAI/reports/step8_model_comparison_FAIR.csv",
+      "sha256": "34E3A286DF260B409DD7DFE81AEB1C7BA792D7C410992FF0CB8A6400D0F35ECC",
+      "efficientnet_b0_v3_auroc": 0.9732,
+      "patchcore_auroc": 0.9651,
+      "padim_auroc": 0.8911,
+      "autoencoder_auroc": 0.6872
+    },
+    "frozen_freeze_reference": {
+      "path": "experiments/visa_development_v2/reports/development_freeze_v1/v2_development_freeze.json",
+      "sha256": "e7b5b5e9f6d1b23759d9918d23db8699d8a09ec1e3822468d2c9346a250216bc"
+    }
+  }
+}

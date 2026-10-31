@@ -1,0 +1,150 @@
+{
+  "manifest_version": "1.0.0",
+  "project_name": "DefectVision AI",
+  "document_type": "Research Reproducibility Package Manifest",
+  "created_at": "2026-10-31T20:42:00+05:30",
+  "target_venue": "IEEE Transactions on Industrial Informatics (Q1)",
+  "reference_frozen_freeze": {
+    "path": "experiments/visa_development_v2/reports/development_freeze_v1/v2_development_freeze.json",
+    "sha256": "e7b5b5e9f6d1b23759d9918d23db8699d8a09ec1e3822468d2c9346a250216bc"
+  },
+  "primary_notebook": {
+    "filename": "DefectVisionAI (1).ipynb",
+    "sha256": "d670ee67540fd2a49122e7ed840ba9796c474d7a47e39c005306898b10237f78",
+    "total_cells": 43,
+    "total_steps": 19,
+    "corrective_patch_sequences": [
+      {
+        "patch_name": "Step 8 Fix v3 - Proper Held-Out Benchmark Split",
+        "cell_index": 11,
+        "purpose": "Eliminated supervised defect leakage from Step 3 by splitting test_split.csv into 869 dev and 856 held-out benchmark."
+      },
+      {
+        "patch_name": "Step 12 Drift Fix v3",
+        "cell_index": 17,
+        "purpose": "Replaced unstable histogram KL divergence with Gaussian symmetric KL divergence and sample-size regularization."
+      },
+      {
+        "patch_name": "Step 15 Explanation Drift Regularization",
+        "cell_index": 26,
+        "purpose": "Applied bounded regex extraction and deterministic severity caps to prevent hallucinated LLM explanations."
+      }
+    ]
+  },
+  "dataset_manifest": {
+    "primary_benchmark": {
+      "name": "MVTec Anomaly Detection (MVTec AD)",
+      "total_images": 5354,
+      "categories": [
+        "bottle", "cable", "capsule", "carpet", "grid",
+        "hazelnut", "leather", "metal_nut", "pill", "screw",
+        "tile", "toothbrush", "transistor", "wood", "zipper"
+      ],
+      "partitions": {
+        "train_nominal": {
+          "count": 3629,
+          "description": "Nominal (good) specimens exclusively. Used for memory bank generation, Gaussian fitting, and reconstruction."
+        },
+        "development_split": {
+          "count": 869,
+          "description": "Used for tuning supervised classifier v3, active learning simulations, and decision threshold calibration."
+        },
+        "held_out_benchmark": {
+          "count": 856,
+          "description": "Strictly quarantined held-out benchmark. Zero parameter tuning or threshold adjustments permitted."
+        }
+      }
+    },
+    "external_transfer_benchmark": {
+      "name": "Chukyo Automotive Stamping Dataset",
+      "status": "BLOCKED_PENDING_PROTOCOL_FREEZE",
+      "policy": "No model fine-tuning, parameter exposure, or threshold adjustment permitted."
+    }
+  },
+  "model_inventory": {
+    "efficientnet_b0_baseline_v1": {
+      "path": "DefectVisionAI/models/efficientnet_baseline.pth",
+      "sha256": "63F6ECECDDD1D1183597BF62D66FD835702D9A2597B7AFB3C159081D695CABFD",
+      "architecture": "EfficientNet-B0 (Binary Head)",
+      "classification": "Historical Test-Exposed (Step 3)"
+    },
+    "efficientnet_b0_v3_leak_free": {
+      "path": "DefectVisionAI/models/efficientnet_baseline_v3/",
+      "architecture": "EfficientNet-B0 (Binary Head)",
+      "classification": "Independent Held-Out Benchmark (Step 8 Fix v3)"
+    },
+    "padim_resnet18": {
+      "path": "DefectVisionAI/models/padim_model.npz",
+      "sha256": "1BFB58CA46E0B486BA3029164E44249697C4F0312A5D3066FC830AFF024FCC0C",
+      "architecture": "ResNet-18 (Layers 1, 2, 3 Embedding Concatenation)",
+      "classification": "Nominal-Only Unsupervised"
+    },
+    "autoencoder_conv": {
+      "path": "DefectVisionAI/models/autoencoder_best.pth",
+      "sha256": "9C668F197C37F1B6FC41BC165E1E2F2FA2381A33EADC0C57A4389C08939CD04C",
+      "architecture": "6-Layer Convolutional-Deconvolutional Autoencoder",
+      "classification": "Nominal-Only Unsupervised"
+    },
+    "patchcore_wideresnet50": {
+      "path": "DefectVisionAI/models/patchcore/",
+      "index_path": "DefectVisionAI/models/faiss_index/",
+      "architecture": "WideResNet-50-2 (Layers 2, 3 + 10% Greedy Coreset Subsampling)",
+      "classification": "Nominal-Only Unsupervised"
+    }
+  },
+  "canonical_evaluation_reports": {
+    "fair_held_out_benchmark": {
+      "path": "DefectVisionAI/reports/step8_model_comparison_FAIR.csv",
+      "sha256": "34E3A286DF260B409DD7DFE81AEB1C7BA792D7C410992FF0CB8A6400D0F35ECC",
+      "sample_count": 856,
+      "summary_metrics": {
+        "EfficientNet-B0_v3": {"auroc": 0.9732, "accuracy": 0.8692, "precision": 0.9981, "recall": 0.8224, "f1": 0.9018},
+        "PatchCore": {"auroc": 0.9651, "accuracy": 0.7383, "precision": 0.9740, "recall": 0.6592, "f1": 0.7863},
+        "PaDiM": {"auroc": 0.8911, "accuracy": 0.6916, "precision": 0.9267, "recall": 0.6272, "f1": 0.7481},
+        "Autoencoder": {"auroc": 0.6872, "accuracy": 0.5911, "precision": 0.8251, "recall": 0.5584, "f1": 0.6660}
+      }
+    },
+    "historical_superseded_benchmark": {
+      "path": "DefectVisionAI/reports/step8_model_comparison.csv",
+      "sha256": "07E634D438096CB866A32205731C2705DC8DAD04FDCD8A0C56DA7079C52F9138",
+      "status": "SUPERSEDED_HISTORICAL",
+      "notes": "Artificially high EfficientNet-B0 score (0.9996) caused by Step 3 test split exposure."
+    },
+    "severity_baselines": {
+      "path": "DefectVisionAI/reports/step9_severity_baselines.csv",
+      "sha256": "0F412846CDA0D98989D605B85F61F8C54354AA0D0B0709B38E8EA72651A0C12A"
+    },
+    "threshold_uncertainty_sensitivity": {
+      "path": "DefectVisionAI/reports/step11_threshold_sensitivity.csv",
+      "sha256": "5CF37A083C056994B6F9AC1A060D7B11ED8D4449D7EB4DCDBD15B67AEBCCA778"
+    }
+  },
+  "runtime_and_environment": {
+    "recommended_python": "3.10.x - 3.12.x",
+    "core_libraries": [
+      "torch>=2.0.0",
+      "torchvision>=0.15.0",
+      "timm>=0.9.2",
+      "faiss-cpu>=1.7.4",
+      "scikit-learn>=1.3.0",
+      "scipy>=1.11.0",
+      "numpy>=1.24.0",
+      "fastapi>=0.100.0",
+      "uvicorn>=0.22.0"
+    ],
+    "fixed_preprocessing": {
+      "resize": [256, 256],
+      "center_crop": [224, 224],
+      "interpolation": "bicubic",
+      "normalization_mean": [0.485, 0.456, 0.406],
+      "normalization_std": [0.229, 0.224, 0.225]
+    },
+    "reproducibility_seeds": [42, 101, 2024, 777, 999]
+  },
+  "statistical_validation_protocol": {
+    "confidence_interval_type": "Clustered Non-Parametric Bootstrap (BCa)",
+    "bootstrap_iterations": 10000,
+    "clustering_unit": "physical_specimen_id",
+    "hypothesis_testing": "Two-sided Wilcoxon signed-rank test across 15 categories (alpha=0.01)"
+  }
+}

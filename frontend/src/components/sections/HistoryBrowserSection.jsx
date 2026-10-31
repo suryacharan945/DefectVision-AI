@@ -10,7 +10,8 @@ import {
   Sparkles,
   Layers,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { CATEGORIES } from '../../utils/categories';
@@ -66,6 +67,30 @@ export default function HistoryBrowserSection({ onInspectSpecimen }) {
     );
   });
 
+  const handleExportCSV = () => {
+    if (!filteredRecords || filteredRecords.length === 0) return;
+    const headers = ['id', 'category', 'defect_type', 'severity_score', 'severity_level', 'defect_area_pct', 'confidence_pct', 'anomaly_norm', 'is_defective'];
+    const rows = filteredRecords.map((r) => [
+      `"${(r.id || '').replace(/"/g, '""')}"`,
+      `"${(r.category || '').replace(/"/g, '""')}"`,
+      `"${(r.defect_type || '').replace(/"/g, '""')}"`,
+      r.severity_score ?? '',
+      `"${(r.severity_level || '').replace(/"/g, '""')}"`,
+      r.defect_area_pct ?? '',
+      r.confidence_pct ?? '',
+      r.anomaly_norm ?? '',
+      r.is_defective ? 'true' : 'false'
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `inspection_history_${category || 'all'}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Section Header */}
@@ -85,9 +110,20 @@ export default function HistoryBrowserSection({ onInspectSpecimen }) {
           </p>
         </div>
 
-        <div className="text-right font-mono text-xs text-slate-400">
-          Showing <span className="text-white font-bold">{records.length}</span> of{' '}
-          <span className="text-cyan-300 font-bold">{totalRecords.toLocaleString()}</span> images
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition-colors shadow-sm"
+            title="Export filtered records to CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Export Filtered CSV</span>
+          </button>
+          <div className="text-right font-mono text-xs text-slate-400">
+            Showing <span className="text-white font-bold">{records.length}</span> of{' '}
+            <span className="text-cyan-300 font-bold">{totalRecords.toLocaleString()}</span> images
+          </div>
         </div>
       </div>
 

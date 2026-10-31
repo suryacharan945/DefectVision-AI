@@ -31,6 +31,7 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
   const [status, setStatus] = useState('idle');
   const [analysisStep, setAnalysisStep] = useState(0);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [showModelInfo, setShowModelInfo] = useState(false);
 
   // Results
   const [result, setResult] = useState(null);
@@ -214,6 +215,14 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
           <p className="text-sm text-slate-400 mt-1 max-w-2xl">
             Real-time visual anomaly localization with pixel-precision heatmaps and LLM-grounded operator explanations.
           </p>
+          <button
+            type="button"
+            onClick={() => setShowModelInfo(!showModelInfo)}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-xs font-mono text-cyan-300 transition-all cursor-pointer"
+          >
+            <Info className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{showModelInfo ? 'Hide Model & Provenance' : 'View Model Architecture & Provenance'}</span>
+          </button>
         </div>
 
         {/* Required Category Selection Constraint */}
@@ -260,6 +269,60 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
           </span>
         </div>
       </div>
+
+      {/* Model & Provenance Info Drawer */}
+      {showModelInfo && (
+        <div className="mb-8 p-5 rounded-2xl bg-slate-900/95 border border-cyan-500/40 backdrop-blur-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Model Architecture & Provenance Metadata</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowModelInfo(false)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80">
+              <span className="text-cyan-400 font-bold block mb-1">1. Active Model Pipeline</span>
+              <p className="text-slate-300 font-sans leading-relaxed">
+                <strong>PatchCore</strong> (WideResNet-50 Layer 2+3 mid-level patch features with 10% greedy coreset subsampling memory bank) + <strong>EfficientNet-B0 v3</strong> (leak-free supervised classifier).
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80">
+              <span className="text-violet-400 font-bold block mb-1">2. Preprocessing & Input</span>
+              <p className="text-slate-300 font-sans leading-relaxed">
+                PatchCore input: 224×224 resolution; EfficientNet input: 256×256 resolution. Standard ImageNet normalization (μ=[0.485, 0.456, 0.406], σ=[0.229, 0.224, 0.225]).
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80">
+              <span className="text-emerald-400 font-bold block mb-1">3. Decision Boundary</span>
+              <p className="text-slate-300 font-sans leading-relaxed">
+                Active Category: <code className="text-cyan-300 font-bold">{category}</code>. Threshold calibrated to 99th percentile of nominal training distribution.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs">
+            <span className="text-amber-400 font-bold block mb-1">4. Training Dataset & Evaluation Provenance</span>
+            <p className="text-slate-300 font-sans mb-2 leading-relaxed">
+              Trained exclusively on <strong>nominal/normal instances</strong> from the standard MVTec AD training partition (zero defective images exposed during memory bank creation). Evaluated on canonical 856-specimen held-out benchmark test set (<code className="text-violet-300 font-mono">reports/step8_model_comparison_FAIR.csv</code>).
+            </p>
+            <div className="flex flex-wrap gap-3 text-[11px] font-mono text-slate-400 border-t border-slate-800/60 pt-2.5">
+              <span>⚠️ <strong>Anomaly scores:</strong> Euclidean nearest-neighbor distances (not calibrated probabilities).</span>
+              <span>⚠️ <strong>Severity score:</strong> Heuristic operational risk index (0–100).</span>
+              <span>⚠️ <strong>LLM Explanations:</strong> Assistive guidance protocols (not certified physical root causes).</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 1-Click Preset Specimen Bar */}
       <div className="mb-8 p-4 rounded-xl bg-slate-950/70 border border-slate-800/90 backdrop-blur-md">

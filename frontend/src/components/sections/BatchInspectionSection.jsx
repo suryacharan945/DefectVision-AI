@@ -9,7 +9,8 @@ import {
   FileCheck,
   BarChart3,
   ListOrdered,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { CATEGORIES } from '../../utils/categories';
@@ -110,6 +111,38 @@ export default function BatchInspectionSection() {
         console.error('Polling error:', err);
       }
     }, 1500);
+  };
+
+  const handleDownloadBatchCSV = () => {
+    if (!activeReport?.results || activeReport.results.length === 0) return;
+    const headers = ['filename', 'category', 'predicted_label', 'severity_level', 'severity_score', 'confidence_pct'];
+    const rows = activeReport.results.map((r, i) => [
+      `"${(r.filename || `Image_${i + 1}`).replace(/"/g, '""')}"`,
+      r.category || '',
+      r.predicted_label || '',
+      r.severity_level || '',
+      r.severity_score ?? '',
+      r.confidence_pct ?? ''
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `batch_${activeReport.batch_id || 'report'}_results.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadBatchJSON = () => {
+    if (!activeReport) return;
+    const jsonStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(activeReport, null, 2));
+    const link = document.createElement('a');
+    link.setAttribute('href', jsonStr);
+    link.setAttribute('download', `batch_${activeReport.batch_id || 'report'}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -249,12 +282,32 @@ export default function BatchInspectionSection() {
               
               {/* Batch Summary Metrics */}
               <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
                   <div>
                     <div className="text-[10px] font-mono uppercase text-slate-400">Batch Inspection Summary</div>
                     <h3 className="text-lg font-bold text-white font-mono">{activeReport.batch_id}</h3>
                   </div>
-                  <span className="text-xs font-mono text-cyan-400">{activeReport.timestamp}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-cyan-400 mr-2">{activeReport.timestamp}</span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBatchCSV}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                      title="Download Batch Results as CSV"
+                    >
+                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBatchJSON}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                      title="Download Batch Results as JSON"
+                    >
+                      <Download className="w-3.5 h-3.5 text-violet-400" />
+                      <span>JSON</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
