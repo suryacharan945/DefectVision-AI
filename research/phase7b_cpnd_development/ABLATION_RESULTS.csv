@@ -1,0 +1,12 @@
+Ablation_Experiment,Reviewed_K,Captured_Errors,Captured_FN,Captured_FP,ECR_at_10pct,ECR_95CI,DER_at_10pct,DER_95CI,Review_Yield
+Ablation A: Distance-to-Threshold Only,33,18,15,3,29.03,"[18.8%, 37.4%]",25.42,"[15.2%, 33.9%]",75.76
+"Ablation B: PND Only (k=5, argmax)",33,15,14,1,24.19,"[17.6%, 33.6%]",23.73,"[16.9%, 33.6%]",63.64
+Ablation C: Joint Distance + PND (alpha=0.5),33,7,5,2,11.29,"[4.8%, 19.3%]",8.47,"[2.0%, 15.5%]",30.3
+"Ablation D1: PND Only (k=3, argmax)",33,15,14,1,24.19,"[16.7%, 32.8%]",23.73,"[16.0%, 33.3%]",69.7
+"Ablation D2: PND Only (k=10, argmax)",33,15,14,1,24.19,"[17.8%, 35.0%]",23.73,"[15.4%, 34.8%]",48.48
+"Ablation D3: PND Only (k=20, argmax)",33,15,14,1,24.19,"[16.0%, 33.1%]",23.73,"[15.0%, 32.7%]",42.42
+Ablation E1: PND Aggregation: Argmax Patch,33,15,14,1,24.19,"[17.6%, 33.6%]",23.73,"[16.9%, 33.6%]",63.64
+Ablation E2: PND Aggregation: Max Patch,33,0,0,0,0.0,"[0.0%, 0.0%]",0.0,"[0.0%, 0.0%]",84.85
+Ablation E3: PND Aggregation: Mean Top-5%,33,1,0,1,1.61,"[0.0%, 5.4%]",0.0,"[0.0%, 0.0%]",69.7
+Ablation F1: Raw PND (k=5),33,15,14,1,24.19,"[17.6%, 33.6%]",23.73,"[16.9%, 33.6%]",63.64
+Ablation F2: Development Calibrated PND,33,10,9,1,16.13,"[9.0%, 25.8%]",15.25,"[8.2%, 25.0%]",48.48

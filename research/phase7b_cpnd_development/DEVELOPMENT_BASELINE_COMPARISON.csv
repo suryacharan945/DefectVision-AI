@@ -1,0 +1,7 @@
+Policy,Budget,Reviewed_K,Total_Errors,Captured_Errors,Captured_FN,Captured_FP,ECR,ECR_CI_Low,ECR_CI_High,DER,DER_CI_Low,DER_CI_High,Review_Yield
+Random Review (BL0),0.1,33,62,5,5,0,8.06,1.83,17.0,8.47,1.92,17.88,81.82
+Top Anomaly Score (BL1),0.1,33,62,0,0,0,0.0,0.0,0.0,0.0,0.0,0.0,100.0
+Distance to Threshold (BL2),0.1,33,62,18,15,3,29.03,18.85,37.41,25.42,15.23,33.87,75.76
+Patch Dispersion Only (CPND-Raw),0.1,33,62,15,14,1,24.19,17.65,33.63,23.73,16.94,33.65,63.64
+Patch Dispersion (CPND-Calibrated),0.1,33,62,10,9,1,16.13,9.02,25.82,15.25,8.24,25.0,48.48
+Joint Boundary + CPND (Proposed),0.1,33,62,7,5,2,11.29,4.84,19.27,8.47,1.96,15.52,30.3

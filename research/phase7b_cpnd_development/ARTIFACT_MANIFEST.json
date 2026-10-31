@@ -1,0 +1,71 @@
+{
+  "phase": "Phase 7B - CPND Implementation and Development-Only Experiments",
+  "protocol_reference": "research/protocols/Q1_EXPERIMENT_PROTOCOL_V2.json",
+  "protocol_sha256": "effd05679ceb637073b6e7081633f2f51ebf2deaece0010041d33b8b07d19ab1",
+  "generated_at": "2026-10-31T23:07:00Z",
+  "artifacts": [
+    {
+      "file": "IMPLEMENTATION_REPORT.md",
+      "path": "research/phase7b_cpnd_development/IMPLEMENTATION_REPORT.md",
+      "sha256": "915c84e246ece1ec52ab84af1772d2aa68db6f0ad00f7c60642fbf2363927b20",
+      "size_bytes": 8097,
+      "description": "Comprehensive mathematical and architectural specification of CPND"
+    },
+    {
+      "file": "UNIT_TEST_RESULTS.md",
+      "path": "research/phase7b_cpnd_development/UNIT_TEST_RESULTS.md",
+      "sha256": "2b5798e45e372167c4c95b4c97b2baa55aa27f4c987635fe57026046b76f433f",
+      "size_bytes": 3658,
+      "description": "Verification ledger of the 12 standalone unit and integration tests"
+    },
+    {
+      "file": "DEVELOPMENT_BASELINE_COMPARISON.csv",
+      "path": "research/phase7b_cpnd_development/DEVELOPMENT_BASELINE_COMPARISON.csv",
+      "sha256": "4b6cd85c084cd611eaa0a9af794af86f5f738686d7c244b0be5e5d1ab87ecb48",
+      "size_bytes": 654,
+      "description": "Selective review baseline comparison at 10% budget on development partition"
+    },
+    {
+      "file": "REVIEW_BUDGET_RESULTS.csv",
+      "path": "research/phase7b_cpnd_development/REVIEW_BUDGET_RESULTS.csv",
+      "sha256": "91ab392932d008700a6fc6e9c2f92208382466fba434bb1f033ef92c717b1005",
+      "size_bytes": 3142,
+      "description": "Multi-budget selective review performance across 1%, 2%, 5%, 10%, 15%, 20%"
+    },
+    {
+      "file": "ABLATION_RESULTS.csv",
+      "path": "research/phase7b_cpnd_development/ABLATION_RESULTS.csv",
+      "sha256": "3943593c1050e6f7dc736040f22c5f96879788ba904e412268a2c091b370004d",
+      "size_bytes": 1232,
+      "description": "Ablation study across distance, PND, k values, aggregation modes, and calibration"
+    },
+    {
+      "file": "ERROR_ANALYSIS.md",
+      "path": "research/phase7b_cpnd_development/ERROR_ANALYSIS.md",
+      "sha256": "a359090c0e3cfecb62effa30cbc6a138ce68d0580b1edd0c79245046652bc344",
+      "size_bytes": 8660,
+      "description": "Detailed empirical and theoretical error analysis of CPND vs Baselines"
+    },
+    {
+      "file": "COMPUTE_PROFILE.md",
+      "path": "research/phase7b_cpnd_development/COMPUTE_PROFILE.md",
+      "sha256": "dc1fee3c00978d9655ddf3239cc667b78e20dbeec9c9dcc8c1c459430bce2baf",
+      "size_bytes": 5263,
+      "description": "Latency, memory footprint, throughput, and scalability profiling of CPND"
+    },
+    {
+      "file": "RESEARCH_VIABILITY_DECISION.md",
+      "path": "research/phase7b_cpnd_development/RESEARCH_VIABILITY_DECISION.md",
+      "sha256": "87d54f5f4ddb46d5c155e2fcad22750d23a99c2a1b76973fd31da04ee937945f",
+      "size_bytes": 5794,
+      "description": "Executive Q1-readiness viability evaluation recommending REVISE METHOD"
+    },
+    {
+      "file": "ARTIFACT_MANIFEST.json",
+      "path": "research/phase7b_cpnd_development/ARTIFACT_MANIFEST.json",
+      "sha256": "f2a6efe82e5f0c5c069f0a7211cd6d33fa10dcd21e7e90b0fb0f124e6965f4a7",
+      "size_bytes": 3060,
+      "description": "Cryptographic checksum ledger of all Phase 7B artifacts"
+    }
+  ]
+}
