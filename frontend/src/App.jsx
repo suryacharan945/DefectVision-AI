@@ -17,25 +17,32 @@ import { ShieldAlert, Info, Cpu, ExternalLink } from 'lucide-react';
 export default function App() {
   const [activeTab, setActiveTab] = useState('inspect');
   const [backendHealth, setBackendHealth] = useState(null);
+  const [demoMode, setDemoMode] = useState(api.isDemoMode());
   const [similarityCategory, setSimilarityCategory] = useState('bottle');
   const [ragInitialQuery, setRagInitialQuery] = useState('');
 
+  const checkServer = async () => {
+    try {
+      const health = await api.checkHealth();
+      setBackendHealth(health);
+    } catch (err) {
+      console.warn('Backend server check failed:', err);
+      setBackendHealth({ status: 'offline', mode: 'unavailable', is_live: false });
+    }
+  };
+
   // Check backend health periodically
   useEffect(() => {
-    async function checkServer() {
-      try {
-        const health = await api.checkHealth();
-        setBackendHealth(health);
-      } catch (err) {
-        console.warn('Backend server check failed:', err);
-        setBackendHealth({ status: 'offline' });
-      }
-    }
-
     checkServer();
     const timer = setInterval(checkServer, 10000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleToggleDemoMode = (enabled) => {
+    api.setDemoMode(enabled);
+    setDemoMode(enabled);
+    checkServer();
+  };
 
   // Contextual transitions from Inspect flow
   const handleNavigateToSimilarity = (category) => {
@@ -66,6 +73,68 @@ export default function App() {
 
       {/* Main Content Area offset by Sidebar on desktop */}
       <div className="flex-1 flex flex-col md:pl-64 min-w-0">
+        {/* Top Operating Mode Banner */}
+        <div className="w-full border-b border-slate-800/80 px-4 py-2.5 flex items-center justify-between text-xs font-mono transition-colors duration-300 bg-slate-950/70">
+          {backendHealth?.status === 'ready' ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className="font-semibold tracking-wide">LIVE INFERENCE ACTIVE</span>
+                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + FAISS Memory Bank (Port 8000)</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">15 Categories Ready</span>
+            </div>
+          ) : demoMode ? (
+            <div className="flex items-center justify-between w-full bg-amber-500/10 -mx-4 -my-2.5 px-4 py-2.5 border-b border-amber-500/30">
+              <div className="flex items-center gap-2 text-amber-300">
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <span className="font-semibold tracking-wide">DEMO MODE ACTIVE</span>
+                <span className="text-amber-200/70 font-normal hidden sm:inline">| Synthetic simulation only. Real ML inference disabled.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => checkServer()}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                >
+                  Retry Live Backend
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleDemoMode(false)}
+                  className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px]"
+                >
+                  Exit Demo
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full bg-rose-500/10 -mx-4 -my-2.5 px-4 py-2.5 border-b border-rose-500/30">
+              <div className="flex items-center gap-2 text-rose-300">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                <span className="font-semibold tracking-wide">BACKEND UNAVAILABLE</span>
+                <span className="text-rose-200/70 font-normal hidden sm:inline">| Local daemon offline. Real model execution blocked.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => checkServer()}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                >
+                  Check 127.0.0.1:8000
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleDemoMode(true)}
+                  className="px-2 py-0.5 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[10px] font-semibold"
+                >
+                  Enter Demo Mode
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <main className="flex-1">
         {activeTab === 'inspect' && (
           <>
@@ -83,6 +152,10 @@ export default function App() {
               <InspectSection
                 onNavigateToSimilarity={handleNavigateToSimilarity}
                 onNavigateToRAG={handleNavigateToRAG}
+                backendHealth={backendHealth}
+                demoMode={demoMode}
+                onToggleDemoMode={handleToggleDemoMode}
+                onRetryConnection={checkServer}
               />
             </div>
           </>

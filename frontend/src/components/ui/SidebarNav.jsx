@@ -200,11 +200,27 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
                 className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   isOnline
                     ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : backendHealth?.mode === 'demo'
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                     : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
-                <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isOnline
+                      ? 'bg-emerald-400 animate-ping'
+                      : backendHealth?.mode === 'demo'
+                      ? 'bg-amber-400'
+                      : 'bg-rose-400'
+                  }`}
+                />
+                <span>
+                  {isOnline
+                    ? 'ONLINE (LIVE ML)'
+                    : backendHealth?.mode === 'demo'
+                    ? 'DEMO MODE'
+                    : 'OFFLINE'}
+                </span>
               </span>
             </div>
 

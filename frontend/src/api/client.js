@@ -17,6 +17,17 @@ import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// Explicit Demo Mode State Management
+let _demoModeEnabled = false;
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('defectvision_demo_mode');
+    if (saved === 'true') _demoModeEnabled = true;
+  } catch (e) {
+    // ignore localStorage errors
+  }
+}
+
 class ApiError extends Error {
   constructor(message, status, detail) {
     super(message);
@@ -83,19 +94,56 @@ const simulatedBatches = {};
 
 export const api = {
   /**
+   * Check whether user has explicitly engaged demo mode
+   */
+  isDemoMode() {
+    return _demoModeEnabled;
+  },
+
+  /**
+   * Toggle explicit demo mode
+   */
+  setDemoMode(enabled) {
+    _demoModeEnabled = Boolean(enabled);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('defectvision_demo_mode', _demoModeEnabled ? 'true' : 'false');
+      } catch (e) {
+        // ignore
+      }
+    }
+  },
+
+  /**
+   * Get current operational mode label
+   */
+  getInferenceMode() {
+    return _demoModeEnabled ? 'DEMO' : 'LIVE';
+  },
+
+  /**
    * Check backend health, active device, and category readiness
    */
   async checkHealth() {
     try {
-      return await request('/api/');
+      const res = await request('/api/');
+      return {
+        ...res,
+        status: 'ready',
+        mode: 'live',
+        is_live: true,
+        device: res.device || 'Local Host (CPU/CUDA)'
+      };
     } catch (err) {
       return {
-        status: 'ready',
-        mode: 'edge-cloud',
-        device: 'Cloud Edge (Vercel)',
+        status: 'offline',
+        mode: _demoModeEnabled ? 'demo' : 'unavailable',
+        is_live: false,
+        device: 'Offline',
         version: '3.0.0',
         categories_count: 15,
-        llm_loaded: true
+        llm_loaded: false,
+        error: 'Backend offline: connection refused at 127.0.0.1:8000'
       };
     }
   },
@@ -122,13 +170,27 @@ export const api = {
       formData.append('file', file);
       formData.append('category', category);
 
-      return await request('/predict', {
+      const res = await request('/predict', {
         method: 'POST',
         body: formData,
       });
+
+      return {
+        ...res,
+        is_demo: false,
+        inference_mode: 'LIVE (Verified PyTorch + FAISS)'
+      };
     } catch (err) {
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Backend Unavailable',
+          503,
+          'Real inference cannot be performed because the backend server is unreachable. Please start the local backend (uvicorn app:app --port 8000) or toggle Demo Mode.'
+        );
+      }
+
       const cat = String(category || 'bottle').toLowerCase();
-      console.info(`[DefectVision Edge] Running in-memory inference fallback for: ${cat}`);
+      console.warn(`[DefectVision Demo] Serving client-side demonstration result for category: ${cat}`);
       
       const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
       const defectType = defaultDefectTypes[cat] || 'Surface Anomaly';
@@ -154,7 +216,10 @@ export const api = {
         heatmap: sampleImgUrl,
         original_image: file ? URL.createObjectURL(file) : sampleImgUrl,
         raw_heatmap: sampleImgUrl,
-        edge_inference: true
+        edge_inference: true,
+        is_demo: true,
+        inference_mode: 'DEMO MODE (Synthetic Simulation — Not Genuine ML)',
+        warning: 'DEMONSTRATION ONLY: Synthetic simulation generated client-side. Backend model offline.'
       };
     }
   },
@@ -582,6 +647,13 @@ export const api = {
         body: formData,
       });
     } catch (err) {
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Backend Unavailable',
+          503,
+          'Real camera optical stream inspection cannot be performed: local backend is offline.'
+        );
+      }
       const cat = String(category || 'bottle').toLowerCase();
       const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
       return {
@@ -591,7 +663,9 @@ export const api = {
         anomaly_score: 0.835,
         confidence_pct: 99.2,
         processing_time_ms: 41.2,
-        heatmap_base64: sampleImgUrl
+        heatmap_base64: sampleImgUrl,
+        is_demo: true,
+        inference_mode: 'DEMO MODE (Stream Simulation)'
       };
     }
   },

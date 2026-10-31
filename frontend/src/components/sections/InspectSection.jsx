@@ -20,7 +20,15 @@ import MetricCard from '../ui/MetricCard';
 import HeatmapSlider from '../ui/HeatmapSlider';
 import Tooltip from '../ui/Tooltip';
 
-export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG }) {
+export default function InspectSection({
+  onNavigateToSimilarity,
+  onNavigateToRAG,
+  backendHealth,
+  demoMode,
+  onToggleDemoMode,
+  onRetryConnection,
+}) {
+  const isBackendReady = backendHealth?.status === 'ready';
   const [category, setCategory] = useState('bottle');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -436,14 +444,47 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
             </div>
           )}
 
+          {/* Backend Unavailable Notice */}
+          {!isBackendReady && !demoMode && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex flex-col gap-2">
+              <div className="flex items-center gap-2 font-semibold text-rose-300">
+                <AlertOctagon className="w-4 h-4 text-rose-400" />
+                <span>Real Model Execution Offline</span>
+              </div>
+              <p className="text-slate-300 leading-relaxed">
+                The local Python backend daemon (FastAPI on port 8000) is unreachable. Genuine neural network inference cannot be performed.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={onRetryConnection}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium border border-slate-700"
+                >
+                  Retry Connection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleDemoMode(true)}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-medium border border-amber-500/40"
+                >
+                  Enable Demo Mode (Synthetic)
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               type="button"
-              disabled={!selectedFile || status === 'analyzing'}
+              disabled={!selectedFile || status === 'analyzing' || (!isBackendReady && !demoMode)}
               onClick={handleRunInspection}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all shadow-lg ${
                 status === 'analyzing'
                   ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700'
+                  : (!isBackendReady && !demoMode)
+                  ? 'bg-slate-850 text-slate-500 cursor-not-allowed border border-slate-800'
+                  : demoMode && !isBackendReady
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.35)] active:scale-[0.98]'
                   : 'bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.35)] active:scale-[0.98]'
               }`}
             >
@@ -451,6 +492,16 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
                   <span>Processing Inference...</span>
+                </>
+              ) : (!isBackendReady && !demoMode) ? (
+                <>
+                  <AlertOctagon className="w-4 h-4 text-slate-500" />
+                  <span>Inference Disabled (Backend Offline)</span>
+                </>
+              ) : demoMode && !isBackendReady ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-black" />
+                  <span>Run Demo Inspection (Synthetic)</span>
                 </>
               ) : (
                 <>
@@ -504,6 +555,37 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
           {result ? (
             <div className="flex flex-col gap-6 animate-in fade-in duration-500">
               
+              {/* Provenance & Inference Mode Indicator */}
+              {result.is_demo ? (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-mono font-bold text-[10px] shrink-0">
+                      DEMO MODE
+                    </span>
+                    <span className="font-medium">
+                      Synthetic client-side simulation. NOT genuine neural network predictions.
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-amber-400/80 shrink-0">
+                    Backend Server Offline
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-mono font-bold text-[10px] shrink-0">
+                      LIVE INFERENCE
+                    </span>
+                    <span className="font-medium">
+                      Verified EfficientNet-B0 v3 + PatchCore Execution (Score: {Number(result.anomaly_score).toFixed(4)} | Thresh: {result.optimal_threshold})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-300 shrink-0">
+                    Verified PyTorch CPU
+                  </span>
+                </div>
+              )}
+
               {/* Verdict Header Banner */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/80 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
                 <div>

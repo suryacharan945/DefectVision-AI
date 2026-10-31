@@ -192,9 +192,15 @@ def inspect_single_image(filepath, category):
         prob_defective = F.softmax(output, dim=1)[0, 1].item()
     confidence_pct = prob_defective * 100
 
+    optimal_thresh = float(round(baseline["baseline_p99"], 4))
+    patchcore_defective = bool(raw_score > optimal_thresh)
+    effnet_defective = bool(prob_defective >= 0.5)
+    
+    # Joint decision: flag as defective if either unsupervised PatchCore or supervised EfficientNet triggers
+    predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
+
     severity_score = compute_severity_score(anomaly_norm, defect_area_pct, confidence_pct)
     severity_level = bucket_severity(severity_score)
-    predicted_label = "defective" if prob_defective >= 0.5 else "normal"
 
     # Identify nearest historical defect from FAISS gallery
     defect_type = "anomaly"
@@ -222,6 +228,8 @@ def inspect_single_image(filepath, category):
         "defect_type": defect_type,
         "confidence_pct": float(round(confidence_pct, 2)),
         "raw_patchcore_score": float(round(raw_score, 6)),
+        "anomaly_score": float(round(raw_score, 6)),
+        "optimal_threshold": optimal_thresh,
         "anomaly_norm_0_100": float(round(anomaly_norm, 2)),
         "defect_area_pct": float(round(defect_area_pct, 2)),
         "severity_score": float(round(severity_score, 2)),
@@ -264,9 +272,12 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
     confidence_pct = float(round(prob_defective * 100, 2))
 
     # 3. Severity scoring & nearest FAISS match
+    optimal_thresh = float(round(baseline["baseline_p99"], 4))
+    patchcore_defective = bool(raw_score > optimal_thresh)
+    effnet_defective = bool(prob_defective >= 0.5)
+    predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
     severity_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, confidence_pct), 2))
     severity_level = bucket_severity(severity_score)
-    predicted_label = "defective" if prob_defective >= 0.5 else "normal"
 
     defect_type = "anomaly"
     nearest_matches = []
@@ -308,6 +319,7 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
         "severity_level": severity_level,
         "severity_score": severity_score,
         "anomaly_score": float(round(raw_score, 4)),
+        "optimal_threshold": optimal_thresh,
         "anomaly_norm": float(round(anomaly_norm, 2)),
         "confidence_pct": confidence_pct,
         "defect_area_pct": float(round(defect_area_pct, 2)),

@@ -1,0 +1,16 @@
+{
+  "budgets_evaluated": [
+    0.01,
+    0.05,
+    0.1,
+    0.2
+  ],
+  "n_samples": 1725,
+  "ci_margin_ecr_10pct": {
+    "mean": 89.92023371204522,
+    "ci_lower": 78.7862669245648,
+    "ci_upper": 97.82835144927536,
+    "ci_level": 0.95
+  },
+  "status": "EXPERIMENT_BASELINES_VERIFIED"
+}

@@ -1,0 +1,51 @@
+{
+  "experiment_name": "q1_selective_review_baselines",
+  "version": "1.0.0",
+  "description": "Standardized evaluation package for selective human review and uncertainty estimation in industrial anomaly detection",
+  "data": {
+    "test_set_path": "DefectVisionAI/logs/step8_efficientnet_on_common_testset.csv",
+    "patchcore_log_path": "DefectVisionAI/logs/step7_patchcore_inference_log.csv",
+    "baselines_path": "DefectVisionAI/reports/step9_severity_baselines.csv",
+    "historical_exposure_warning": "Evaluated on historically exposed 1,725 MVTec AD test split. Must be replicated on independent VisA / BTAD datasets prior to journal submission."
+  },
+  "review_budgets": [0.01, 0.05, 0.10, 0.20],
+  "candidate_policies": [
+    {
+      "id": "random",
+      "name": "Uniform Random Selection",
+      "type": "baseline",
+      "description": "Uniformly samples images up to review budget B"
+    },
+    {
+      "id": "top_score",
+      "name": "Highest Anomaly Score",
+      "type": "heuristic",
+      "description": "Ranks images by raw anomaly score descending (favors severe obvious defects)"
+    },
+    {
+      "id": "margin_sampling",
+      "name": "Supervised Prediction Margin",
+      "type": "uncertainty",
+      "description": "Ranks images by closeness to 0.5 classification threshold: u = 1 - |2p - 1|"
+    },
+    {
+      "id": "distance_to_threshold",
+      "name": "PatchCore Distance to Category Threshold",
+      "type": "uncertainty",
+      "description": "Ranks images by inverted absolute distance to category p99 threshold: 1 / (|score - tau_c| + eps)"
+    },
+    {
+      "id": "cpnd_dispersion",
+      "name": "Calibrated Patch-Neighborhood Dispersion (CPND)",
+      "type": "proposed_future",
+      "status": "UNIMPLEMENTED",
+      "description": "Theoretical metric based on k-NN distance dispersion in PatchCore FAISS memory bank. Requires implementation and ablation against simpler baselines."
+    }
+  ],
+  "statistical_evaluation": {
+    "n_bootstrap": 1000,
+    "confidence_level": 0.95,
+    "sampling_unit": "image",
+    "sampling_unit_rationale": "Resampling at the image level preserves independent Bernoulli trials per inspection while computing standard error of error capture rate across industrial production batches."
+  }
+}
