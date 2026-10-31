@@ -1,0 +1,153 @@
+{
+  "protocol_id": "Q1-EXP-PROTOCOL-V1",
+  "title": "Pre-Registered Experimental Protocol for Conformal Selective Anomaly Detection in Industrial Visual Quality Control",
+  "version": "1.0.0",
+  "registration_date": "2026-10-31",
+  "status": "PRE_REGISTERED_FROZEN",
+  "target_journals": [
+    "IEEE Transactions on Industrial Informatics (T-II)",
+    "Pattern Recognition (PR)",
+    "IEEE Transactions on Pattern Analysis and Machine Intelligence (T-PAMI)"
+  ],
+  "hypothesis": {
+    "primary_statement": "In one-class industrial visual anomaly detection operating under bounded human review budgets (B <= 10%), selective review prioritization driven by calibrated memory-bank boundary proximity—and its local patch dispersion extension—achieves statistically superior defect-escape reduction compared to score-based triaging, while enabling distribution-free finite-sample defect escape guarantees via split conformal prediction.",
+    "novelty_barrier": "Candidate patch dispersion metrics (CPND) must demonstrate statistically significant improvement (p < 0.05) over the simple distance-to-threshold baseline (21.62% ECR) to justify publication claims."
+  },
+  "datasets": {
+    "development_and_calibration": {
+      "name": "MVTec Anomaly Detection (MVTec AD)",
+      "categories_count": 15,
+      "calibration_split": "Nominal Validation Set (N = 419 normal images, zero defectives)",
+      "qualification": "Development-exposed historical baseline; excluded from primary unexposed generalization claims."
+    },
+    "primary_unexposed_benchmark": {
+      "name": "VisA (Visual Anomaly Dataset — Zou et al., ECCV 2022)",
+      "categories_count": 12,
+      "total_images": 10821,
+      "defective_images": 1200,
+      "normal_images": 9621,
+      "license": "CC BY 4.0",
+      "exposure_status": "UNTOUCHED (0 prior executions in DefectVision AI)"
+    },
+    "secondary_industrial_benchmark": {
+      "name": "BTAD (BeanTech Anomaly Detection — Mishra et al., IEEE T-II 2021)",
+      "categories_count": 3,
+      "total_images": 2830,
+      "defective_images": 290,
+      "normal_images": 2540,
+      "exposure_status": "UNTOUCHED (0 prior executions in DefectVision AI)"
+    },
+    "quarantined_datasets": {
+      "name": "Chukyo Real-World Dataset",
+      "status": "BLOCKED (Quarantined in cold storage due to 14 identical frame captures)"
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "name": "Error Capture Rate (ECR@B)",
+        "formula": "Errors_captured_in_review / Total_base_classification_errors",
+        "budgets": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+        "denominator": "Strictly defined as total baseline classification errors (E0 = FN0 + FP0)"
+      },
+      {
+        "name": "Selective Defect Escape Rate (DER@B)",
+        "formula": "Uncaptured_False_Negatives_after_review / Total_True_Defectives",
+        "target": "Monotonically decreasing to <= 1.0% under B = 10%"
+      }
+    ],
+    "secondary": [
+      {
+        "name": "Area Under Risk-Coverage Curve (AURC)",
+        "reference": "Geifman & El-Yaniv, NeurIPS 2017",
+        "coverage_range": [0.80, 1.00]
+      },
+      {
+        "name": "Review Defect Yield (DY@B)",
+        "formula": "True_Defects_Recovered / Total_Images_Reviewed"
+      },
+      {
+        "name": "False Alarm Retention Rate (FARR@B)",
+        "formula": "Captured_False_Positives / Total_Base_False_Positives"
+      },
+      {
+        "name": "Macro-Averaged Category AUROC",
+        "formula": "(1 / C) * sum_{c=1}^C AUROC_c"
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "id": "BL0",
+      "name": "Uniform Random Selection",
+      "type": "Monte Carlo",
+      "procedure": "Samples k = floor(B * N) images uniformly without replacement; 1,000 resamples"
+    },
+    {
+      "id": "BL1",
+      "name": "Highest Anomaly Score",
+      "type": "Heuristic",
+      "procedure": "Ranks images by raw anomaly score S(X) descending (empirically confirmed failure mode)"
+    },
+    {
+      "id": "BL2",
+      "name": "Conformal Distance to Threshold (Boundary Proximity)",
+      "type": "Unsupervised Proximity",
+      "formula": "1.0 / (|S(X) - tau_c| + 1e-5)",
+      "procedure": "Prioritizes samples closest to the calibrated category decision threshold tau_c"
+    },
+    {
+      "id": "BL3",
+      "name": "Supervised Prediction Margin",
+      "type": "Supervised Uncertainty",
+      "formula": "1.0 - |2.0 * p(X) - 1.0|",
+      "procedure": "Upper-bound oracle baseline using supervised classifier probabilities"
+    },
+    {
+      "id": "PROPOSED",
+      "name": "Calibrated Patch-Neighborhood Dispersion (CPND)",
+      "type": "Local Manifold Geometry",
+      "formula": "std_k(distances) / mean_k(distances) for top-K FAISS neighbors",
+      "procedure": "Evaluated against BL2 to determine incremental value beyond scalar boundary proximity"
+    }
+  ],
+  "fixed_review_budgets": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+  "calibration_strategy": {
+    "method": "Split Conformal Prediction (Inductive Conformal Risk Control)",
+    "reference": "Angelopoulos et al., 2021",
+    "calibration_split": "Nominal normal validation samples exclusively",
+    "guarantee": "Finite-sample, distribution-free bound on defect escape rate under exchangeability: P(Escape > alpha) <= delta"
+  },
+  "hyperparameter_search_space": {
+    "neighbor_k": [3, 5, 10, 20, 50],
+    "memory_bank_coreset_ratio": [0.01, 0.05, 0.10, 0.20],
+    "backbone_features": [
+      "WideResNet-50 (Layers 2+3)",
+      "ResNet-50 (Layers 2+3)",
+      "EfficientNet-B0 (Blocks 3+4)"
+    ]
+  },
+  "validation_procedure": {
+    "split_policy": "5-fold cross-validation on nominal training splits to determine optimal tau_c and neighbor K",
+    "test_exposure_rule": "Test splits of VisA and BTAD shall be evaluated EXACTLY ONCE with frozen hyperparameters"
+  },
+  "statistical_testing": {
+    "confidence_interval_method": "Non-parametric BCa bootstrap (1,000 resamples)",
+    "sampling_unit": "Image specimen",
+    "sampling_unit_rationale": "In industrial production lines, each arriving item represents an independent inspection event; resampling at the image level captures operational batch variance without assuming Gaussian error distributions.",
+    "significance_test": "Two-tailed paired Wilcoxon signed-rank test across all categories with significance alpha = 0.05"
+  },
+  "failure_analysis": {
+    "mandatory_inspection": "Top-20 defect escapes uncaptured by review budget B = 10%",
+    "collinearity_verification": "Pearson and Spearman correlation between 1-NN anomaly score d_1 and proposed dispersion metric PND(X)"
+  },
+  "computational_budget": {
+    "max_cpu_runtime_hours": 4.0,
+    "max_ram_gb": 4.0,
+    "hardware_target": "Standard x86_64 CPU workstation (no GPU required for evaluation)"
+  },
+  "pre_registration_freeze": {
+    "locked": true,
+    "phase": "PRE_REGISTRATION_COMPLETE_NO_TEST_INFERENCE_RUN"
+  }
+}
