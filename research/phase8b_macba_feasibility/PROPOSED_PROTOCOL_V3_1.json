@@ -1,0 +1,87 @@
+{
+  "protocol_id": "Q1-EXP-PROTOCOL-V3.1",
+  "title": "Pre-Registered Research Protocol: Multi-Category Adaptive Cost-Weighted Budget Allocation (MACBA) for Human-in-the-Loop Industrial Anomaly Detection",
+  "version": "3.1.0",
+  "status": "PROPOSED_AMENDED_V3_1",
+  "amendment_date": "2026-10-31",
+  "supersedes": {
+    "protocol_id": "Q1-EXP-PROTOCOL-V3-PROSPECTIVE",
+    "sha256": "5bb502a3a5f97b5e408544c4fa5a93ddbb1e3b5df5b56dcfa2cf91da71d87178"
+  },
+  "target_journals": [
+    "IEEE Transactions on Industrial Informatics (T-II)",
+    "Pattern Recognition (PR)",
+    "IEEE Transactions on Pattern Analysis and Machine Intelligence (T-PAMI)"
+  ],
+  "hypothesis": {
+    "primary_statement": "In multi-product industrial manufacturing environments operating under a global bounded human review capacity (B <= 20% of plant throughput) and asymmetric error costs (c_FN >> c_FP), category-aware review allocation driven by decision-theoretic expected loss reduction Delta L(X) and calibrated non-conformity percentiles achieves statistically superior Realized Cost Reduction and Defect Escape Reduction (MC-DER) compared to uniform category partitioning (BL0), volume-proportional allocation (BL1), and globally pooled distance ranking (BL2).",
+    "novelty_barrier": "The proposed allocation method must demonstrate statistically significant improvement (paired Wilcoxon signed-rank test across multi-category bootstrap resamples, p < 0.05, Holm-Bonferroni corrected) over Uniform Allocation (BL0) and Global Distance Pooling (BL2) across independent evaluation categories without requiring defect training samples.",
+    "realistic_positioning": "Acknowledges prior foundations in cost-sensitive reject options (Chow 1970; Charoenphakdee 2021) and capacity-constrained deferral (Alves 2024; Reid 2024). Positioned strictly as the first systematic study of multi-category factory-wide triage for frozen distance-based anomaly detectors."
+  },
+  "datasets": {
+    "development_feasibility_subset": {
+      "name": "MVTec AD Development Subset (bottle, capsule, metal_nut)",
+      "total_images": 330,
+      "calibration_split": 156,
+      "evaluation_split": 174,
+      "status": "EXPLORATORY_FEASIBILITY_ONLY"
+    },
+    "quarantined_independent_benchmarks": [
+      {
+        "name": "VisA (Visual Anomaly Dataset — 11 Untouched Categories)",
+        "categories": [
+          "candle", "cashew", "chewinggum", "fryum", "macaroni1",
+          "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4", "pipe_fryum"
+        ],
+        "total_images": 10119,
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 prior runs)",
+        "quarantine_rule": "Strictly quarantined until Protocol V3.1 is formally frozen and approved."
+      },
+      {
+        "name": "BTAD (BeanTech Anomaly Detection)",
+        "categories": ["01", "02", "03"],
+        "total_images": 2830,
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 prior runs)",
+        "quarantine_rule": "Strictly quarantined until Protocol V3.1 is formally frozen and approved."
+      }
+    ]
+  },
+  "mathematical_model": {
+    "decision_time_inputs": [
+      "Category identifier c",
+      "Frozen anomaly score S_c(X)",
+      "Nominal decision threshold tau_c",
+      "Nominal calibration statistics F_c",
+      "Historical labeled calibration split D_cal",
+      "Cost parameters (c_FN, c_FP, c_rev)"
+    ],
+    "prohibited_inputs": [
+      "Current evaluation ground-truth labels",
+      "Current evaluation error indicators",
+      "Future inspection outcomes",
+      "Oracle category error counts"
+    ],
+    "expected_loss_reduction": "Delta L(X) = p_hat(X) * p_sens * c_FN - (1 - p_hat(X)) * (1 - p_spec) * c_FP - c_rev (for automated pass); (1 - p_hat(X)) * p_spec * c_FP - p_hat(X) * (1 - p_sens) * c_FN - c_rev (for automated reject)",
+    "optimization_policy": "Greedy marginal utility ranking by r(X) = max(Delta L(X), 0) / c_rev subject to sum c_rev * A <= B_capacity"
+  },
+  "baselines": [
+    "BL0: Uniform Category Allocation with within-category boundary ranking",
+    "BL1: Volume-Proportional Allocation with within-category boundary ranking",
+    "BL2: Globally Pooled Raw Distance-to-Threshold Ranking",
+    "BL3: Globally Pooled Category-Normalized Boundary Ranking",
+    "BL4: Historical Category Error-Rate Allocation",
+    "BL5: Calibrated Per-Image Error-Risk Ranking",
+    "BL6: Simple Cost-Weighted Error-Risk Ranking",
+    "BL7: Oracle Allocation Using Evaluation Labels (Upper Bound)",
+    "Proposed: MACBA"
+  ],
+  "primary_endpoints": [
+    "Realized Financial Cost Reduction (%)",
+    "Multi-Category Defect Escape Reduction (MC-DER)"
+  ],
+  "stopping_rules": {
+    "stop_rule_1": "If MACBA fails to outperform Uniform Allocation (BL0) by at least +5.0% cost reduction on independent evaluation.",
+    "stop_rule_2": "If MACBA fails to outperform Global Distance Pooling (BL2) on independent evaluation.",
+    "stop_rule_3": "If optimization latency exceeds 10 ms per batch."
+  }
+}
