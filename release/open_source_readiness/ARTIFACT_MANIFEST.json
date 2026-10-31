@@ -1,0 +1,56 @@
+{
+  "suite": "Open-Source Release Readiness",
+  "timestamp_utc": "2026-10-31T18:54:48Z",
+  "final_decision": "READY FOR PUBLIC OPEN-SOURCE RELEASE",
+  "status": "Advanced Research Prototype",
+  "files": [
+    {
+      "filename": "RELEASE_AUDIT.md",
+      "relative_path": "release/open_source_readiness/RELEASE_AUDIT.md",
+      "sha256": "d5563f87cdd5feea8fc370eadebc1baf928ae096c6507296b2dc5b48c0bed1b6",
+      "size_bytes": 5181
+    },
+    {
+      "filename": "TEST_RESULTS.md",
+      "relative_path": "release/open_source_readiness/TEST_RESULTS.md",
+      "sha256": "4c2252157b79ca7b90b2042d69a5d05ee72d244d92b856a409172a86d4b55370",
+      "size_bytes": 7160
+    },
+    {
+      "filename": "MODEL_AND_DATA_PROVENANCE.md",
+      "relative_path": "release/open_source_readiness/MODEL_AND_DATA_PROVENANCE.md",
+      "sha256": "f325745b4fa84d6c8927e1f5e459ee4b349955d87014ad8fff2acb31e9350296",
+      "size_bytes": 4558
+    },
+    {
+      "filename": "TECHNICAL_CASE_STUDY.md",
+      "relative_path": "release/open_source_readiness/TECHNICAL_CASE_STUDY.md",
+      "sha256": "a2476ec875a6c71c11cba739c20eb7c70ac0697bb6a6bae58b51405a640c85ab",
+      "size_bytes": 10647
+    },
+    {
+      "filename": "DEMO_SCRIPT.md",
+      "relative_path": "release/open_source_readiness/DEMO_SCRIPT.md",
+      "sha256": "be83d93f6bcdbab072753942d9df8473c8da714390a3cb7aa64fec5756c9fe4e",
+      "size_bytes": 4732
+    },
+    {
+      "filename": "INTERVIEW_PREPARATION.md",
+      "relative_path": "release/open_source_readiness/INTERVIEW_PREPARATION.md",
+      "sha256": "80d89a97575cb502c32cae07196b53258742dd5234952185c643cbf7d700fed0",
+      "size_bytes": 9880
+    },
+    {
+      "filename": "RELEASE_CHECKLIST.md",
+      "relative_path": "release/open_source_readiness/RELEASE_CHECKLIST.md",
+      "sha256": "b56fe0616a7e804e9a579ef02539fcaf74766d511c1804f30efc4ab2c1be3896",
+      "size_bytes": 6496
+    },
+    {
+      "filename": "FINAL_RELEASE_DECISION.md",
+      "relative_path": "release/open_source_readiness/FINAL_RELEASE_DECISION.md",
+      "sha256": "bda72c7cee9fad113bb24aeb182d0fe1215df46fac5e1abe818bd2a437337ca7",
+      "size_bytes": 4622
+    }
+  ]
+}
