@@ -1,0 +1,79 @@
+{
+  "phase": "Phase 7C - One Controlled CPND Revision and Final Method Decision",
+  "protocol_reference": "research/protocols/Q1_EXPERIMENT_PROTOCOL_V2.json",
+  "protocol_sha256": "effd05679ceb637073b6e7081633f2f51ebf2deaece0010041d33b8b07d19ab1",
+  "generated_at": "2026-10-31T23:28:00Z",
+  "final_decision": "STOP CPND",
+  "artifacts": [
+    {
+      "file": "PHASE7C_PRECHECK.md",
+      "path": "research/phase7c_density_normalized_cpnd/PHASE7C_PRECHECK.md",
+      "sha256": "6fa79c6b2012e268ab53c553f457034a48aef89a02d9da7fbf9a672a5089492d",
+      "size_bytes": 5058,
+      "description": "VisA inventory verification, category name resolution, prediction parity, and metric disambiguation"
+    },
+    {
+      "file": "DENSITY_NORMALIZATION_IMPLEMENTATION.md",
+      "path": "research/phase7c_density_normalized_cpnd/DENSITY_NORMALIZATION_IMPLEMENTATION.md",
+      "sha256": "6c3593e6462ea501293e31ae27a80d340df7a43de639a77b465e0bf25d4973c6",
+      "size_bytes": 6051,
+      "description": "Mathematical formulation and implementation of density-normalized CPND and boundary gating"
+    },
+    {
+      "file": "UNIT_TEST_RESULTS.md",
+      "path": "research/phase7c_density_normalized_cpnd/UNIT_TEST_RESULTS.md",
+      "sha256": "fd586b0af6825df714af9e7376e8e33326464f3f4e567ba42f6fe2911cd987eb",
+      "size_bytes": 3524,
+      "description": "Verification ledger of the 8 unit and integration tests (100% pass)"
+    },
+    {
+      "file": "PAIRED_COMPARISON.csv",
+      "path": "research/phase7c_density_normalized_cpnd/PAIRED_COMPARISON.csv",
+      "sha256": "8b05bae9aa7ea361046cb2bf7374a007b6bb1500c661ed282655bf0625aa8bb3",
+      "size_bytes": 1117,
+      "description": "Paired comparison with 2,000 bootstrap iterations and confidence intervals for Delta ECR and Delta DER"
+    },
+    {
+      "file": "BUDGET_SWEEP.csv",
+      "path": "research/phase7c_density_normalized_cpnd/BUDGET_SWEEP.csv",
+      "sha256": "0f03e40b4aad259bce1de1038dd42da73bba96da46303df01310aeffada94bdd",
+      "size_bytes": 2306,
+      "description": "Multi-budget performance across 1%, 2%, 5%, 10%, 15%, 20% review budgets"
+    },
+    {
+      "file": "ABLATION_RESULTS.csv",
+      "path": "research/phase7c_density_normalized_cpnd/ABLATION_RESULTS.csv",
+      "sha256": "9a7511ff1d19a64f323b0996a6ec7ff2ce5558ac80d2da16f4f6f1324abf2f18",
+      "size_bytes": 969,
+      "description": "Ablation results across 10 configurations covering normalization, gating, k, and dispersion type"
+    },
+    {
+      "file": "ERROR_ANALYSIS.md",
+      "path": "research/phase7c_density_normalized_cpnd/ERROR_ANALYSIS.md",
+      "sha256": "76262c08f7c946bc907f94c832c4f218503fef6cef2a1e9d6a5f1fa5d0c27c7a",
+      "size_bytes": 7469,
+      "description": "Theoretical and geometric analysis of CPND failure and coreset spacing mechanics"
+    },
+    {
+      "file": "COMPUTE_PROFILE.md",
+      "path": "research/phase7c_density_normalized_cpnd/COMPUTE_PROFILE.md",
+      "sha256": "20683666588d06875b4c12060e4ac5ca30801979eff13f3c4cdb28da6c247b44",
+      "size_bytes": 2749,
+      "description": "Latency, memory residency, precomputation time, and throughput profiling"
+    },
+    {
+      "file": "FINAL_METHOD_DECISION.md",
+      "path": "research/phase7c_density_normalized_cpnd/FINAL_METHOD_DECISION.md",
+      "sha256": "3ca5e5ff376aa4550d44f3465d4499d5ac0b9dda6dc20f22a6056deb91affbf5",
+      "size_bytes": 4597,
+      "description": "Formal scientific evaluation against stop-rule gates recommending STOP CPND"
+    },
+    {
+      "file": "ARTIFACT_MANIFEST.json",
+      "path": "research/phase7c_density_normalized_cpnd/ARTIFACT_MANIFEST.json",
+      "sha256": "4602cdacd01da3c09a920b3bd2bef884389742d4a813a8358ca83274bd4247bc",
+      "size_bytes": 3571,
+      "description": "Cryptographic checksum ledger of all Phase 7C artifacts"
+    }
+  ]
+}

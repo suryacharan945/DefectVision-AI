@@ -1,6 +1,5 @@
 """
-CPND Package: Calibrated Patch-Neighborhood Dispersion
-DefectVision AI — Phase 7B
+CPND Package: Patch-Neighborhood Dispersion Uncertainty Module
 """
 
 from .cpnd_core import (
@@ -9,8 +8,13 @@ from .cpnd_core import (
     evaluate_selective_review
 )
 
+from .cpnd_density_norm import (
+    DensityNormalizedCPNDScorer
+)
+
 __all__ = [
     "CPNDScorer",
+    "DensityNormalizedCPNDScorer",
     "rank_and_select_budget",
     "evaluate_selective_review"
 ]

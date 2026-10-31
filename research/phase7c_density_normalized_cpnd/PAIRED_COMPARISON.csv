@@ -1,0 +1,6 @@
+Candidate_Method,Budget,Reviewed_K,Captured_Errors,Captured_FN,Captured_FP,Candidate_ECR,Candidate_ECR_95CI,Baseline_BL2_ECR,Delta_ECR,Delta_ECR_95CI,Candidate_DER,Candidate_DER_95CI,Baseline_BL2_DER,Delta_DER,Delta_DER_95CI,Defect_Review_Yield,Error_Review_Yield
+Original Raw CPND (k=5),0.1,33,15,14,1,24.19,"[16.5%, 33.3%]",29.03,-4.84,"[-15.5%, 9.4%]",23.73,"[15.8%, 34.0%]",25.42,-1.69,"[-13.0%, 12.8%]",63.64,45.45
+Density-Normalized CPND (Ungated),0.1,33,15,14,1,24.19,"[14.1%, 32.7%]",29.03,-4.84,"[-17.5%, 8.3%]",23.73,"[13.6%, 32.7%]",25.42,-1.69,"[-15.0%, 11.7%]",51.52,45.45
+Boundary-Gated Hard Tiered (delta=0.10*tau),0.1,33,11,10,1,17.74,"[11.2%, 27.9%]",29.03,-11.29,"[-19.0%, 0.0%]",16.95,"[10.0%, 27.5%]",25.42,-8.47,"[-16.7%, 3.6%]",72.73,33.33
+Boundary-Gated Hard Tiered (delta=0.15*tau),0.1,33,13,12,1,20.97,"[12.3%, 29.9%]",29.03,-8.06,"[-18.6%, 3.6%]",20.34,"[11.5%, 29.1%]",25.42,-5.08,"[-16.1%, 6.9%]",75.76,39.39
+Boundary-Gated Soft Gaussian (delta=0.10*tau),0.1,33,8,8,0,12.9,"[5.2%, 21.5%]",29.03,-16.13,"[-27.6%, -1.9%]",13.56,"[5.5%, 22.6%]",25.42,-11.86,"[-23.7%, 1.8%]",69.7,24.24
