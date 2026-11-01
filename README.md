@@ -60,7 +60,7 @@ Detailed architectural blueprints, component specifications, and data flow seque
 
 ## 3. Implemented Capabilities
 
-- **Real-Time Single Specimen Inference:** Sub-50ms CPU steady-state forward inference (~42ms forward pass: WideResNet patch extraction + FAISS FlatL2 search, excluding one-time startup index loading) calculating anomaly score, decision threshold margin, defect area percentage, and severity categorization (Nominal, Low, Moderate, High, Critical).
+- **CPU Edge Inference Profile:** Measured dual-model CPU forward pass median of 450.6 ms (ResNet-18 patch extraction + FAISS FlatL2 search + EfficientNet-B0), with end-to-end FastAPI frame inspection median of ~881.7 ms (p95: 1455.7 ms), delivering ~1.1 to 2.2 inspections per second on multi-core CPU. Real-time conveyor line rates (>10 FPS) require dedicated GPU or TensorRT acceleration.
 - **Dual Visual Explainability:** High-resolution normalized PatchCore distance heatmaps overlaid on specimen images, complemented by EfficientNet Grad-CAM attention maps.
 - **k-Nearest Neighbor Similarity Search:** FAISS FlatL2 retrieval returning the top-3 most similar training and nominal specimens to validate localization decisions.
 - **Asynchronous Batch Inspection:** Multi-file background worker processing production lots, computing batch statistics (defect rate, escape risk), and generating structured export summaries.
@@ -128,9 +128,11 @@ The backend exposes fully typed REST endpoints:
 
 A core contribution of DefectVision AI is its commitment to **unvarnished, reproducible scientific reporting**. During the research audit phases (Phases 7 through 9), multiple algorithmic hypotheses were formally implemented, tested, and audited:
 
-### 1. Hybrid Decision Rule Verification (Phase 3)
-- An empirical audit of the hybrid `PatchCore OR EfficientNet` rule demonstrated that while EfficientNet effectively catches gross fractures (e.g. broken bottle necks), combining models via a naive OR rule increases false positive rates on borderline normal textures.
-- The recommended configuration applies PatchCore as the primary detector and uses classifier consensus for critical severity escalation.
+### 1. Hybrid Decision Rule Verification & Audited Trade-Off
+- Audited across 856 MVTec AD development-exposed benchmark images (625 defect / 231 normal).
+- Relative to supervised EfficientNet-B0 alone, the Hybrid rule (`PatchCore OR EfficientNet`) achieved **54 fewer missed defects** (escapes dropped from 111 to 57, recall rose from 82.24% to 90.88%), but incurred **11 additional false alarms** (false positives rose from 1 to 12; FPR rose from 0.43% to 5.19%, a 12-fold increase).
+- EfficientNet alone achieved superior continuous discrimination (AUROC 0.9809 vs 0.9608; AUPRC 0.9932 vs 0.9745). The Hybrid represents an asymmetric operating point prioritizing defect capture over false alarm suppression.
+- The 856-image benchmark is classified as **Development-Exposed (Category C)** due to repeated evaluation during earlier algorithm research cycles. Independent generalization to unseen benchmarks (VisA, BTAD) remains unestablished.
 
 ### 2. CPND Uncertainty Hypothesis (Phase 7B / 7C — Negative Finding)
 - **Hypothesis:** Conformal Patch-Neighborhood Dispersion (measuring spatial dispersion of retrieved memory bank neighbors) was hypothesized to provide an epistemic uncertainty signal superior to raw decision-boundary distance.
