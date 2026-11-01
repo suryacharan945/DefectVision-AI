@@ -56,30 +56,42 @@ The DefectVision AI system utilizes two complementary neural network models:
 ### 3.2 Calibration Data
 - **Composition:** Disjoint $50\%$ split of available validation specimens (both normal and labeled anomalies).
 - **Function:** Used strictly to determine decision threshold $\tau_c$ at the $99.5^{\text{th}}$ percentile of nominal validation samples, and to fit Platt scaling parameters $(\beta_0, \beta_1)$.
-- **Quarantine Guarantee:** Evaluation holdout sets (and the 11 reserved VisA categories) are strictly excluded from calibration.
+- **Quarantine Guarantee:** Evaluation holdout sets (and the quarantined VisA, BTAD, and Chukyo benchmarks) are strictly excluded from calibration.
 
 ---
 
 ## 4. Quantitative Performance Summary
 
+### 4.1 Development Pool Metrics (MVTec AD Prototyping Subset)
 Performance evaluated on the 330 development specimens across MVTec development categories:
 
-| Category | Image AUROC (PatchCore) | Optimal Threshold ($\tau_c$) | F1-Score | Mean Latency (CPU) |
+| Category | Image AUROC (PatchCore) | Optimal Threshold ($\tau_c$) | F1-Score | Mean Steady-State Latency (CPU) |
 |:---|:---:|:---:|:---:|:---:|
 | **Bottle** | $99.8\%$ | $1.4138$ | $0.985$ | $42.3\text{ ms}$ |
 | **Capsule** | $98.6\%$ | $1.3850$ | $0.962$ | $45.1\text{ ms}$ |
 | **Metal Nut** | $99.1\%$ | $1.4420$ | $0.974$ | $39.8\text{ ms}$ |
 
-*(Note: Exact performance varies based on hardware configuration and camera optics. Metrics reflect isolated benchmark runs.)*
+*(Note: CPU latency reflects batch-1 forward inference pass including WideResNet patch extraction and FAISS FlatL2 vector search; excludes one-time ~1.2s cold-start index loading.)*
+
+### 4.2 Hybrid Decision Rule Performance (Audited across 1,725 Images)
+Evaluated using `scripts/evaluate_hybrid_decision_rule.py` across the full multi-category benchmark:
+
+| Decision Rule | Full Dataset Recall ($N=1,725$) | Full Dataset FPR | Benchmark Partition Recall ($N=856$) | Benchmark Partition FPR |
+|:---|:---:|:---:|:---:|:---:|
+| **1. EfficientNet Alone** | $97.06\%$ ($1221 / 1258$) | $0.00\%$ ($0 / 467$) | $99.04\%$ ($619 / 625$) | $0.00\%$ ($0 / 231$) |
+| **2. PatchCore Alone** | $74.09\%$ ($932 / 1258$) | $3.21\%$ ($15 / 467$) | $71.84\%$ ($449 / 625$) | $4.76\%$ ($11 / 231$) |
+| **3. Hybrid OR (Safety Mode)** | $\mathbf{98.57\%}$ ($1240 / 1258$) | $3.21\%$ ($15 / 467$) | $\mathbf{99.52\%}$ ($622 / 625$) | $4.76\%$ ($11 / 231$) |
+| **4. Hybrid AND (Diagnostic)** | $72.58\%$ ($913 / 1258$) | $0.00\%$ ($0 / 467$) | $71.36\%$ ($446 / 625$) | $0.00\%$ ($0 / 231$) |
 
 ---
 
-## 5. Limitations and Operational Risks
+## 5. Limitations, Licensing and Operational Risks
 
-1. **Camera Angle & Fixture Sensitivity:** The nearest-neighbor memory bank assumes consistent specimen positioning. Variations in camera angle $>10^\circ$ or significant rotation will register as false anomalies.
-2. **Surface Reflectivity:** Highly specular metallic surfaces (e.g., polished aluminum, chrome) can produce specular glare artifacts that inflate anomaly scores.
-3. **Platt Scaling Variance on Small Samples:** Calibrated probabilities on categories with fewer than 20 validation defects exhibit wider confidence intervals ($95\%\text{ CI} \approx \pm 0.12$).
-4. **Class Imbalance in Manufacturing:** Because true defects represent $<1\%$ of real factory volume, false alarm rates must be closely monitored to prevent operator cognitive fatigue.
+1. **Non-Commercial Model License Notice:** PatchCore memory banks (`models/patchcore/`) and PaDiM feature models (`models/padim/`) were computed from MVTec AD imagery. In accordance with MVTec Software GmbH license terms, these pre-computed artifacts are restricted strictly to non-commercial research and academic demonstration. Commercial deployment requires retraining on proprietary in-house imagery.
+2. **Camera Angle & Fixture Sensitivity:** The nearest-neighbor memory bank assumes consistent specimen positioning. Variations in camera angle $>10^\circ$ or significant rotation will register as false anomalies.
+3. **Surface Reflectivity:** Highly specular metallic surfaces (e.g., polished aluminum, chrome) can produce specular glare artifacts that inflate anomaly scores.
+4. **Platt Scaling Variance on Small Samples:** Calibrated probabilities on categories with fewer than 20 validation defects exhibit wider confidence intervals ($95\%\text{ CI} \approx \pm 0.12$).
+5. **Class Imbalance in Manufacturing:** Because true defects represent $<1\%$ of real factory volume, false alarm rates must be closely monitored to prevent operator cognitive fatigue.
 
 ---
 

@@ -49,17 +49,18 @@ All active model weights and memory banks are tracked with immutable SHA-256 che
 
 ## 4. Benchmark Quarantine and Independence Assurance
 
-The following independent evaluation benchmarks were strictly quarantined during Phase 7A and have **never been accessed, read, or evaluated** in any phase of this project:
+The forensic exposure audit reconciles the external benchmark inventory across official academic datasets:
 
 ```
 +-------------------------------------------------------------------------------+
 |                       QUARANTINED INDEPENDENT BENCHMARKS                      |
 |                      (Zero Exposure - Pristine Condition)                     |
 +-------------------------------------------------------------------------------+
-  1. VisA Benchmark (11 Unexposed Categories):
-     - bones, cashew, chewinggum, fryum, pipefryum, pushpins,
-       screw, socket, tag, wallnut, waterbottle.
-     - Total: ~8,500 images across complex structural and multi-instance parts.
+  1. VisA Benchmark (7 Potentially Untouched Categories):
+     - Categories: pcb2, pcb3, pcb4, cashew, chewinggum, fryum, pipe_fryum.
+     - Total: 5,715 images across complex structural and aligned parts.
+     - Note: VisA capsules is development-exposed; candle, macaroni1, macaroni2,
+       and pcb1 are designated UNKNOWN / DISPUTED due to exploratory notes.
      
   2. BTAD Benchmark (BeanTech Anomaly Detection):
      - Categories: 01, 02, 03 (industrial wood, plastic, metal components).
@@ -72,4 +73,4 @@ The following independent evaluation benchmarks were strictly quarantined during
 ```
 
 **Scientific Guarantee:**  
-No performance metrics on the quarantined benchmarks have been generated, inferred, or claimed. They remain an untainted benchmark for future independent evaluations.
+No performance metrics on the quarantined benchmarks have been generated, inferred, or claimed. They remain an untainted benchmark for future independent evaluations. Full forensic exposure reconciliation is documented in [`release/final_integrity_gate/DATASET_EXPOSURE_RECONCILIATION.md`](../final_integrity_gate/DATASET_EXPOSURE_RECONCILIATION.md).

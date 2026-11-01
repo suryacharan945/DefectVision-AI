@@ -60,7 +60,7 @@ Detailed architectural blueprints, component specifications, and data flow seque
 
 ## 3. Implemented Capabilities
 
-- **Real-Time Single Specimen Inference:** Sub-50ms CPU inference calculating anomaly score, decision threshold margin, defect area percentage, and severity categorization (Nominal, Low, Moderate, High, Critical).
+- **Real-Time Single Specimen Inference:** Sub-50ms CPU steady-state forward inference (~42ms forward pass: WideResNet patch extraction + FAISS FlatL2 search, excluding one-time startup index loading) calculating anomaly score, decision threshold margin, defect area percentage, and severity categorization (Nominal, Low, Moderate, High, Critical).
 - **Dual Visual Explainability:** High-resolution normalized PatchCore distance heatmaps overlaid on specimen images, complemented by EfficientNet Grad-CAM attention maps.
 - **k-Nearest Neighbor Similarity Search:** FAISS FlatL2 retrieval returning the top-3 most similar training and nominal specimens to validate localization decisions.
 - **Asynchronous Batch Inspection:** Multi-file background worker processing production lots, computing batch statistics (defect rate, escape risk), and generating structured export summaries.
@@ -148,21 +148,22 @@ Detailed derivations, proofs, and traces are published in [`research/phase8c_mac
 ## 7. Dataset Provenance & Independence
 
 To maintain strict scientific independence:
-- **Exposed Development Set:** 330 images across 3 MVTec AD categories (`bottle`, `capsule`, `metal_nut`) and 4 VisA development categories (`candle`, `capsule`, `macaroni`, `pcb1`) used for prototype tuning and threshold calibration.
-- **Quarantined Independent Benchmarks:** The remaining 11 VisA categories, BTAD, and Chukyo datasets remain **completely untouched and unaccessed** in the repository history, ensuring a pristine benchmark for future independent evaluations.
+- **Exposed Development Pool:** 330 images across 3 MVTec AD categories (`bottle`, `capsule`, `metal_nut`) used for Phase 7C and Phase 8B prototype tuning and threshold calibration.
+- **VisA Exposure Breakdown (12 Categories Total):** Forensic audit reveals VisA `capsules` is development-exposed via earlier cloud experiments. VisA `candle`, `macaroni1`, `macaroni2`, and `pcb1` are designated **Unknown / Disputed** due to exploratory notes and are excluded from pristine benchmark status. The remaining 7 VisA categories (`pcb2`, `pcb3`, `pcb4`, `cashew`, `chewinggum`, `fryum`, `pipe_fryum`) remain potentially untouched.
+- **Quarantined Independent Benchmarks:** The BTAD (3 categories, 2,830 images) and Chukyo fastener datasets remain **completely untouched and unaccessed**, ensuring a pristine benchmark for future independent evaluations.
 - **Zero Label Leakage:** All reported threshold and probability calibrations use strictly disjoint splits (50% validation normal/defect), with zero access to holdout test labels.
 
-See [`DATASET_PROVENANCE.md`](DATASET_PROVENANCE.md) for full manifest hashes.
+See [`DATASET_PROVENANCE.md`](DATASET_PROVENANCE.md) and [`release/final_integrity_gate/DATASET_EXPOSURE_RECONCILIATION.md`](release/final_integrity_gate/DATASET_EXPOSURE_RECONCILIATION.md) for full manifest hashes.
 
 ---
 
 ## 8. Verification & Test Suite
 
-The repository includes a comprehensive, multi-tiered test suite:
+The repository includes a comprehensive, multi-tiered test suite comprising **34 automated software tests** (22 unit tests, 5 backend integration endpoints, 1 model inference check, 1 Vite proxy check, 4 input validation guards, and 1 frontend production build):
 
 ```powershell
 # 1. Run all unit tests (22 tests covering vision reporting, CPND, and density normalization)
-.\.venv\Scripts\python.exe -m unittest discover tests
+.\.venv\Scripts\python.exe -m unittest discover tests -v
 
 # 2. Run backend end-to-end integration test (Verifies live inference, batching, logs, RAG)
 .\.venv\Scripts\python.exe scripts/e2e_backend_test.py
@@ -175,9 +176,12 @@ The repository includes a comprehensive, multi-tiered test suite:
 
 # 5. Run input validation and error safety test
 .\.venv\Scripts\python.exe scripts/test_invalid_inputs_safety.py
+
+# 6. Verify frontend production build
+npm run build --prefix frontend
 ```
 
-All 22 unit tests and all integration scripts pass with zero errors. Execution logs are recorded in [`release/open_source_readiness/TEST_RESULTS.md`](release/open_source_readiness/TEST_RESULTS.md).
+All 34 software tests pass with zero errors in under 25 seconds. Note that offline research equivalence comparisons (e.g. 870 MACBA/BL6 trace rows) are classified as empirical research evaluations, not software unit tests. Detailed test classifications are documented in [`release/final_integrity_gate/TEST_CLASSIFICATION_AND_RESULTS.md`](release/final_integrity_gate/TEST_CLASSIFICATION_AND_RESULTS.md).
 
 ---
 
@@ -195,6 +199,9 @@ Detailed boundary conditions are documented in [`LIMITATIONS.md`](LIMITATIONS.md
 ## 10. License & Attribution
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+> **Notice Regarding Pretrained Weights & Feature Banks:**  
+> The software architecture and code of DefectVision AI are licensed under the MIT License. However, the precomputed PatchCore memory banks (`models/patchcore/`) and PaDiM models (`models/padim/`) distributed with this repository were computed from images belonging to the MVTec Anomaly Detection dataset. These artifacts are strictly provided for non-commercial academic research and demonstration purposes under MVTec Software GmbH's licensing terms. Commercial users must fit memory banks exclusively on their own proprietary inspection imagery.
 
 ### Third-Party Attribution:
 - **MVTec AD Dataset:** Bergmann et al., *"MVTec AD — A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection"*, CVPR 2019 / IJCV 2021.

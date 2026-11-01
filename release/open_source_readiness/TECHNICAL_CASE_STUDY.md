@@ -39,9 +39,9 @@ While PatchCore excels at subtle local textures, it occasionally struggles with 
 ### 2.3 The Hybrid Decision Rule Audit
 In initial prototyping, an `OR` decision rule was implemented:
 $$\hat{Y}_{\text{hybrid}} = \hat{Y}_{\text{PatchCore}} \lor \hat{Y}_{\text{EfficientNet}}$$
-An exhaustive empirical audit of this rule revealed critical trade-offs:
-- **Benefit:** The hybrid rule successfully corrected false negatives on severe gross fractures (e.g., fractured bottle necks), boosting recall from $93.7\%$ to $98.4\%$.
-- **Cost:** Because the models' false positive errors are partially independent, the naive OR rule caused the false positive rate to double (from $3.8\%$ to $8.1\%$), increasing unnecessary scrap.
+An exhaustive empirical audit of this rule (`scripts/evaluate_hybrid_decision_rule.py` across 1,725 benchmark specimens) revealed critical trade-offs:
+- **Benefit:** The hybrid rule successfully corrected false negatives on severe gross fractures (e.g., fractured bottle necks), boosting overall recall from $74.09\%$ (PatchCore alone) up to $\mathbf{98.57\%}$ on the full dataset (and from $71.84\%$ to $\mathbf{99.52\%}$ on the benchmark partition).
+- **Cost:** Because the models' false positive errors are partially independent, the naive OR rule caused the false positive rate to match PatchCore's full FPR ($3.21\%$ on full dataset, $4.76\%$ on benchmark partition) whereas EfficientNet achieved $0.00\%$ FPR alone.
 - **Engineering Recommendation:** The OR rule should only be deployed when the cost ratio $\lambda = c_{\text{FN}} / c_{\text{FP}} \ge 20$. For balanced or low-cost lines, PatchCore should serve as the sole primary gatekeeper, using classifier confidence only for severity grading.
 
 ---
@@ -71,10 +71,15 @@ Under a fixed factory review capacity of $K$ specimens, DefectVision AI triages 
    [ Greedy Knapsack / Risk Ranking ] ----> Priority Review Queue (Top K)
 ```
 
-### Empirical Results ($\lambda = 20, K = 25$):
+### Empirical Results Across Review Budgets ($\lambda = 20$):
+
+**At 10% Review Budget ($K = 17$ specimens of 174 evaluation items):**
 - **Uniform Category Allocation (BL0):** $12.49\%$ cost reduction; captures 4 FNs.
 - **Pooled Boundary Distance (BL2):** $15.75\%$ cost reduction; captures 5 FNs.
-- **Cost-Weighted Bayes Risk (BL6 / Proper MACBA):** $\mathbf{46.27\%}$ cost reduction; captures $\mathbf{10}$ critical false negatives ($+30.52\%$ relative improvement over BL2, $p = 0.00038$).
+- **Cost-Weighted Bayes Risk (BL6 / Proper MACBA):** $\mathbf{30.84\%}$ cost reduction (total cost 4,447 vs 6,430 no-review baseline); captures $\mathbf{10}$ critical false negatives ($+15.09\%$ absolute cost reduction over BL2).
+
+**At 14.4% Review Budget ($K = 25$ specimens of 174 evaluation items):**
+- **Cost-Weighted Bayes Risk (BL6 / Proper MACBA):** $\mathbf{46.27\%}$ cost reduction (total cost 3,455 vs 6,430); captures $\mathbf{15}$ critical false negatives ($+30.52\%$ relative improvement over BL2, $p = 0.00038$).
 
 Cost weighting succeeds because it concentrates scarce human inspection bandwidth exclusively on predicted normal parts near the threshold that carry catastrophic escape penalties ($c_{\text{FN}} = 200$), rather than wasting capacity verifying false alarms ($c_{\text{FP}} = 10$).
 
