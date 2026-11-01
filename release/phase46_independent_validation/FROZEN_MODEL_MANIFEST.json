@@ -1,0 +1,467 @@
+{
+  "manifest_version": "1.0.0",
+  "generated_at": "2026-11-02T01:32:00Z",
+  "phase": "Phase 46 \u2014 Independent Validation and Applied Research Gate",
+  "git_commit": "e6959ba10ddf4ce136a7a39950907582ba9938a4",
+  "git_status": "CLEAN",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "python_version": "3.12.4",
+    "torch_version": "2.15.0+cpu",
+    "torchvision_version": "0.29.2+cpu",
+    "faiss_version": "1.15.1",
+    "timm_version": "1.0.30",
+    "cuda_available": false,
+    "execution_hardware": "CPU"
+  },
+  "runtime_parameters": {
+    "random_seed": 42,
+    "deterministic_algorithms": true,
+    "image_size": [
+      224,
+      224
+    ],
+    "normalization": {
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  },
+  "models": {
+    "patchcore": {
+      "architecture": "PatchCore (Roth et al., CVPR 2022)",
+      "backbone": "ResNet-18 (ImageNet-1K V1)",
+      "feature_dim": 384,
+      "distance_metric": "FAISS FlatL2 (Euclidean distance)",
+      "nearest_neighbors_k": 1,
+      "scoring_function": "Image-level max patch distance (S_raw = max_i s(P_i))",
+      "decision_rule": "y_hat = I(S_raw > tau_p99)",
+      "memory_banks": {
+        "bottle": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\bottle\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\bottle\\memory_bank.npy",
+          "size_bytes": 22639232,
+          "sha256": "71a68f4e54109c74fec922c02252218d5abfab31256c2bce170e05014db52200",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "cable": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\cable\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\cable\\memory_bank.npy",
+          "size_bytes": 24204416,
+          "sha256": "44a7684c64f05a8230bc7532a84ff00075a76038da8bcd30b012d1fe7adaaa6c",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "capsule": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\capsule\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\capsule\\memory_bank.npy",
+          "size_bytes": 23722112,
+          "sha256": "e55cd942af6a08ca9771746c0989420011a15fa72e16e2810764cb00113d3245",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "carpet": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\carpet\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\carpet\\memory_bank.npy",
+          "size_bytes": 30345344,
+          "sha256": "7399618ee3cb47f11ff83688e896de1ddfdde1f8480e044a3b91a3bef9f58f52",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "grid": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\grid\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\grid\\memory_bank.npy",
+          "size_bytes": 28539008,
+          "sha256": "bc2a0dc345bb741dca35259d1e7bd6f3d75dfbcd8a66dafdc1701a3b5a72b18d",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "hazelnut": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\hazelnut\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\hazelnut\\memory_bank.npy",
+          "size_bytes": 42267776,
+          "sha256": "2aa517a5fa7f09e32806a02f6d5776e74aeb82ca2f7bce2a780700ec87dd1f53",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "leather": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\leather\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\leather\\memory_bank.npy",
+          "size_bytes": 26493056,
+          "sha256": "b82273198a7ba0c0f5d4d97bd0bbbf8e717806f60ab96224ed470992dcc642df",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "metal_nut": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\metal_nut\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\metal_nut\\memory_bank.npy",
+          "size_bytes": 23843456,
+          "sha256": "4be00e7c8546fb9d90a68c5a89e07cf1b11e8b5ef65088aae69ab804d490893b",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "pill": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\pill\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\pill\\memory_bank.npy",
+          "size_bytes": 28901504,
+          "sha256": "f10d8b3b339fccf4ac2062cd1cc1364a2d27027841fc09e9dbf82b0e208d4dfe",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "screw": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\screw\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\screw\\memory_bank.npy",
+          "size_bytes": 34681472,
+          "sha256": "42c227ad70729292da3ee2ee4cdcf3a4b6b60c73df184d442069ef6d29395224",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "tile": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\tile\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\tile\\memory_bank.npy",
+          "size_bytes": 24926336,
+          "sha256": "5c294772501c48f9d4a9da6aaf238aa1545f27afbae181f21c6f1d07ae0b5f68",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "toothbrush": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\toothbrush\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\toothbrush\\memory_bank.npy",
+          "size_bytes": 6502016,
+          "sha256": "e22831034bd8dd670d8ecaff44b348f9d10aaeea2652822fb8e22897fbce6cc4",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "transistor": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\transistor\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\transistor\\memory_bank.npy",
+          "size_bytes": 23000192,
+          "sha256": "3aa3f92996ce2e660572ef3e8b1525ad1e66d8cf57fc44b412cef28f1a1de7b2",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "wood": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\wood\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\wood\\memory_bank.npy",
+          "size_bytes": 26732672,
+          "sha256": "dbbc6871942a4653573cd9ee4fda7d0eff528e5eb76e156d33d6001aff678975",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        },
+        "zipper": {
+          "path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\patchcore\\zipper\\memory_bank.npy",
+          "relative_path": "DefectVisionAI\\models\\patchcore\\zipper\\memory_bank.npy",
+          "size_bytes": 26010752,
+          "sha256": "21208ba08af12e03d4cdfbb789afb1888d9544f9380c03343e980eacba5c18a0",
+          "dtype": "float32",
+          "feature_dim": 384,
+          "feature_layers": [
+            "layer2",
+            "layer3"
+          ],
+          "backbone": "torchvision.models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)",
+          "pooling": "AvgPool2d(kernel_size=3, stride=1, padding=1)",
+          "spatial_resolution": [
+            28,
+            28
+          ],
+          "total_patches_per_image": 784
+        }
+      }
+    },
+    "efficientnet_b0_v3": {
+      "architecture": "EfficientNet-B0 v3 (Tan & Le, ICML 2019)",
+      "checkpoint_path": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\efficientnet_baseline_v3\\best_model.pt",
+      "relative_path": "DefectVisionAI\\models\\efficientnet_baseline_v3\\best_model.pt",
+      "size_bytes": 16336185,
+      "sha256": "f470b76d7c00df5be88236d552b3406256a60ee2c27fca361b981fce88902ba8",
+      "tensor_keys_count": 360,
+      "num_classes": 15,
+      "scoring_function": "Softmax posterior probability of defective state: p_defect = exp(z_defect) / (exp(z_norm) + exp(z_defect))",
+      "decision_boundary": 0.5,
+      "decision_rule": "y_hat = I(p_defect >= 0.50)"
+    },
+    "hybrid_fusion": {
+      "decision_rule": "y_hat_hybrid = y_hat_patchcore OR y_hat_effnet",
+      "severity_formula": "0.50 * S_norm + 0.30 * A_defect + 0.20 * C_confidence",
+      "severity_clipping_bounds": [
+        0.0,
+        100.0
+      ]
+    }
+  },
+  "calibration_baselines": {
+    "source_file": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\reports\\step9_severity_baselines.csv",
+    "relative_path": "DefectVisionAI\\reports\\step9_severity_baselines.csv",
+    "size_bytes": 683,
+    "sha256": "0f412846cda0d98989d605b85f61f8c54354aa0d0b0709b38e8ea72651a0c12a",
+    "category_baselines": {
+      "bottle": {
+        "baseline_mean": 1.2228453,
+        "baseline_p99": 1.4138098099999998,
+        "n_normal_samples": 20
+      },
+      "cable": {
+        "baseline_mean": 2.1880140862068966,
+        "baseline_p99": 2.59400087,
+        "n_normal_samples": 58
+      },
+      "capsule": {
+        "baseline_mean": 0.9887137391304348,
+        "baseline_p99": 1.5593035800000004,
+        "n_normal_samples": 23
+      },
+      "carpet": {
+        "baseline_mean": 1.1721016071428572,
+        "baseline_p99": 1.35167274,
+        "n_normal_samples": 28
+      },
+      "grid": {
+        "baseline_mean": 1.4385455238095237,
+        "baseline_p99": 1.6613416,
+        "n_normal_samples": 21
+      },
+      "hazelnut": {
+        "baseline_mean": 1.9482639249999998,
+        "baseline_p99": 2.16064966,
+        "n_normal_samples": 40
+      },
+      "leather": {
+        "baseline_mean": 1.1553754375,
+        "baseline_p99": 1.3221124200000003,
+        "n_normal_samples": 32
+      },
+      "metal_nut": {
+        "baseline_mean": 1.7392303181818185,
+        "baseline_p99": 1.95265522,
+        "n_normal_samples": 22
+      },
+      "pill": {
+        "baseline_mean": 1.6632470769230767,
+        "baseline_p99": 2.0089995000000003,
+        "n_normal_samples": 26
+      },
+      "screw": {
+        "baseline_mean": 1.3552206097560977,
+        "baseline_p99": 1.5476222000000002,
+        "n_normal_samples": 41
+      },
+      "tile": {
+        "baseline_mean": 1.5094251818181819,
+        "baseline_p99": 1.74320132,
+        "n_normal_samples": 33
+      },
+      "toothbrush": {
+        "baseline_mean": 1.6479390833333334,
+        "baseline_p99": 2.31789468,
+        "n_normal_samples": 12
+      },
+      "transistor": {
+        "baseline_mean": 1.6979853166666665,
+        "baseline_p99": 2.17454702,
+        "n_normal_samples": 60
+      },
+      "wood": {
+        "baseline_mean": 1.4356924736842107,
+        "baseline_p99": 1.68665464,
+        "n_normal_samples": 19
+      },
+      "zipper": {
+        "baseline_mean": 1.150998625,
+        "baseline_p99": 1.8594056900000002,
+        "n_normal_samples": 32
+      }
+    },
+    "efficientnet_training_threshold": {
+      "source_file": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\models\\efficientnet_anomaly_threshold.json",
+      "size_bytes": 96,
+      "sha256": "7cfd6e23bc28add91e8b820412df70142d2af1a0c39c621d395d596c12e3bc2b",
+      "threshold": 894.785011595584,
+      "method": "99th_percentile_of_normal_training_scores"
+    }
+  },
+  "compatibility_and_domain_constraints": {
+    "native_categories": [
+      "bottle",
+      "cable",
+      "capsule",
+      "carpet",
+      "grid",
+      "hazelnut",
+      "leather",
+      "metal_nut",
+      "pill",
+      "screw",
+      "tile",
+      "toothbrush",
+      "transistor",
+      "wood",
+      "zipper"
+    ],
+    "zero_shot_transfer_status": "UNSUPPORTED",
+    "transfer_rule": "An unseen product category requires target-domain nominal coreset registration and baseline calibration. Direct cross-product inference using unrelated memory banks is strictly invalid."
+  }
+}
