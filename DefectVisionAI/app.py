@@ -79,8 +79,11 @@ PATCHCORE_DIR = os.path.join(MODELS_DIR, "patchcore")
 loaded_patchcore_models = {}
 def get_patchcore_model(category):
     if category not in loaded_patchcore_models:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        if not os.path.exists(mb_path):
+            return None
         m = PatchCoreModel()
-        m.load(os.path.join(PATCHCORE_DIR, category, "memory_bank.npy"), grid_size=GRID_SIZE)
+        m.load(mb_path, grid_size=GRID_SIZE)
         loaded_patchcore_models[category] = m
     return loaded_patchcore_models[category]
 
@@ -94,11 +97,21 @@ for cat in known_categories:
 # Load EfficientNet-B0 Classifier (v3 best model)
 print("Loading EfficientNet-B0 v3 Classifier...")
 CKPT_DIR_V3 = os.path.join(MODELS_DIR, "efficientnet_baseline_v3")
-best_ckpt = torch.load(os.path.join(CKPT_DIR_V3, "best_model.pt"), map_location=device)
-effnet_model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=2)
-effnet_model.load_state_dict(best_ckpt["model_state"])
-effnet_model = effnet_model.to(device)
-effnet_model.eval()
+effnet_ckpt_path = os.path.join(CKPT_DIR_V3, "best_model.pt")
+effnet_model = None
+if os.path.exists(effnet_ckpt_path):
+    try:
+        best_ckpt = torch.load(effnet_ckpt_path, map_location=device)
+        effnet_model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=2)
+        effnet_model.load_state_dict(best_ckpt["model_state"])
+        effnet_model = effnet_model.to(device)
+        effnet_model.eval()
+        print("EfficientNet-B0 v3 Classifier loaded successfully!")
+    except Exception as e:
+        print(f"Warning: Failed to load EfficientNet checkpoint from {effnet_ckpt_path}: {e}")
+        effnet_model = None
+else:
+    print(f"[Info] EfficientNet checkpoint not found at {effnet_ckpt_path}. Operating in PatchCore-only or demo mode.")
 
 EFF_IMG_SIZE = 256
 eff_transform = A.Compose([
@@ -170,6 +183,12 @@ def inspect_single_image(filepath, category):
 
     baseline = baseline_lookup[category]
     patchcore_model = get_patchcore_model(category)
+    if patchcore_model is None:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact for category '{category}' not found at {mb_path}. Please download authorized dataset and generate memory banks following REPRODUCIBILITY.md."
+        )
 
     pc_tensor = load_pc_tensor(filepath)
     if pc_tensor is None:
@@ -182,18 +201,22 @@ def inspect_single_image(filepath, category):
     defect_area_pct = 100.0 * (dist_map_norm >= 0.5).sum() / dist_map_norm.size
     anomaly_norm = normalize_anomaly_score(raw_score, baseline["baseline_mean"], baseline["baseline_p99"])
 
+    optimal_thresh = float(round(baseline["baseline_p99"], 4))
+    patchcore_defective = bool(raw_score > optimal_thresh)
+
     image_bgr = cv2.imread(filepath)
     if image_bgr is None:
         return None
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = effnet_model(eff_tensor)
-        prob_defective = F.softmax(output, dim=1)[0, 1].item()
-    confidence_pct = prob_defective * 100
 
-    optimal_thresh = float(round(baseline["baseline_p99"], 4))
-    patchcore_defective = bool(raw_score > optimal_thresh)
+    if effnet_model is not None:
+        eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
+        with torch.no_grad():
+            output = effnet_model(eff_tensor)
+            prob_defective = F.softmax(output, dim=1)[0, 1].item()
+    else:
+        prob_defective = 1.0 if patchcore_defective else 0.0
+    confidence_pct = prob_defective * 100
     effnet_defective = bool(prob_defective >= 0.5)
     
     # Joint decision: flag as defective if either unsupervised PatchCore or supervised EfficientNet triggers
