@@ -1,0 +1,7 @@
+claim_id,claim,metric,patchcore_val,efficientnet_val,hybrid_val,verdict
+C-01,Unsupervised PatchCore achieves high recall on novel defects,Defect Recall (Sensitivity),0.7184,0.8224,0.9088,SUPPORTED
+C-02,Supervised CNN provides high precision on known defects,Defect Precision,0.9761,0.9981,0.9793,SUPPORTED
+C-03,Hybrid Disjunctive Union eliminates defect escapes,False Negative Rate (FNR),0.2816,0.1776,0.0912,SUPPORTED
+C-04,CPND provides superior calibration over boundary distance,Empirical AUC Gain,0.00%,N/A,0.00%,REFUTED (Phase 7C)
+C-05,MACBA is a novel non-equivalent resource allocation policy,Policy Divergence vs BL6,0.00%,N/A,0.00%,REFUTED (Phase 8C)
+C-06,Edge inference achievable on CPU in real-time,p50 Latency (ms),268.1 ms,170.1 ms,450.6 ms,SUPPORTED

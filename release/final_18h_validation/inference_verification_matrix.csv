@@ -1,0 +1,5 @@
+specimen,category,ground_truth,direct_predicted_label,direct_anomaly_score,direct_confidence_pct,direct_severity_score,api_predict_score,api_frame_score,delta_predict,delta_frame,determinism_variance_5_runs,deterministic_pass,equivalence_pass
+bottle/000.png,bottle,defective,defective,3.305596,100.0,76.05,3.305596,3.3056,0.0,4.000000000115023e-06,0.0,True,True
+bottle/000.png,bottle,normal,normal,1.286906,0.0,39.5,1.286906,1.2869,0.0,6.000000000172534e-06,0.0,True,True
+cable/000.png,cable,defective,defective,2.906216,99.95,72.52,2.906216,2.9062,0.0,1.6000000000016e-05,0.0,True,True
+cable/000.png,cable,normal,normal,2.067384,1.15,9.64,2.067384,2.0674,0.0,1.6000000000016e-05,0.0,True,True
