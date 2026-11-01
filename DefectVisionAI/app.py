@@ -48,12 +48,16 @@ from src.batch_inspection import build_batch_report
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-MODELS_DIR = "models"
-REPORTS_DIR = "reports"
-LOGS_DIR = "logs"
-BATCH_DIR = "batch_inspections"
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(APP_DIR, "models")
+REPORTS_DIR = os.path.join(APP_DIR, "reports")
+LOGS_DIR = os.path.join(APP_DIR, "logs")
+BATCH_DIR = os.path.join(APP_DIR, "batch_inspections")
+OUTPUTS_DIR = os.path.join(APP_DIR, "outputs")
 
 os.makedirs(BATCH_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 # -----------------------------
 # Startup Model Caching
@@ -135,8 +139,17 @@ for cat in known_categories:
 
 # Load Embedding Extractor for query similarity search
 print("Loading Embedding Extractor...")
-embedding_extractor = EmbeddingExtractor(os.path.join(CKPT_DIR_V3, "best_model.pt"), device=device).to(device)
-embedding_extractor.eval()
+embedding_extractor = None
+if os.path.exists(effnet_ckpt_path):
+    try:
+        embedding_extractor = EmbeddingExtractor(effnet_ckpt_path, device=device).to(device)
+        embedding_extractor.eval()
+        print("Embedding Extractor loaded successfully!")
+    except Exception as e:
+        print(f"Warning: Failed to load Embedding Extractor: {e}")
+        embedding_extractor = None
+else:
+    print(f"[Info] Embedding Extractor checkpoint not found at {effnet_ckpt_path}. Operating in weights-pending mode.")
 
 # Load RAG Knowledge Base and semantic index
 print("Initializing RAG Knowledge Base...")
@@ -148,7 +161,15 @@ kb_index.build(kb_df)
 
 # Initialize Analytics classes
 analytics = DashboardAnalytics(logs_dir=LOGS_DIR, reports_dir=REPORTS_DIR)
-severity_log_df = pd.read_csv(os.path.join(LOGS_DIR, "step9_severity_log.csv"))
+severity_log_path = os.path.join(LOGS_DIR, "step9_severity_log.csv")
+if os.path.exists(severity_log_path):
+    severity_log_df = pd.read_csv(severity_log_path)
+else:
+    severity_log_df = pd.DataFrame(columns=[
+        "filepath", "category", "true_label", "defect_type",
+        "raw_patchcore_score", "anomaly_norm_0_100", "defect_area_pct",
+        "confidence_pct", "severity_score", "severity_level"
+    ])
 auroc_matrix_path = os.path.join(REPORTS_DIR, "step8_per_category_auroc_matrix.csv")
 auroc_matrix = pd.read_csv(auroc_matrix_path, index_col=0) if os.path.exists(auroc_matrix_path) else None
 rca = PatternAnalyzer(severity_log=severity_log_df, per_category_auroc_matrix=auroc_matrix)
@@ -228,8 +249,9 @@ def inspect_single_image(filepath, category):
     # Identify nearest historical defect from FAISS gallery
     defect_type = "anomaly"
     nearest_matches = []
-    if category in loaded_faiss_indices:
+    if category in loaded_faiss_indices and embedding_extractor is not None:
         try:
+            eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
             with torch.no_grad():
                 eff_emb = embedding_extractor(eff_tensor)[0].cpu().numpy()
             nearest_matches = loaded_faiss_indices[category].search(eff_emb, k=3)
@@ -272,6 +294,12 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
     t_start = time.perf_counter()
     baseline = baseline_lookup[category]
     patchcore_model = get_patchcore_model(category)
+    if patchcore_model is None:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact for category '{category}' not found at {mb_path}. Please download authorized dataset and generate memory banks following REPRODUCIBILITY.md."
+        )
 
     # 1. PatchCore feature extraction & distance scoring
     h, w = image_bgr.shape[:2]
@@ -287,25 +315,30 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
     defect_area_pct = float(100.0 * (dist_map_norm >= 0.5).sum() / dist_map_norm.size)
     anomaly_norm = float(normalize_anomaly_score(raw_score, baseline["baseline_mean"], baseline["baseline_p99"]))
 
-    # 2. EfficientNet-B0 defect classification
-    eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = effnet_model(eff_tensor)
-        prob_defective = float(F.softmax(output, dim=1)[0, 1].item())
-    confidence_pct = float(round(prob_defective * 100, 2))
-
-    # 3. Severity scoring & nearest FAISS match
     optimal_thresh = float(round(baseline["baseline_p99"], 4))
     patchcore_defective = bool(raw_score > optimal_thresh)
+
+    # 2. EfficientNet-B0 defect classification
+    if effnet_model is not None:
+        eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
+        with torch.no_grad():
+            output = effnet_model(eff_tensor)
+            prob_defective = float(F.softmax(output, dim=1)[0, 1].item())
+    else:
+        prob_defective = 1.0 if patchcore_defective else 0.0
+    confidence_pct = float(round(prob_defective * 100, 2))
     effnet_defective = bool(prob_defective >= 0.5)
+
+    # 3. Severity scoring & nearest FAISS match
     predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
     severity_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, confidence_pct), 2))
     severity_level = bucket_severity(severity_score)
 
     defect_type = "anomaly"
     nearest_matches = []
-    if category in loaded_faiss_indices:
+    if category in loaded_faiss_indices and embedding_extractor is not None:
         try:
+            eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
             with torch.no_grad():
                 eff_emb = embedding_extractor(eff_tensor)[0].cpu().numpy()
             nearest_matches = loaded_faiss_indices[category].search(eff_emb, k=3)
@@ -383,7 +416,7 @@ def generate_stream_frames(category="bottle"):
 
     # Prepare specimen fallback frames if webcam is not used
     specimen_frames = []
-    cat_dir = os.path.join("outputs", "gradcam", category)
+    cat_dir = os.path.join(OUTPUTS_DIR, "gradcam", category)
     if os.path.exists(cat_dir):
         files = [f for f in os.listdir(cat_dir) if f.endswith((".png", ".jpg"))][:25]
         for f in files:
@@ -391,7 +424,7 @@ def generate_stream_frames(category="bottle"):
             if img is not None:
                 specimen_frames.append(img)
     if not specimen_frames:
-        demo_path = os.path.join("outputs", "similarity_search_samples", f"{category}_similarity_demo.png")
+        demo_path = os.path.join(OUTPUTS_DIR, "similarity_search_samples", f"{category}_similarity_demo.png")
         if os.path.exists(demo_path):
             d_img = cv2.imread(demo_path)
             if d_img is not None:
@@ -585,8 +618,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if os.path.exists("outputs"):
-    app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+if os.path.exists(OUTPUTS_DIR):
+    app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
 active_batches = {}
 
@@ -780,6 +813,11 @@ async def similarity_endpoint(file: UploadFile = File(...), category: str = Form
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
     if category not in loaded_faiss_indices:
         raise HTTPException(status_code=400, detail=f"No FAISS index available for {category}")
+    if embedding_extractor is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Embedding extractor model artifact not found. Please train model or see REPRODUCIBILITY.md."
+        )
 
     temp_dir = tempfile.mkdtemp()
     filepath = os.path.join(temp_dir, file.filename)
