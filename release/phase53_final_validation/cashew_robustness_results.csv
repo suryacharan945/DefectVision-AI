@@ -1,0 +1,8 @@
+perturbation_key,perturbation_desc,mean_score,mean_nominal_score,mean_defect_score,accuracy_pct,tp,tn,fp,fn
+clean,None (Baseline),1.5329,1.3763,1.6895,65.0,3,10,0,7
+brightness_up,+15% Brightness,1.6857,1.4992,1.8721,80.0,6,10,0,4
+brightness_down,-15% Brightness,1.5639,1.3839,1.744,65.0,3,10,0,7
+contrast_up,+20% Contrast,1.685,1.4923,1.8777,75.0,5,10,0,5
+gaussian_blur,Gaussian Blur (sigma=1.0),1.5661,1.3694,1.7628,65.0,3,10,0,7
+jpeg_compression,JPEG Compression (Q=50),1.5127,1.3517,1.6736,65.0,3,10,0,7
+framing_shift,"Framing Shift (+4,+4 px)",1.556,1.3954,1.7165,65.0,3,10,0,7
