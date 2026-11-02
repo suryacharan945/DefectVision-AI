@@ -1,0 +1,31 @@
+\begin{table}[t]
+\centering
+\caption{Independent Validation Results on the Untouched VisA Cashew Benchmark ($N=200$)}
+\label{tab:visa_cashew_summary}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Measured Value} & \textbf{95\% Confidence Interval / Notes} \\
+\midrule
+Evaluation Population & 200 specimens & 100 Nominal, 100 Defective ($1:1$) \\
+Nominal Calibration Cohort & 50 specimens & Held-out ($\tau_{\text{p99}} = 1.745232$) \\
+\midrule
+True Positives (TP) & 57 & Defective specimens flagged \\
+True Negatives (TN) & 98 & Nominal specimens cleared \\
+False Positives (FP) & 2 & False alarms (2.00\% FPR) \\
+False Negatives (FN) & 43 & Defect escapes (43.00\% FNR) \\
+\midrule
+Overall Accuracy & 77.50\% & [71.22\%, 82.68\%] (Wilson) \\
+Balanced Accuracy & 77.50\% & [71.22\%, 82.68\%] (Symmetric) \\
+Defect Precision (PPV) & 96.61\% & [88.48\%, 99.07\%] (Wilson) \\
+Defect Recall (TPR) & 57.00\% & [47.24\%, 66.24\%] (Wilson) \\
+Specificity (TNR) & 98.00\% & [92.96\%, 99.45\%] (Wilson) \\
+Negative Predictive Value & 69.50\% & [61.46\%, 76.49\%] (Wilson) \\
+F1-Score & 0.7170 & Harmonic mean \\
+Image-Level AUROC & 0.9237 & [0.8852, 0.9565] (1,000 Bootstrap) \\
+Image-Level AUPRC & 0.9270 & Area under PR curve \\
+Full-Census Pixel AUROC & 0.9930 & 10,035,200 pixels (all 200 img) \\
+Defect-Only Pixel AUROC & 0.9877 & 5,017,600 pixels (100 def img) \\
+Forward Pass CPU Latency & 392.5 ms & Median (p95: 438.1 ms) \\
+\bottomrule
+\end{tabular}
+\end{table}

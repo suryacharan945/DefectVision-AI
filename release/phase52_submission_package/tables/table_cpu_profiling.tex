@@ -1,0 +1,25 @@
+\begin{table}[t]
+\centering
+\caption{Computational Execution Profiling on Consumer CPU Hardware (Intel Core i7-10750H)}
+\label{tab:cpu_profiling}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Pipeline Stage / Component} & \textbf{Metric} & \textbf{Value} \\
+\midrule
+Target Domain Registration (350 images) & Total Time & 392.25 s ($\approx 6.5$ min) \\
+Raw Feature Extraction (274,400 vectors) & Total Time & 281.14 s \\
+Greedy K-Center Coreset Selection (10\%) & Total Time & 91.17 s \\
+Calibration Cohort Evaluation (50 images) & Total Time & 19.94 s \\
+Extracted Coreset Tokens ($M$) & Size & 27,440 tokens \\
+Coreset Storage Footprint & RAM / Disk & 40.2 MB (FAISS FlatL2) \\
+\midrule
+PatchCore CPU Forward Pass & Median & \textbf{392.5 ms} \\
+PatchCore CPU Forward Pass & Mean $\pm$ Std & $396.7 \pm 28.4$ ms \\
+PatchCore CPU Forward Pass & 95th Percentile & \textbf{438.1 ms} \\
+EfficientNet-B0 Forward Pass & Median & 170.1 ms \\
+End-to-End Hybrid API Latency & Median & 881.7 ms \\
+End-to-End Hybrid API Latency & 95th Percentile & 1455.7 ms \\
+Resident System Working Set & RAM & $< 650$ MB \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,31 @@
+\begin{table*}[t]
+\centering
+\caption{Quantitative Performance Comparison on the Audited 856-Image MVTec AD Benchmark (Category C Development-Exposed)}
+\label{tab:mvtec_comparison}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric} & \textbf{PatchCore (Alone)} & \textbf{EfficientNet-B0 (Alone)} & \textbf{DefectVision AI Hybrid} & \textbf{Hybrid Delta vs. EffNet} \\
+\midrule
+Evaluation Population & 856 specimens & 856 specimens & 856 specimens & -- \\
+Conforming Nominal Specimens ($y=0$) & 231 specimens & 231 specimens & 231 specimens & -- \\
+Defective Specimens ($y=1$) & 625 specimens & 625 specimens & 625 specimens & -- \\
+\midrule
+True Positives (TP) & 449 & 514 & \textbf{568} & $+54$ caught \\
+True Negatives (TN) & 220 & \textbf{230} & 219 & $-11$ \\
+False Positives (FP / False Alarms) & 11 & \textbf{1} & 12 & $+11$ false alarms \\
+False Negatives (FN / Escapes) & 176 & 111 & \textbf{57} & $-54$ escapes ($-48.6\%$) \\
+\midrule
+Overall Accuracy & 78.15\% & 86.92\% & \textbf{91.94\%} & $+5.02\%$ \\
+Balanced Accuracy & 83.54\% & 90.90\% & \textbf{92.84\%} & $+1.94\%$ \\
+Defect Precision (PPV) & 97.61\% & \textbf{99.81\%} & 97.93\% & $-1.88\%$ \\
+Defect Recall (TPR / Sensitivity) & 71.84\% & 82.24\% & \textbf{90.88\%} & $+8.64\%$ \\
+Specificity (TNR) & 95.24\% & \textbf{99.57\%} & 94.81\% & $-4.76\%$ \\
+F1-Score & 0.8277 & 0.9018 & \textbf{0.9427} & $+0.0409$ \\
+False Positive Rate (FPR) & 4.76\% & \textbf{0.43\%} & 5.19\% & $+4.76\%$ \\
+False Negative Rate (FNR) & 28.16\% & 17.76\% & \textbf{9.12\%} & $-8.64\%$ \\
+Image-Level AUROC & 0.9373\textsuperscript{*} & \textbf{0.9809} & 0.9608 & $-0.0201$ \\
+Image-Level AUPRC & 0.9266 & \textbf{0.9932} & 0.9745 & $-0.0187$ \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize \textsuperscript{*}Note: Standalone PatchCore AUROC reflects category-standardized anomaly scores ($z$-score normalized per category).}
+\end{tabular}
+\end{table*}
