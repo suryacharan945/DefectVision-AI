@@ -1064,7 +1064,8 @@ def ask_rca_endpoint(payload: AskPayload):
             ans = f"The correlation between the physical defect area percentage and the overall severity score is {res['correlation']} (n={res['n_samples']})."
         elif "weakest" in q or "struggle" in q or "auroc" in q:
             res = rca.weakest_detection_categories()
-            ans = f"Based on the evaluation AUROC, the categories where the detection model struggles the most are: {', '.join([f'{r['category']} (avg AUROC: {r['avg_auroc']})' for r in res])}."
+            weakest_str = ", ".join([f"{r['category']} (avg AUROC: {r['avg_auroc']})" for r in res])
+            ans = f"Based on the evaluation AUROC, the categories where the detection model struggles the most are: {weakest_str}."
         else:
             # default to defect type severity ranking
             cat = extract_category(question, known_categories)
