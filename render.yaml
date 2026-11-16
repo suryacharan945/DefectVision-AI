@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: defectvision-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HOST
+        value: 0.0.0.0
+      - key: CORS_ORIGINS
+        value: https://defectvision-ai.vercel.app,http://localhost:5173,http://127.0.0.1:5173

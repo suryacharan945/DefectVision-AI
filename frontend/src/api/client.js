@@ -15,7 +15,8 @@ import fallbackSeverityLogs from '../data/severity_logs.json';
 import fallbackBatches from '../data/batch_list.json';
 import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const rawBaseUrl = import.meta.env.VITE_API_URL || '';
+const BASE_URL = rawBaseUrl.trim().replace(/\/+$/, '');
 
 // Explicit Demo Mode State Management
 let _demoModeEnabled = false;
@@ -56,7 +57,8 @@ const defaultDefectTypes = {
 };
 
 async function request(endpoint, options = {}) {
-  const url = `${BASE_URL}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${BASE_URL}${cleanEndpoint}`;
   try {
     const res = await fetch(url, options);
     const contentType = res.headers.get('content-type') || '';
@@ -71,10 +73,19 @@ async function request(endpoint, options = {}) {
       } catch (e) {
         // ignore
       }
+
+      const isHtml = contentType.includes('text/html');
+      const errorMsg = isHtml
+        ? 'Backend Unavailable: Endpoint returned HTML SPA fallback'
+        : (errBody.error || errBody.detail || `HTTP ${res.status}`);
+      const status = isHtml && res.ok ? 503 : res.status;
+
       throw new ApiError(
-        errBody.error || errBody.detail || `HTTP ${res.status}`,
-        res.status,
-        errBody.detail || 'Endpoint returned non-JSON or error status.'
+        errorMsg,
+        status,
+        errBody.detail || (isHtml
+          ? 'The API request reached the frontend host or an invalid path instead of the FastAPI backend. Check that VITE_API_URL points to the live backend server.'
+          : 'Endpoint returned non-JSON or error status.')
       );
     }
 
@@ -93,6 +104,13 @@ async function request(endpoint, options = {}) {
 const simulatedBatches = {};
 
 export const api = {
+  /**
+   * Get configured API Base URL
+   */
+  getBaseUrl() {
+    return BASE_URL;
+  },
+
   /**
    * Check whether user has explicitly engaged demo mode
    */
@@ -126,25 +144,39 @@ export const api = {
    */
   async checkHealth() {
     try {
-      const res = await request('/api/');
+      const res = await request('/api/health');
       return {
         ...res,
         status: 'ready',
         mode: 'live',
         is_live: true,
-        device: res.device || 'Local Host (CPU/CUDA)'
+        device: res.device || 'Local Host (CPU/CUDA)',
+        api_url: BASE_URL || 'Local Host (Port 8000)'
       };
     } catch (err) {
-      return {
-        status: 'offline',
-        mode: _demoModeEnabled ? 'demo' : 'unavailable',
-        is_live: false,
-        device: 'Offline',
-        version: '3.0.0',
-        categories_count: 15,
-        llm_loaded: false,
-        error: 'Backend offline: connection refused at 127.0.0.1:8000'
-      };
+      try {
+        const resRoot = await request('/api/');
+        return {
+          ...resRoot,
+          status: 'ready',
+          mode: 'live',
+          is_live: true,
+          device: resRoot.device || 'Local Host (CPU/CUDA)',
+          api_url: BASE_URL || 'Local Host (Port 8000)'
+        };
+      } catch (rootErr) {
+        return {
+          status: 'offline',
+          mode: _demoModeEnabled ? 'demo' : 'unavailable',
+          is_live: false,
+          device: 'Offline',
+          version: '3.0.0',
+          categories_count: 15,
+          llm_loaded: false,
+          api_url: BASE_URL || 'http://127.0.0.1:8000',
+          error: err.detail || err.message || 'Backend offline or unreachable'
+        };
+      }
     }
   },
 
@@ -695,7 +727,11 @@ export const api = {
         body: formData,
       });
     } catch (err) {
-      // Fallback to inspectFrame if optical endpoint fails or in demo mode
+      // In live mode, fail cleanly so caller can surface backend connectivity state
+      if (!_demoModeEnabled) {
+        throw err;
+      }
+      // Only in explicit demo mode, fallback to synthetic demo frame
       return await this.inspectFrame(frameBlob, operatorOverride);
     }
   },
@@ -738,6 +774,6 @@ export const api = {
    * @param {string} category
    */
   getStreamUrl(category = 'bottle') {
-    return `/stream/${encodeURIComponent(category)}`;
+    return `${BASE_URL}/stream/${encodeURIComponent(category)}`;
   },
 };

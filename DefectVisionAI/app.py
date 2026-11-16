@@ -21,7 +21,7 @@ import pandas as pd
 import timm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -622,9 +622,24 @@ def fallback_explain(category, defect_type, severity_level, severity_score, defe
 # -----------------------------
 app = FastAPI(title="DefectVision AI — Live Inference Server")
 
+cors_env = os.environ.get("CORS_ORIGINS", "")
+if cors_env.strip():
+    allowed_origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
+else:
+    allowed_origins = [
+        "https://defectvision-ai.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -650,16 +665,36 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # -----------------------------
-# Endpoints
+# Endpoints & Production Health
 # -----------------------------
 
 @app.get("/")
+@app.get("/health")
+@app.get("/api/health")
+@app.get("/api")
+@app.get("/api/")
 def read_root():
+    """
+    Standardized production health check endpoint.
+    Returns backend readiness, hardware device, model registry status, and operational metadata.
+    """
+    engine_ready = False
+    try:
+        engine = get_optical_engine()
+        engine_ready = engine is not None
+    except Exception:
+        engine_ready = False
+
     return {
         "status": "ready",
+        "service": "DefectVision AI — Live Inference Server",
+        "version": "3.0.0",
         "device": str(device),
-        "llm_loaded": llm_loaded,
-        "categories": known_categories
+        "llm_loaded": bool(llm_loaded),
+        "total_categories": len(known_categories),
+        "categories": known_categories,
+        "optical_engine_ready": engine_ready,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 @app.post("/predict")
@@ -1301,4 +1336,6 @@ def get_category_similarity_gallery(category: str):
 # -----------------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host=host, port=port)

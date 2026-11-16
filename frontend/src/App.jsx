@@ -80,7 +80,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
                 <span className="font-semibold tracking-wide">LIVE INFERENCE ACTIVE</span>
-                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + FAISS Memory Bank (Port 8000)</span>
+                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + FAISS Memory Banks ({backendHealth?.api_url || 'Port 8000'})</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">15 Categories Ready</span>
             </div>
@@ -97,7 +97,7 @@ export default function App() {
                   onClick={() => checkServer()}
                   className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
                 >
-                  Retry Live Backend
+                  Retry Connection
                 </button>
                 <button
                   type="button"
@@ -113,7 +113,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-rose-300">
                 <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                 <span className="font-semibold tracking-wide">BACKEND UNAVAILABLE</span>
-                <span className="text-rose-200/70 font-normal hidden sm:inline">| Local daemon offline. Real model execution blocked.</span>
+                <span className="text-rose-200/70 font-normal hidden sm:inline">| {backendHealth?.api_url ? `Unreachable at ${backendHealth.api_url}` : 'FastAPI daemon offline'}. Real model execution blocked.</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -121,7 +121,7 @@ export default function App() {
                   onClick={() => checkServer()}
                   className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
                 >
-                  Check 127.0.0.1:8000
+                  Retry Connection
                 </button>
                 <button
                   type="button"
