@@ -711,6 +711,7 @@ async def inspect_frame_endpoint(
     return engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="live")
 
 @app.post("/api/optical-inspection/inspect-frame")
+@app.post("/optical-inspection/inspect-frame")
 async def optical_inspect_frame_endpoint(
     frame: UploadFile = File(None),
     file: UploadFile = File(None),
@@ -736,6 +737,7 @@ async def optical_inspect_frame_endpoint(
     return result
 
 @app.get("/api/optical-inspection/model-status")
+@app.get("/optical-inspection/model-status")
 def optical_model_status_endpoint():
     """
     Returns deployment status and calibrated thresholds for all 15 MVTec AD categories.
@@ -750,6 +752,7 @@ def optical_model_status_endpoint():
     }
 
 @app.get("/api/optical-inspection/history")
+@app.get("/optical-inspection/history")
 def optical_history_endpoint(category: str = "all", verdict: str = "all", limit: int = 40):
     """
     Retrieves real-time optical inspection history records and session summary statistics.
@@ -763,6 +766,7 @@ def optical_history_endpoint(category: str = "all", verdict: str = "all", limit:
     }
 
 @app.post("/api/optical-inspection/history/clear")
+@app.post("/optical-inspection/history/clear")
 def optical_history_clear_endpoint():
     """
     Clears in-memory inspection history buffer.
@@ -772,6 +776,7 @@ def optical_history_clear_endpoint():
     return {"status": "cleared", "message": "Optical inspection history cleared successfully."}
 
 @app.get("/api/optical-inspection/categories")
+@app.get("/optical-inspection/categories")
 def optical_categories_endpoint():
     """
     Returns list of all 15 supported MVTec AD categories and their configuration metadata.

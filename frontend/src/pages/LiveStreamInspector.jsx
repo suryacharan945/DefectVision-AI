@@ -304,14 +304,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
         }
 
         if (!frameBlob) {
-          const sampleRes = await fetch(`/outputs/similarity_search_samples/bottle_similarity_demo.png`);
-          if (sampleRes.ok) {
-            frameBlob = await sampleRes.blob();
-          }
-        }
-
-        if (!frameBlob) {
-          throw new Error('Unable to extract frame for inspection.');
+          throw new Error('Unable to extract frame for inspection. Please ensure camera or stream is active.');
         }
 
         // Call Category-Aware Optical Inspection Engine

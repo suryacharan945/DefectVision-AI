@@ -20,7 +20,7 @@ from src.category_classifier import CategoryRecognitionService
 from src.category_model_registry import CategoryModelRegistry
 from src.decision_fusion_service import DecisionFusionService
 from src.inspection_history_service import InspectionHistoryService
-from src.patchcore import PatchCoreExtractor, PatchCoreModel, normalize_map, overlay_heatmap
+from src.patchcore import PatchCoreExtractor, PatchCoreModel, normalize_map, overlay_heatmap, calibrate_score_map
 from src.severity import normalize_anomaly_score, compute_severity_score, bucket_severity
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -77,7 +77,7 @@ class OpticalInspectionEngine:
         self.quality_service = ImageQualityService()
         self.roi_service = ObjectRegionService()
         self.registry = CategoryModelRegistry(models_dir=MODELS_DIR)
-        self.fusion_service = DecisionFusionService(borderline_margin=0.08)
+        self.fusion_service = DecisionFusionService(borderline_margin=0.02)
         self.history_service = InspectionHistoryService()
 
         # Category Recognition Service
@@ -357,8 +357,14 @@ class OpticalInspectionEngine:
             fused_emb = self.extractor(pc_tensor)[0].cpu().numpy()
 
         dist_map, raw_score = patchcore_model.score(fused_emb)
-        dist_map_norm = normalize_map(dist_map)
-        defect_area_pct = float(100.0 * (dist_map_norm >= 0.5).sum() / dist_map_norm.size)
+
+        import scipy.ndimage
+        smooth_dist_map = cv2.resize(dist_map, (PC_IMG_SIZE, PC_IMG_SIZE), interpolation=cv2.INTER_CUBIC)
+        smooth_dist_map = scipy.ndimage.gaussian_filter(smooth_dist_map, sigma=4.0)
+
+        # Defect area is percentage of surface where distance meets or exceeds calibrated threshold
+        anomalous_pixels = float((smooth_dist_map >= calibrated_thresh).sum())
+        defect_area_pct = float(100.0 * anomalous_pixels / smooth_dist_map.size)
 
         baseline_mean = cat_cfg.get("baseline_mean", 1.25)
         baseline_p99 = cat_cfg.get("baseline_p99", 1.65)
@@ -375,11 +381,27 @@ class OpticalInspectionEngine:
             calibrated_threshold=calibrated_thresh
         )
 
+        is_defective = bool(verdict == "DEFECTIVE")
+        if verdict == "NORMAL":
+            defect_area_pct = 0.0
+            sev_score = 0.0
+            severity_level = "normal"
+            defect_type = "normal"
+        elif verdict == "DEFECTIVE":
+            sev_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, verdict=verdict), 2))
+            defect_type = "surface_anomaly"
+        elif verdict == "REVIEW REQUIRED":
+            sev_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, verdict=verdict), 2))
+            defect_type = "review_required"
+        else:
+            sev_score = 0.0
+            defect_type = "unsupported"
+
         # ----------------------------------------------------
         # Stage 6: Defect Heatmap Overlays
         # ----------------------------------------------------
-        # Overlay heatmap on ROI and composite onto full frame
-        roi_overlay = overlay_heatmap(img_rgb, dist_map_norm, alpha=0.45)
+        dist_map_norm = calibrate_score_map(dist_map, threshold=calibrated_thresh, baseline_mean=baseline_mean)
+        roi_overlay = overlay_heatmap(img_rgb, dist_map_norm, alpha=0.45, is_defective=is_defective)
         roi_overlay_bgr = cv2.cvtColor(roi_overlay, cv2.COLOR_RGB2BGR)
 
         # Composite onto original frame
@@ -388,14 +410,18 @@ class OpticalInspectionEngine:
             bx, by, bw, bh = bbox
             resized_roi_hm = cv2.resize(roi_overlay_bgr, (bw, bh))
             full_overlay[by:by+bh, bx:bx+bw] = resized_roi_hm
-            # Draw cyan boundary around inspection ROI
-            cv2.rectangle(full_overlay, (bx, by), (bx+bw, by+bh), (212, 182, 6), 2)
+            # Status bounding box: Green for NORMAL, Red for DEFECTIVE, Amber for REVIEW
+            box_color = (0, 200, 0) if verdict == "NORMAL" else ((0, 0, 220) if verdict == "DEFECTIVE" else (0, 180, 240))
+            cv2.rectangle(full_overlay, (bx, by), (bx+bw, by+bh), box_color, 2)
         else:
             full_overlay = cv2.resize(roi_overlay_bgr, (w, h))
 
         # Raw color map
-        hm_raw = cv2.resize(dist_map_norm, (w, h))
-        hm_raw = cv2.applyColorMap(np.uint8(255 * hm_raw), cv2.COLORMAP_JET)
+        if is_defective:
+            hm_raw = cv2.resize(dist_map_norm, (w, h))
+            hm_raw = cv2.applyColorMap(np.uint8(255 * hm_raw), cv2.COLORMAP_JET)
+        else:
+            hm_raw = image_bgr.copy()
 
         # Base64 encodings
         _, buf_overlay = cv2.imencode(".jpg", full_overlay, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
@@ -408,18 +434,7 @@ class OpticalInspectionEngine:
         raw_hm_b64 = "data:image/jpeg;base64," + base64.b64encode(buf_raw_hm).decode("utf-8")
 
         elapsed_ms = float(round((time.perf_counter() - t_start) * 1000, 2))
-
         conclusion = CONCLUSION_MAP.get(verdict, "INSPECTION COMPLETE")
-        sev_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, category_conf * 100), 2))
-
-        if verdict == "NORMAL":
-            defect_type = "normal"
-        elif verdict == "DEFECTIVE":
-            defect_type = "surface_anomaly"
-        elif verdict == "REVIEW REQUIRED":
-            defect_type = "review_required"
-        else:
-            defect_type = "unsupported"
 
         diagnosis = generate_diagnosis_text(
             verdict=verdict,

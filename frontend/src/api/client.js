@@ -38,21 +38,21 @@ class ApiError extends Error {
 }
 
 const defaultDefectTypes = {
-  bottle: 'Sidewall Structural Fracture',
-  cable: 'Deformed Core Wire',
-  capsule: 'Surface Crack & Squeeze',
-  carpet: 'Weave Fiber Hole',
-  grid: 'Bent Wire & Mesh Deformation',
-  hazelnut: 'Cracked Outer Shell',
-  leather: 'Surface Fold & Stain',
-  metal_nut: 'Thread Scratch',
-  pill: 'Tablet Coating Contamination',
-  screw: 'Thread Damage',
-  tile: 'Glaze Surface Crack',
-  toothbrush: 'Misaligned Bristle Tuft',
-  transistor: 'Bent Lead & Casing Scratch',
-  wood: 'Wood Grain Surface Hole',
-  zipper: 'Broken Zipper Tooth'
+  bottle: 'surface_anomaly',
+  cable: 'surface_anomaly',
+  capsule: 'surface_anomaly',
+  carpet: 'surface_anomaly',
+  grid: 'surface_anomaly',
+  hazelnut: 'surface_anomaly',
+  leather: 'surface_anomaly',
+  metal_nut: 'surface_anomaly',
+  pill: 'surface_anomaly',
+  screw: 'surface_anomaly',
+  tile: 'surface_anomaly',
+  toothbrush: 'surface_anomaly',
+  transistor: 'surface_anomaly',
+  wood: 'surface_anomaly',
+  zipper: 'surface_anomaly'
 };
 
 async function request(endpoint, options = {}) {
@@ -193,33 +193,28 @@ export const api = {
       const cat = String(category || 'bottle').toLowerCase();
       console.warn(`[DefectVision Demo] Serving client-side demonstration result for category: ${cat}`);
       
-      const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
-      const defectType = defaultDefectTypes[cat] || 'Surface Anomaly';
-      
-      const rawScore = 1.35 + (Math.sin(cat.length) * 0.2);
-      const anomalyScore = Math.min(0.95, Math.max(0.65, 0.78 + (Math.cos(cat.length) * 0.12)));
-      const severityScore = Math.min(96, Math.max(72, Math.round(anomalyScore * 105)));
-      const severityLevel = severityScore >= 80 ? 'Critical' : 'Moderate';
-      const confidence = 98.6 + Math.round(Math.random() * 12) / 10;
-      const defectArea = (3.5 + Math.round(Math.random() * 45) / 10).toFixed(1);
+      const sampleImgUrl = file ? URL.createObjectURL(file) : `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
 
       return {
-        predicted_label: 'defective',
-        severity_level: severityLevel,
-        severity_score: severityScore,
-        anomaly_score: parseFloat(anomalyScore.toFixed(3)),
-        raw_patchcore_score: parseFloat(rawScore.toFixed(3)),
-        confidence_pct: parseFloat(confidence.toFixed(1)),
-        defect_area_pct: parseFloat(defectArea),
-        defect_type: defectType,
-        optimal_threshold: 0.45,
+        verdict: 'NORMAL',
+        predicted_label: 'normal',
+        severity_level: 'normal',
+        severity_score: 0.0,
+        anomaly_score: 0.215,
+        raw_patchcore_score: 1.120,
+        calibrated_threshold: 1.467,
+        confidence_pct: 95.0,
+        defect_area_pct: 0.0,
+        defect_type: 'normal',
+        optimal_threshold: 1.467,
         processing_time_ms: 38.4,
         heatmap: sampleImgUrl,
-        original_image: file ? URL.createObjectURL(file) : sampleImgUrl,
+        original_image: sampleImgUrl,
         raw_heatmap: sampleImgUrl,
         edge_inference: true,
         is_demo: true,
-        inference_mode: 'DEMO MODE (Synthetic Simulation — Not Genuine ML)',
+        inference_mode: 'DEMO MODE (Client Simulation — Backend Offline)',
+        diagnosis: `Demonstration mode: backend model is offline. Simulating nominal baseline for ${cat}. The result reflects client-side demonstration only.`,
         warning: 'DEMONSTRATION ONLY: Synthetic simulation generated client-side. Backend model offline.'
       };
     }
@@ -655,26 +650,29 @@ export const api = {
           'Real camera optical stream inspection cannot be performed: local backend is offline.'
         );
       }
-      const cat = String(category || 'bottle').toLowerCase();
-      const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
+      const isAuto = category === 'auto' || !category;
       return {
-        verdict: 'DEFECTIVE',
-        predicted_label: 'defective',
-        detected_category: cat,
-        category_type: ['carpet','grid','leather','tile','wood'].includes(cat) ? 'texture' : 'object',
-        category_confidence: 0.985,
-        recognition_status: category === 'auto' ? 'RECOGNIZED' : 'OPERATOR_OVERRIDE',
-        model_selected: `PatchCore-${cat.charAt(0).toUpperCase() + cat.slice(1)}-MemoryBank`,
-        severity_level: 'Critical',
-        severity_score: 86.4,
-        anomaly_score: 0.835,
+        verdict: isAuto ? 'UNSUPPORTED' : 'NORMAL',
+        conclusion: isAuto ? 'UNSUPPORTED OR UNKNOWN CATEGORY' : 'NO DEFECT DETECTED',
+        predicted_label: isAuto ? 'unsupported' : 'normal',
+        detected_category: isAuto ? 'unsupported' : category,
+        candidate_category: isAuto ? 'unknown' : category,
+        category_type: isAuto ? 'unknown' : (['carpet','grid','leather','tile','wood'].includes(category) ? 'texture' : 'object'),
+        category_confidence: isAuto ? 0.0 : 1.0,
+        recognition_status: isAuto ? 'UNSUPPORTED_OR_UNCERTAIN' : 'OPERATOR_OVERRIDE',
+        model_selected: isAuto ? 'None' : `PatchCore-${category.charAt(0).toUpperCase() + category.slice(1)}-MemoryBank`,
+        severity_level: isAuto ? 'unsupported' : 'normal',
+        severity_score: 0.0,
+        anomaly_score: 0.0,
+        defect_area_pct: 0.0,
+        defect_type: isAuto ? 'unsupported' : 'normal',
         calibrated_threshold: 1.467,
-        confidence_pct: 99.2,
-        processing_time_ms: 41.2,
-        heatmap_base64: sampleImgUrl,
-        original_image: sampleImgUrl,
+        confidence_pct: isAuto ? 0.0 : 100.0,
+        processing_time_ms: 12.0,
+        heatmap_base64: '',
+        original_image: '',
         is_demo: true,
-        inference_mode: 'DEMO MODE (Stream Simulation)'
+        inference_mode: 'DEMO MODE (Stream Simulation — Backend Offline)'
       };
     }
   },

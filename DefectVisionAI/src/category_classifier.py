@@ -83,6 +83,7 @@ class CategoryRecognitionService:
         self.model_path = model_path
         self.meta_path = meta_path
         self.model = CategoryClassifier(num_classes=len(self.categories), pretrained=False)
+        self.prototypes = {}
         self.is_loaded = False
 
         if model_path and os.path.exists(model_path):
@@ -102,6 +103,15 @@ class CategoryRecognitionService:
         self.model.to(self.device)
         self.model.eval()
         self.is_loaded = True
+
+        # Load prototype feature embeddings if available
+        proto_path = os.path.join(os.path.dirname(model_path), "category_prototypes.npz")
+        if os.path.exists(proto_path):
+            try:
+                npz = np.load(proto_path)
+                self.prototypes = {k: npz[k] for k in npz.files}
+            except Exception as e:
+                print(f"Warning: Failed to load category prototypes from {proto_path}: {e}")
 
         if meta_path and os.path.exists(meta_path):
             with open(meta_path, "r", encoding="utf-8") as f:
@@ -126,7 +136,11 @@ class CategoryRecognitionService:
     @torch.no_grad()
     def predict(self, img_bgr):
         """
-        Runs category identification with confidence calibration and unknown rejection.
+        Runs category identification with multi-criterion confidence calibration and unknown rejection:
+        1. Calibrated Softmax Probability >= confidence_threshold
+        2. Normalized Shannon Entropy <= 0.60
+        3. Free Energy Score <= -6.50
+        4. Category Prototype Cosine Similarity >= 0.65
         Returns structured dict with detection telemetry.
         """
         if not self.is_loaded:
@@ -144,6 +158,8 @@ class CategoryRecognitionService:
                     "confidence_threshold": self.confidence_threshold,
                     "is_supported": False,
                     "normalized_entropy": 1.0,
+                    "energy_score": 0.0,
+                    "prototype_similarity": None,
                     "status": "CLASSIFIER_NOT_LOADED",
                     "probabilities": {}
                 }
@@ -152,30 +168,55 @@ class CategoryRecognitionService:
         if tensor is None:
             return {
                 "category": "unknown",
+                "candidate_category": "unknown",
                 "category_type": "unknown",
                 "confidence": 0.0,
+                "confidence_threshold": self.confidence_threshold,
                 "is_supported": False,
-                "entropy": 0.0,
+                "normalized_entropy": 1.0,
+                "energy_score": 0.0,
+                "prototype_similarity": None,
                 "status": "IMAGE_DECODE_FAILED",
                 "probabilities": {}
             }
 
-        logits = self.model.forward_calibrated(tensor)
-        probs = F.softmax(logits, dim=1)[0].cpu().numpy()
-        
+        # 1. Feature extraction and prototype similarity
+        feat = self.model.extract_features(tensor)[0].cpu().numpy()
+        norm_feat = feat / (np.linalg.norm(feat) + 1e-12)
+
+        # 2. Forward logits and probabilities
+        logits_raw = self.model(tensor)
+        logits_cal = self.model.forward_calibrated(tensor)
+        probs = F.softmax(logits_cal, dim=1)[0].cpu().numpy()
+
         top_idx = int(np.argmax(probs))
         top_prob = float(probs[top_idx])
         top_cat = self.id_to_cat[top_idx]
         cat_type = self.category_types.get(top_cat, "unknown")
 
-        # Shannon Entropy as uncertainty metric: H(P) = -sum(p * log(p))
+        # 3. Shannon Entropy uncertainty: H(P) = -sum(p * log(p))
         eps = 1e-9
         entropy = float(-np.sum(probs * np.log(probs + eps)))
         max_entropy = np.log(len(self.categories))
         norm_entropy = float(entropy / max_entropy)
 
-        # Rejection decision
-        is_supported = bool(top_prob >= self.confidence_threshold and norm_entropy < 0.65)
+        # 4. Free Energy score: E(x) = -T * logsumexp(logits / T)
+        T_energy = 1.0
+        energy = float(-T_energy * torch.logsumexp(logits_raw / T_energy, dim=1).item())
+
+        # 5. Prototype Cosine Similarity
+        proto_sim = None
+        if self.prototypes and top_cat in self.prototypes:
+            proto = self.prototypes[top_cat]
+            proto_sim = float(np.dot(norm_feat, proto))
+
+        # Multi-criterion Open-Set Rejection Rule
+        passes_prob = bool(top_prob >= self.confidence_threshold)
+        passes_entropy = bool(norm_entropy <= 0.60)
+        passes_energy = bool(energy <= -6.50)
+        passes_proto = bool(proto_sim >= 0.65) if proto_sim is not None else True
+
+        is_supported = bool(passes_prob and passes_entropy and passes_energy and passes_proto)
         status = "RECOGNIZED" if is_supported else "UNSUPPORTED_OR_UNCERTAIN"
 
         all_probs = {self.id_to_cat[i]: float(round(float(probs[i]), 4)) for i in range(len(probs))}
@@ -188,6 +229,14 @@ class CategoryRecognitionService:
             "confidence_threshold": float(round(self.confidence_threshold, 4)),
             "is_supported": is_supported,
             "normalized_entropy": float(round(norm_entropy, 4)),
+            "energy_score": float(round(energy, 4)),
+            "prototype_similarity": float(round(proto_sim, 4)) if proto_sim is not None else None,
+            "rejection_criteria": {
+                "passes_prob": passes_prob,
+                "passes_entropy": passes_entropy,
+                "passes_energy": passes_energy,
+                "passes_prototype": passes_proto
+            },
             "status": status,
             "probabilities": all_probs
         }
