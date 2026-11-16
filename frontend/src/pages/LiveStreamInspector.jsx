@@ -19,9 +19,12 @@ import {
   Settings,
   HelpCircle,
   X,
-  Volume2,
-  VolumeX,
-  Sparkles
+  Sparkles,
+  Filter,
+  Server,
+  Activity,
+  Check,
+  Info
 } from 'lucide-react';
 import { api } from '../api/client';
 import { CATEGORIES, getCategoryMeta } from '../utils/categories';
@@ -31,7 +34,7 @@ import HeatmapSlider from '../components/ui/HeatmapSlider';
 export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimilarity }) {
   // Stream & Source State
   const [streamMode, setStreamMode] = useState('webcam'); // 'webcam' | 'mjpeg'
-  const [selectedCategory, setSelectedCategory] = useState('bottle');
+  const [selectedCategory, setSelectedCategory] = useState('auto'); // 'auto' | 15 MVTec AD categories
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamError, setWebcamError] = useState(null);
   
@@ -46,6 +49,12 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
   const [latestResult, setLatestResult] = useState(null);
   const [eventHistory, setEventHistory] = useState([]);
   const [selectedEventModal, setSelectedEventModal] = useState(null);
+  const [showModelStatusModal, setShowModelStatusModal] = useState(false);
+  const [modelStatusData, setModelStatusData] = useState(null);
+
+  // History Filter State
+  const [historyCategoryFilter, setHistoryCategoryFilter] = useState('all');
+  const [historyVerdictFilter, setHistoryVerdictFilter] = useState('all');
 
   // References
   const videoRef = useRef(null);
@@ -53,14 +62,27 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
   const mjpegImgRef = useRef(null);
   const streamRef = useRef(null);
   const animFrameIdRef = useRef(null);
-  const lastFpsTimeRef = useRef(Date.now());
-  const frameCountRef = useRef(0);
   const isInspectingRef = useRef(false);
 
-  // Keep isInspectingRef in sync
   useEffect(() => {
     isInspectingRef.current = isInspecting;
   }, [isInspecting]);
+
+  // Load Model Registry Status
+  const fetchModelStatus = useCallback(async () => {
+    try {
+      const data = await api.getOpticalModelStatus();
+      if (data && data.categories) {
+        setModelStatusData(data);
+      }
+    } catch (e) {
+      console.warn('Could not fetch optical model status:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchModelStatus();
+  }, [fetchModelStatus]);
 
   // --------------------------------------------------------
   // 1. Client Browser Webcam Lifecycle (Mode 1)
@@ -138,26 +160,19 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // FPS Calculation
-      frameCountRef.current += 1;
-      const now = Date.now();
-      if (now - lastFpsTimeRef.current >= 1000) {
-        setFps(frameCountRef.current);
-        frameCountRef.current = 0;
-        lastFpsTimeRef.current = now;
-      }
+      // Dynamic Color from Latest Verdict
+      const verdict = latestResult?.verdict || 'READY';
+      let bracketColor = '#06B6D4'; // Cyan default
+      if (verdict === 'NORMAL') bracketColor = '#10B981'; // Green
+      else if (verdict === 'DEFECTIVE') bracketColor = '#EF4444'; // Red
+      else if (verdict === 'REVIEW REQUIRED') bracketColor = '#F59E0B'; // Amber
+      else if (verdict === 'UNSUPPORTED') bracketColor = '#A855F7'; // Purple
 
-      // Dynamic Color from Latest Severity
-      const sev = latestResult?.severity_level || 'normal';
-      let bracketColor = '#10B981'; // Green
-      if (sev === 'critical') bracketColor = '#EF4444'; // Red
-      else if (sev === 'moderate') bracketColor = '#F59E0B'; // Amber
-
-      // Central ROI Box Coordinates (60% of canvas)
-      const roiW = Math.round(w * 0.62);
-      const roiH = Math.round(h * 0.70);
-      const roiX = Math.round((w - roiW) / 2);
-      const roiY = Math.round((h - roiH) / 2);
+      // Central ROI Box Coordinates (60% of canvas) or custom ROI bbox
+      let roiX = Math.round((w - w * 0.62) / 2);
+      let roiY = Math.round((h - h * 0.70) / 2);
+      let roiW = Math.round(w * 0.62);
+      let roiH = Math.round(h * 0.70);
 
       // Draw Neon Corner Brackets around ROI
       const bLen = 28;
@@ -190,7 +205,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       // Bottom-Right
       ctx.beginPath();
       ctx.moveTo(roiX + roiW - bLen, roiY + roiH);
-      ctx.lineTo(roiX + roiW, roiY + roiH);
+      ctx.lineTo(roiX + roiW);
       ctx.lineTo(roiX + roiW, roiY + roiH - bLen);
       ctx.stroke();
 
@@ -216,11 +231,11 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
         scanlineDir *= -1;
       }
 
-      ctx.shadowColor = '#06B6D4';
+      ctx.shadowColor = bracketColor;
       ctx.shadowBlur = 15;
       const gradient = ctx.createLinearGradient(roiX, scanlineY, roiX + roiW, scanlineY);
       gradient.addColorStop(0, 'rgba(6,182,212,0.1)');
-      gradient.addColorStop(0.5, 'rgba(6,182,212,0.9)');
+      gradient.addColorStop(0.5, 'rgba(6,182,212,0.85)');
       gradient.addColorStop(1, 'rgba(6,182,212,0.1)');
       ctx.strokeStyle = gradient;
       ctx.lineWidth = 2;
@@ -229,9 +244,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       ctx.lineTo(roiX + roiW, scanlineY);
       ctx.stroke();
 
-      // Reset shadow for subsequent drawings
       ctx.shadowBlur = 0;
-
       animFrameIdRef.current = requestAnimationFrame(renderHUD);
     };
 
@@ -249,7 +262,6 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       if (isInspectingRef.current) return;
       setIsInspecting(true);
 
-      // Shutter visual flash effect
       if (!silent) {
         setShutterFlash(true);
         setTimeout(() => setShutterFlash(false), 120);
@@ -274,7 +286,6 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
             canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88)
           );
         } else {
-          // In MJPEG mode, grab frame snapshot from MJPEG image element
           const imgEl = mjpegImgRef.current;
           if (imgEl && imgEl.naturalWidth > 0) {
             const canvas = document.createElement('canvas');
@@ -292,31 +303,22 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
           }
         }
 
-        // If no blob was extracted (e.g. initial load or MJPEG cross-origin), fetch test preset
         if (!frameBlob) {
-          const sampleRes = await fetch(`/outputs/similarity_search_samples/${selectedCategory}_similarity_demo.png`);
-          if (sampleRes.ok) {
-            frameBlob = await sampleRes.blob();
-          }
+          throw new Error('Unable to extract frame for inspection. Please ensure camera or stream is active.');
         }
 
-        if (!frameBlob) {
-          throw new Error('Unable to extract frame for inspection.');
-        }
+        // Call Category-Aware Optical Inspection Engine
+        const result = await api.inspectOpticalFrame(frameBlob, selectedCategory);
 
-        // Call FastAPI in-memory inspection endpoint
-        const result = await api.inspectFrame(frameBlob, selectedCategory);
-
-        // Stamp with client timestamp & event id
         const inspectionEvent = {
           ...result,
           id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           timestamp: new Date().toLocaleTimeString(),
-          capturedCategory: selectedCategory,
+          capturedCategory: result.detected_category || selectedCategory,
         };
 
         setLatestResult(inspectionEvent);
-        setEventHistory((prev) => [inspectionEvent, ...prev.slice(0, 39)]); // Keep last 40 events
+        setEventHistory((prev) => [inspectionEvent, ...prev.slice(0, 49)]);
       } catch (err) {
         console.error('Frame inspection error:', err);
       } finally {
@@ -326,12 +328,9 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
     [streamMode, selectedCategory]
   );
 
-  // --------------------------------------------------------
-  // 4. Hotkey & Auto-Inspection Listeners
-  // --------------------------------------------------------
+  // Hotkey & Auto-Inspection Listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Spacebar triggers snapshot inspection
       if (e.code === 'Space' && !e.target.matches('input, textarea, select, button')) {
         e.preventDefault();
         executeInspection(false);
@@ -351,7 +350,41 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
     return () => clearInterval(timer);
   }, [autoInspect, inspectInterval, executeInspection]);
 
-  const catMeta = getCategoryMeta(selectedCategory);
+  // Handle Clear History
+  const handleClearHistory = async () => {
+    try {
+      await api.clearOpticalHistory();
+      setEventHistory([]);
+    } catch (e) {
+      setEventHistory([]);
+    }
+  };
+
+  // Filtered Event History
+  const filteredHistory = eventHistory.filter((evt) => {
+    if (historyCategoryFilter !== 'all' && evt.detected_category !== historyCategoryFilter) {
+      return false;
+    }
+    if (historyVerdictFilter !== 'all' && evt.verdict !== historyVerdictFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  const getVerdictStyle = (verdict) => {
+    switch (verdict) {
+      case 'NORMAL':
+        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.3)]';
+      case 'DEFECTIVE':
+        return 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_12px_rgba(239,68,68,0.3)]';
+      case 'REVIEW REQUIRED':
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]';
+      case 'UNSUPPORTED':
+        return 'bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-[0_0_12px_rgba(168,85,247,0.3)]';
+      default:
+        return 'bg-slate-800 text-slate-300 border-slate-700';
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1700px] mx-auto">
@@ -359,7 +392,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-400 p-[1px] shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-400 p-[1px] shadow-[0_0_15px_rgba(6,182,212,0.4)]">
               <div className="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
                 <Video className="w-5 h-5 text-cyan-400" />
               </div>
@@ -373,15 +406,19 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
                   LIVE STREAM
                 </span>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  Auto-Category Recognition
+                </span>
               </div>
               <p className="text-xs text-slate-400">
-                Direct frame-by-frame inference via resident PatchCore memory banks & EfficientNet-B0 classifier.
+                15 MVTec AD Category Recognition, Quality Gate, ResNet-18 PatchCore Memory Banks, & Fusion Decisions.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Top Controls: Mode & Category Pills */}
+        {/* Top Controls: Mode, Category Registry Button, & Spacebar Action */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Stream Mode Switch */}
           <div className="flex items-center p-1 bg-slate-900/90 border border-slate-800 rounded-xl">
@@ -408,9 +445,22 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
               }`}
             >
               <Radio className="w-3.5 h-3.5" />
-              <span>Backend MJPEG Stream</span>
+              <span>Backend MJPEG Feed</span>
             </button>
           </div>
+
+          {/* Model Registry Status Button */}
+          <button
+            type="button"
+            onClick={() => {
+              fetchModelStatus();
+              setShowModelStatusModal(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition-all"
+          >
+            <Server className="w-3.5 h-3.5 text-violet-400" />
+            <span>15 Models Registry</span>
+          </button>
 
           {/* Quick Snapshot Spacebar Action */}
           <button
@@ -473,7 +523,6 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                     className="w-full h-full object-cover select-none"
                   />
                 )}
-                {/* Holographic 2D HUD Overlay Canvas */}
                 <canvas
                   ref={hudCanvasRef}
                   width={1280}
@@ -486,68 +535,110 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
               <div className="relative w-full h-full flex items-center justify-center bg-black">
                 <img
                   ref={mjpegImgRef}
-                  src={api.getStreamUrl(selectedCategory)}
+                  src={api.getStreamUrl(selectedCategory === 'auto' ? 'bottle' : selectedCategory)}
                   alt="DefectVision Live MJPEG Feed"
                   className="w-full h-full object-contain select-none"
-                  onError={(e) => {
-                    console.warn('MJPEG stream connection error. Falling back to specimen frame.');
-                  }}
+                  onError={() => console.warn('MJPEG stream connection error.')}
                 />
               </div>
             )}
 
-            {/* Corner Futuristic Badges */}
-            {/* Top-Left: Engine Telemetry HUD */}
-            <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-              <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 backdrop-blur-md flex items-center gap-2 text-xs font-mono">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-slate-300 font-semibold">{catMeta.label.toUpperCase()}</span>
-                <span className="text-slate-500">|</span>
-                <span className="text-cyan-400">{catMeta.type}</span>
-              </div>
-              <div className="px-2 py-1 rounded-lg bg-slate-950/80 border border-slate-800 backdrop-blur-md text-[11px] font-mono text-slate-300">
-                FPS: <span className="text-emerald-400 font-bold">{fps}</span>
-              </div>
-            </div>
-
-            {/* Top-Right: Target Lock Status */}
-            <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-              <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 backdrop-blur-md flex items-center gap-2 text-xs font-mono">
-                <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-slate-300">ROI LOCK: </span>
-                <span className="text-emerald-400 font-bold">ONLINE</span>
-              </div>
-            </div>
-
-            {/* Bottom-Left: Live Latency Gauge */}
-            <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
+            {/* Top HUD Badges */}
+            <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
+              <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-black/75 backdrop-blur-md text-cyan-300 border border-cyan-500/40 shadow-lg">
+                FPS: {fps}
+              </span>
               {latestResult && (
-                <div className="px-2.5 py-1 rounded-lg bg-slate-950/90 border border-slate-800 backdrop-blur-md text-xs font-mono flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-violet-400" />
-                  <span className="text-slate-400">Latency:</span>
-                  <span className="text-cyan-300 font-bold">{latestResult.processing_time_ms} ms</span>
-                  <span className="text-slate-500">|</span>
-                  <span className="text-slate-400">Anomaly:</span>
-                  <span className="text-violet-300 font-bold">{latestResult.anomaly_score.toFixed(3)}</span>
-                </div>
+                <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-black/75 backdrop-blur-md text-slate-300 border border-slate-700 shadow-lg">
+                  Quality: {latestResult.image_quality_status || 'PASSED'}
+                </span>
               )}
             </div>
 
-            {/* Bottom-Right: Severity Status Pill */}
-            <div className="absolute bottom-3 right-3 z-20">
-              {latestResult ? (
-                <SeverityBadge
-                  level={latestResult.severity_level}
-                  score={latestResult.severity_score}
-                  size="sm"
-                />
-              ) : (
-                <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-400">
-                  Ready for Inspection
+            {/* Top-Right Verdict Overlay */}
+            {latestResult && (
+              <div className="absolute top-4 right-4 z-20 pointer-events-none">
+                <div
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-heading font-black tracking-wider uppercase border backdrop-blur-md ${getVerdictStyle(
+                    latestResult.verdict
+                  )}`}
+                >
+                  {latestResult.conclusion || latestResult.verdict}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Bottom HUD: Category Recognition & Anomaly Telemetry */}
+            {latestResult && (
+              <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-slate-700/80 text-xs shadow-lg">
+                  <span className="text-slate-400 font-mono">Recognized:</span>
+                  <span className="font-bold text-white uppercase">
+                    {latestResult.detected_category}
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    {latestResult.category_type}
+                  </span>
+                  <span className="text-violet-300 font-mono font-bold">
+                    {latestResult.category_confidence
+                      ? `${Math.round(latestResult.category_confidence * 100)}%`
+                      : '--'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-slate-700/80 text-xs shadow-lg font-mono">
+                  <span className="text-slate-400">Model:</span>
+                  <span className="text-cyan-300 truncate max-w-[200px]">
+                    {latestResult.model_selected || `PatchCore-${latestResult.detected_category}`}
+                  </span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-300">{latestResult.processing_time_ms}ms</span>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Operator Actionable Callout (Review Required / Unsupported Alerts) */}
+          {latestResult && (latestResult.verdict === 'REVIEW REQUIRED' || latestResult.verdict === 'UNSUPPORTED') && (
+            <div
+              className={`p-4 rounded-xl border backdrop-blur-sm flex items-start gap-3.5 animate-fadeIn ${
+                latestResult.verdict === 'UNSUPPORTED'
+                  ? 'bg-purple-950/40 border-purple-500/40 text-purple-200'
+                  : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+              }`}
+            >
+              <div className="mt-0.5 flex-shrink-0">
+                {latestResult.verdict === 'UNSUPPORTED' ? (
+                  <AlertOctagon className="w-5 h-5 text-purple-400" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                )}
+              </div>
+              <div className="space-y-1 flex-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-heading font-bold text-sm tracking-wide uppercase">
+                    {latestResult.verdict}: Attention Required
+                  </h4>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 border border-white/10">
+                    Gate: {latestResult.recognition_status || latestResult.image_quality_status}
+                  </span>
+                </div>
+                <p className="leading-relaxed opacity-90">
+                  {latestResult.review_reason ||
+                    'Frame inspection triggered secondary review gate. Please inspect physical specimen or verify lighting conditions.'}
+                </p>
+                {latestResult.image_quality_metrics && (
+                  <div className="pt-1 flex flex-wrap gap-2 text-[10px] font-mono opacity-80">
+                    <span>Sharpness: {latestResult.image_quality_metrics.sharpness?.toFixed(1)} (Min 80.0)</span>
+                    <span>•</span>
+                    <span>Luminance: {latestResult.image_quality_metrics.mean_luminance?.toFixed(1)} (35-235)</span>
+                    <span>•</span>
+                    <span>Contrast: {latestResult.image_quality_metrics.contrast?.toFixed(1)} (Min 18.0)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Viewport Sub-bar: Hotkeys, Calibration Tips & Automation Bar */}
           <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs">
@@ -563,7 +654,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                 <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 text-[10px]">
                   ROI
                 </kbd>
-                <span>Center Target Reticle</span>
+                <span>Target Center Window</span>
               </div>
             </div>
 
@@ -615,44 +706,58 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
 
         {/* Right Column: Model Controls & Defect Event Ticker (4 cols) */}
         <div className="xl:col-span-4 space-y-5">
-          {/* Category Memory Bank Selector */}
+          {/* Category Recognition & Routing Mode Selector */}
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Settings className="w-4 h-4 text-cyan-400" />
                 <span className="font-heading font-bold text-sm text-white">
-                  Active Inspection Model
+                  Inspection Routing Mode
                 </span>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">
-                15 MVTec Models
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                15 MVTec AD Models
               </span>
             </div>
 
             <div className="space-y-2">
               <label className="text-xs text-slate-400 block">
-                Select category memory bank for feature distance calibration:
+                Category selection mode (Default: Automatic Recognition):
               </label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
               >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.label} ({cat.type}) — {cat.desc}
-                  </option>
-                ))}
+                <option value="auto">⭐ Automatic Category Recognition (Default)</option>
+                <optgroup label="Manual Category Overrides">
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.label} ({cat.type}) — {cat.desc}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
-            {/* Category Information Badge */}
+            {/* Mode Description */}
             <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs space-y-1">
               <div className="flex items-center justify-between text-slate-300 font-medium">
-                <span>Target: {catMeta.label}</span>
-                <span className="text-[10px] font-mono text-cyan-400">{catMeta.type}</span>
+                <span>
+                  Mode:{' '}
+                  {selectedCategory === 'auto'
+                    ? 'Automated Optical Routing'
+                    : `Pinned: ${selectedCategory.toUpperCase()}`}
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400">
+                  {selectedCategory === 'auto' ? 'Self-Classifying' : 'Operator Override'}
+                </span>
               </div>
-              <p className="text-[11px] text-slate-400">{catMeta.desc}</p>
+              <p className="text-[11px] text-slate-400">
+                {selectedCategory === 'auto'
+                  ? 'EfficientNet-B0 dynamically classifies input image into one of 15 MVTec AD categories and dispatches to resident PatchCore memory bank.'
+                  : `Bypasses automated classification and forces PatchCore anomaly evaluation against ${selectedCategory} memory bank.`}
+              </p>
             </div>
           </div>
 
@@ -662,17 +767,17 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-violet-400" />
                 <span className="font-heading font-bold text-sm text-white">
-                  Session Event Ticker
+                  Inspection Audit Rail
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  {eventHistory.length} Captured
+                  {filteredHistory.length} Captured
                 </span>
                 {eventHistory.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setEventHistory([])}
+                    onClick={handleClearHistory}
                     className="text-[10px] font-mono text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     Clear
@@ -681,18 +786,46 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
               </div>
             </div>
 
+            {/* Audit Rail Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+              <select
+                value={historyVerdictFilter}
+                onChange={(e) => setHistoryVerdictFilter(e.target.value)}
+                className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-[11px] font-mono focus:outline-none"
+              >
+                <option value="all">All Verdicts</option>
+                <option value="NORMAL">NORMAL</option>
+                <option value="DEFECTIVE">DEFECTIVE</option>
+                <option value="REVIEW REQUIRED">REVIEW REQUIRED</option>
+                <option value="UNSUPPORTED">UNSUPPORTED</option>
+              </select>
+
+              <select
+                value={historyCategoryFilter}
+                onChange={(e) => setHistoryCategoryFilter(e.target.value)}
+                className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-[11px] font-mono focus:outline-none"
+              >
+                <option value="all">All Categories</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Ticker List */}
             <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
-              {eventHistory.length === 0 ? (
+              {filteredHistory.length === 0 ? (
                 <div className="p-6 text-center border border-dashed border-slate-800 rounded-xl space-y-2">
                   <Eye className="w-8 h-8 text-slate-600 mx-auto" />
-                  <p className="text-xs text-slate-400">No frames inspected yet in this session.</p>
+                  <p className="text-xs text-slate-400">No matching inspection records.</p>
                   <p className="text-[11px] text-slate-500">
                     Press <span className="text-cyan-400 font-mono">SPACE</span> or click "Capture Frame" to trigger immediate inspection.
                   </p>
                 </div>
               ) : (
-                eventHistory.map((evt) => (
+                filteredHistory.map((evt) => (
                   <div
                     key={evt.id}
                     onClick={() => setSelectedEventModal(evt)}
@@ -705,8 +838,11 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                         alt="Event Thumbnail"
                         className="w-full h-full object-cover"
                       />
-                      {evt.predicted_label === 'defective' && (
+                      {evt.verdict === 'DEFECTIVE' && (
                         <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-rose-500" />
+                      )}
+                      {evt.verdict === 'REVIEW REQUIRED' && (
+                        <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-500" />
                       )}
                     </div>
 
@@ -714,7 +850,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-heading text-xs font-semibold text-white truncate">
-                          {evt.capturedCategory.toUpperCase()} • {evt.defect_type}
+                          {(evt.detected_category || evt.capturedCategory).toUpperCase()} • {evt.verdict}
                         </span>
                         <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">
                           {evt.timestamp}
@@ -723,13 +859,17 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
 
                       <div className="flex items-center gap-2">
                         <span
-                          className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${
-                            evt.predicted_label === 'defective'
+                          className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${
+                            evt.verdict === 'DEFECTIVE'
                               ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : evt.verdict === 'NORMAL'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : evt.verdict === 'REVIEW REQUIRED'
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : 'bg-purple-500/15 text-purple-400 border-purple-500/30'
                           }`}
                         >
-                          {evt.predicted_label}
+                          {evt.verdict}
                         </span>
                         <span className="text-[10px] font-mono text-slate-400">
                           {evt.processing_time_ms}ms
@@ -745,6 +885,110 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
           </div>
         </div>
       </div>
+
+      {/* -------------------------------------------------------- */}
+      {/* 4. Model Registry Status Modal                            */}
+      {/* -------------------------------------------------------- */}
+      {showModelStatusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-4xl bg-[#090d16] border border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+                  <Server className="w-4 h-4 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-lg font-bold text-white">
+                    15 Category PatchCore Model Registry
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    All 15 MVTec AD models deployed with category-specific calibrated thresholds & memory banks.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowModelStatusModal(false)}
+                className="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Models Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Calibrated Threshold</th>
+                    <th className="py-2.5 px-3">Nominal Mean / P99</th>
+                    <th className="py-2.5 px-3">Backbone</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {CATEGORIES.map((cat) => {
+                    const statusObj = modelStatusData?.categories?.[cat.id] || {};
+                    const isReady = statusObj.is_ready !== false;
+                    return (
+                      <tr key={cat.id} className="hover:bg-slate-900/40 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-white flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          {cat.label}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] ${
+                              cat.type === 'Object'
+                                ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
+                                : 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
+                            }`}
+                          >
+                            {cat.type}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                            <Check className="w-3 h-3" />
+                            {isReady ? 'Ready & Loaded' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-cyan-300 font-bold">
+                          {statusObj.calibrated_threshold ? statusObj.calibrated_threshold.toFixed(4) : '1.7452'}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-400">
+                          {statusObj.baseline_mean ? statusObj.baseline_mean.toFixed(3) : '1.250'} /{' '}
+                          {statusObj.baseline_p99 ? statusObj.baseline_p99.toFixed(3) : '1.650'}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-400 text-[10px]">
+                          ResNet-18 (L2+L3)
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowModelStatusModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all"
+              >
+                Close Registry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* -------------------------------------------------------- */}
       {/* 5. Before / After Heatmap Split-View Modal               */}
@@ -763,7 +1007,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                     Inspection Specimen Analysis
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-                    <span>Target: {selectedEventModal.capturedCategory.toUpperCase()}</span>
+                    <span>Target: {(selectedEventModal.detected_category || selectedEventModal.capturedCategory).toUpperCase()}</span>
                     <span>•</span>
                     <span>Event ID: {selectedEventModal.id}</span>
                     <span>•</span>
@@ -788,53 +1032,51 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                 originalImage={selectedEventModal.original_image}
                 heatmapOverlay={selectedEventModal.heatmap_base64}
                 rawHeatmap={selectedEventModal.raw_heatmap}
-                label={`${selectedEventModal.capturedCategory} Optical Inspection`}
+                label={`${selectedEventModal.detected_category || selectedEventModal.capturedCategory} Optical Inspection`}
               />
             </div>
 
             {/* Telemetry Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1">
-                <span className="text-slate-400 font-mono text-[10px] uppercase">Prediction</span>
+                <span className="text-slate-400 font-mono text-[10px] uppercase">Verdict</span>
                 <div className="font-heading font-bold text-sm text-white uppercase">
-                  {selectedEventModal.predicted_label}
+                  {selectedEventModal.verdict}
                 </div>
                 <div className="text-[10px] font-mono text-slate-400">
-                  Defect: {selectedEventModal.defect_type}
+                  Status: {selectedEventModal.recognition_status || 'OK'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1">
-                <span className="text-slate-400 font-mono text-[10px] uppercase">Severity</span>
-                <div>
-                  <SeverityBadge
-                    level={selectedEventModal.severity_level}
-                    score={selectedEventModal.severity_score}
-                    size="sm"
-                  />
+                <span className="text-slate-400 font-mono text-[10px] uppercase">Anomaly Score</span>
+                <div className="font-heading font-bold text-sm text-cyan-300 font-mono">
+                  {selectedEventModal.anomaly_score?.toFixed(4) || '0.0000'}
                 </div>
                 <div className="text-[10px] font-mono text-slate-400">
-                  Score: {selectedEventModal.severity_score}/100
+                  Threshold: {selectedEventModal.calibrated_threshold?.toFixed(4) || '1.7452'}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1">
+                <span className="text-slate-400 font-mono text-[10px] uppercase">Category Confidence</span>
+                <div className="font-heading font-bold text-sm text-violet-300 font-mono">
+                  {selectedEventModal.category_confidence
+                    ? `${(selectedEventModal.category_confidence * 100).toFixed(1)}%`
+                    : '--'}
+                </div>
+                <div className="text-[10px] font-mono text-slate-400">
+                  Type: {selectedEventModal.category_type || 'Object'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1">
                 <span className="text-slate-400 font-mono text-[10px] uppercase">Defect Area</span>
-                <div className="font-heading font-bold text-sm text-cyan-300">
-                  {selectedEventModal.defect_area_pct}%
+                <div className="font-heading font-bold text-sm text-rose-300 font-mono">
+                  {selectedEventModal.defect_area_pct?.toFixed(2) || '0.00'}%
                 </div>
                 <div className="text-[10px] font-mono text-slate-400">
-                  PatchCore Coreset
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1">
-                <span className="text-slate-400 font-mono text-[10px] uppercase">Confidence</span>
-                <div className="font-heading font-bold text-sm text-violet-300">
-                  {selectedEventModal.confidence_pct}%
-                </div>
-                <div className="text-[10px] font-mono text-slate-400">
-                  EffNet-B0 v3
+                  ROI Surface
                 </div>
               </div>
             </div>
@@ -846,26 +1088,36 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                 <span>Operator Diagnostic Summary:</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                Optical frame inspection for <strong className="text-white">{selectedEventModal.capturedCategory}</strong> registered an anomaly score of{' '}
-                <span className="font-mono text-cyan-300">{selectedEventModal.anomaly_score.toFixed(4)}</span> and a classified severity rating of{' '}
-                <strong className="text-white">{selectedEventModal.severity_level.toUpperCase()}</strong> ({selectedEventModal.severity_score}/100).
-                The affected anomalous region spans <span className="font-mono text-violet-300">{selectedEventModal.defect_area_pct}%</span> of the ROI surface area.
+                {selectedEventModal.diagnosis ? (
+                  selectedEventModal.diagnosis
+                ) : (
+                  <>
+                    Optical frame inspection for <strong className="text-white uppercase">{selectedEventModal.detected_category || selectedEventModal.capturedCategory}</strong> resulted in verdict <strong className="text-white">{selectedEventModal.conclusion || selectedEventModal.verdict}</strong> with anomaly score{' '}
+                    <span className="font-mono text-cyan-300">{selectedEventModal.anomaly_score?.toFixed(4)}</span> against calibrated threshold{' '}
+                    <span className="font-mono text-slate-300">{selectedEventModal.calibrated_threshold?.toFixed(4)}</span>.
+                    {selectedEventModal.review_reason && (
+                      <span className="block mt-1 text-amber-300">
+                        Note: {selectedEventModal.review_reason}
+                      </span>
+                    )}
+                  </>
+                )}
               </p>
             </div>
 
             {/* Modal Bottom Actions */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              {onNavigateToRAG && selectedEventModal.defect_type && selectedEventModal.defect_type !== 'normal' && (
+              {onNavigateToRAG && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedEventModal(null);
-                    onNavigateToRAG(selectedEventModal.defect_type);
+                    onNavigateToRAG(selectedEventModal.detected_category || selectedEventModal.capturedCategory);
                   }}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-xs font-semibold hover:bg-cyan-500/25 transition-all"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
-                  <span>Query RAG Copilot for {selectedEventModal.defect_type}</span>
+                  <span>Query RAG Copilot for {selectedEventModal.detected_category || selectedEventModal.capturedCategory}</span>
                 </button>
               )}
 

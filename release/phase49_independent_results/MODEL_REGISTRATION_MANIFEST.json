@@ -1,0 +1,34 @@
+{
+  "model_name": "PatchCore-Cashew-Independent-Registration",
+  "category": "cashew",
+  "dataset": "VisA",
+  "registered_at": "2026-11-02T21:30:00Z",
+  "seed": 42,
+  "grid_size": 28,
+  "backbone": "ResNet-18 (ImageNet-1K V1, frozen)",
+  "feature_layers": [
+    "layer2",
+    "layer3"
+  ],
+  "feature_dim": 384,
+  "raw_patches_count": 274400,
+  "coreset_ratio": 0.1,
+  "coreset_size": 27440,
+  "registration_runtime_sec": 392.25,
+  "calibration_runtime_sec": 19.94,
+  "calibration_cohort_size": 50,
+  "calibration_metrics": {
+    "baseline_mean": 1.3817296600341797,
+    "baseline_std": 0.12652582421513595,
+    "baseline_min": 1.2131327390670776,
+    "baseline_max": 1.7755076885223389,
+    "threshold_p95": 1.6433034658432006,
+    "threshold_p99": 1.7452315574884418
+  },
+  "artifacts": {
+    "memory_bank_file": "C:\\Users\\surya\\Downloads\\Mini Project\\release\\phase49_independent_results\\models\\patchcore_cashew\\memory_bank.npy",
+    "memory_bank_size_bytes": 42147968,
+    "faiss_index_file": "C:\\Users\\surya\\Downloads\\Mini Project\\release\\phase49_independent_results\\models\\patchcore_cashew\\index.faiss",
+    "faiss_index_size_bytes": 42147885
+  }
+}

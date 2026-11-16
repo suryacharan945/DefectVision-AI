@@ -96,18 +96,72 @@ class PatchCoreModel:
         self.index.add(self.memory_bank)
 
 
+def calibrate_score_map(dist_map, threshold=None, baseline_mean=None):
+    """
+    Calibrates PatchCore distance map relative to the category's calibrated anomaly threshold.
+    Applies Gaussian smoothing to eliminate discrete patch artifacts.
+    """
+    import scipy.ndimage
+    if dist_map.shape[0] == 28 and dist_map.shape[1] == 28:
+        smooth_map = cv2.resize(dist_map, (224, 224), interpolation=cv2.INTER_CUBIC)
+        smooth_map = scipy.ndimage.gaussian_filter(smooth_map, sigma=4.0)
+    else:
+        smooth_map = scipy.ndimage.gaussian_filter(dist_map.astype(np.float32), sigma=4.0)
+
+    if threshold is None or threshold <= 0:
+        denom = smooth_map.max() - smooth_map.min()
+        return (smooth_map - smooth_map.min()) / denom if denom > 1e-6 else np.zeros_like(smooth_map)
+
+    base = baseline_mean if baseline_mean is not None else threshold * 0.70
+    cal_map = np.zeros_like(smooth_map, dtype=np.float32)
+
+    # Below threshold: scaled smoothly in cool range [0.0, 0.45]
+    below_mask = (smooth_map > base) & (smooth_map < threshold)
+    cal_map[below_mask] = 0.45 * (smooth_map[below_mask] - base) / max(threshold - base, 1e-6)
+
+    # Above threshold: scaled in defect range [0.50, 1.0]
+    above_mask = smooth_map >= threshold
+    headroom = max(threshold * 0.50, 1e-6)
+    cal_map[above_mask] = 0.50 + 0.50 * np.clip((smooth_map[above_mask] - threshold) / headroom, 0.0, 1.0)
+
+    return np.clip(cal_map, 0.0, 1.0)
+
+
 def normalize_map(m):
-    m = m - m.min()
-    if m.max() > 0:
-        m = m / m.max()
-    return m
+    """Normalized distance map with smoothing to prevent circular patch artifacts."""
+    import scipy.ndimage
+    if m.shape[0] == 28 and m.shape[1] == 28:
+        smoothed = cv2.resize(m, (224, 224), interpolation=cv2.INTER_CUBIC)
+        smoothed = scipy.ndimage.gaussian_filter(smoothed, sigma=4.0)
+    else:
+        smoothed = scipy.ndimage.gaussian_filter(m.astype(np.float32), sigma=2.0)
+    denom = smoothed.max() - smoothed.min()
+    return (smoothed - smoothed.min()) / denom if denom > 1e-6 else np.zeros_like(smoothed)
 
 
-def overlay_heatmap(image_rgb_uint8, score_map_norm, alpha=0.45):
-    hm = cv2.resize(score_map_norm, (image_rgb_uint8.shape[1], image_rgb_uint8.shape[0]))
-    hm = cv2.applyColorMap(np.uint8(255 * hm), cv2.COLORMAP_JET)
-    hm = cv2.cvtColor(hm, cv2.COLOR_BGR2RGB)
-    overlay = (alpha * hm + (1 - alpha) * image_rgb_uint8).astype(np.uint8)
+def overlay_heatmap(image_rgb_uint8, score_map_norm, alpha=0.45, is_defective=True):
+    """
+    Overlays calibrated anomaly heatmap onto RGB image.
+    When is_defective is False (nominal specimen), keeps the image pristine
+    without misleading false-defect artifacts.
+    """
+    h, w = image_rgb_uint8.shape[:2]
+    if score_map_norm.shape[:2] != (h, w):
+        hm_res = cv2.resize(score_map_norm, (w, h), interpolation=cv2.INTER_CUBIC)
+    else:
+        hm_res = score_map_norm
+
+    if not is_defective:
+        # Nominal specimen: return unaltered specimen without false red patches
+        return image_rgb_uint8.copy()
+
+    hm_colored = cv2.applyColorMap(np.uint8(255 * np.clip(hm_res, 0.0, 1.0)), cv2.COLORMAP_JET)
+    hm_rgb = cv2.cvtColor(hm_colored, cv2.COLOR_BGR2RGB)
+
+    intensity_mask = np.clip((hm_res - 0.35) / 0.65, 0.0, 1.0)[:, :, np.newaxis]
+    effective_alpha = alpha * intensity_mask
+
+    overlay = (effective_alpha * hm_rgb + (1.0 - effective_alpha) * image_rgb_uint8).astype(np.uint8)
     return overlay
 
 

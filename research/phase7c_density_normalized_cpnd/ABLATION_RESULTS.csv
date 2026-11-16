@@ -1,0 +1,11 @@
+Ablation_Experiment,Reviewed_K,Captured_Errors,Captured_FN,Captured_FP,ECR_at_10pct,DER_at_10pct,Defect_Review_Yield,Error_Review_Yield
+Ablation 1A: Raw Dispersion (k=5),33,15,14,1,24.19,23.73,63.64,45.45
+"Ablation 1B: Density-Normalized Dispersion (k=5, MAD)",33,15,14,1,24.19,23.73,51.52,45.45
+Ablation 2A: Boundary Gating Off (Ungated Norm PND),33,15,14,1,24.19,23.73,51.52,45.45
+Ablation 2B: Hard Tiered Gating (delta=0.10*tau),33,11,10,1,17.74,16.95,72.73,33.33
+Ablation 2C: Hard Tiered Gating (delta=0.15*tau),33,13,12,1,20.97,20.34,75.76,39.39
+Ablation 2D: Soft Gaussian Gating (delta=0.10*tau),33,8,8,0,12.9,13.56,69.7,24.24
+Ablation 3A: Neighborhood Size k=5 (Norm PND),33,15,14,1,24.19,23.73,51.52,45.45
+Ablation 3B: Neighborhood Size k=10 (Norm PND),33,14,13,1,22.58,22.03,39.39,42.42
+Ablation 4A: Normalization Robust Median/MAD,33,15,14,1,24.19,23.73,51.52,45.45
+Ablation 4B: Normalization Parametric Mean/STD,33,14,13,1,22.58,22.03,45.45,42.42

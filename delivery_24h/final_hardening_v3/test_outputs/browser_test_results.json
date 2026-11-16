@@ -1,0 +1,34 @@
+[
+  {
+    "test": "Page Title & Mount",
+    "status": "PASS"
+  },
+  {
+    "test": "Live Operating Banner",
+    "status": "PASS"
+  },
+  {
+    "test": "Real Model Inference & Heatmap",
+    "status": "PASS"
+  },
+  {
+    "test": "Batch Processing & Exports",
+    "status": "PASS"
+  },
+  {
+    "test": "History Browser & Filtering",
+    "status": "PASS"
+  },
+  {
+    "test": "Demo/Live Status Indication",
+    "status": "PASS"
+  },
+  {
+    "test": "Mobile Viewport & Navigation",
+    "status": "PASS"
+  },
+  {
+    "test": "Frontend-Backend Numerical Agreement",
+    "status": "PASS"
+  }
+]

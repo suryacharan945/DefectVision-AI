@@ -1,118 +1,214 @@
-# 🔬 DefectVision AI — Autonomous 3D Industrial Defect Inspection Platform
+# DefectVision AI — Industrial Visual Anomaly Detection & Automatic Category Inspection Platform
 
-[![Live Demo on Vercel](https://img.shields.io/badge/Live%20Demo-defectvision--ai.vercel.app-success?style=for-the-badge&logo=vercel)](https://defectvision-ai.vercel.app/)
-[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/suryacharan945/DefectVision-AI)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![React](https://img.shields.io/badge/react-19.2-cyan)
-![TailwindCSS](https://img.shields.io/badge/tailwindcss-4.3-teal)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
+[![Release Tag](https://img.shields.io/badge/Release-v1.1.0--realtime--category--inspection-blue.svg)](https://github.com/suryacharan945/DefectVision-AI/releases/tag/v1.1.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python: 3.10 | 3.11 | 3.12](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![React: 19](https://img.shields.io/badge/React-19.2-cyan)](https://react.dev/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-orange)](https://pytorch.org/)
+[![FAISS](https://img.shields.io/badge/FAISS-CPU%201.7%2B-green)](https://github.com/facebookresearch/faiss)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-teal)](https://fastapi.tiangolo.com/)
+[![Tests: 48/48 Passed](https://img.shields.io/badge/Tests-48%2F48%20Passed-brightgreen.svg)](tests/)
 
-> 🚀 **Live Production Deployment**: [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/)
-
-**DefectVision AI** is a production-grade, full-stack industrial defect inspection platform powered by resident memory-bank anomaly detection (PatchCore), leak-free classification (EfficientNet-B0 v3), real-time optical video streaming, grounded RAG explanation assistance, and interactive 3D sensor core rendering across all 15 categories of the MVTec AD benchmark.
-
----
-
-## 🌐 Live Access
-
-- **Production UI**: [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/)
-- **GitHub Repository**: [**https://github.com/suryacharan945/DefectVision-AI**](https://github.com/suryacharan945/DefectVision-AI)
-- **Local Dev Server**: `http://localhost:5173/`
-- **FastAPI Inference Engine**: `http://localhost:8000/`
+> **Status:** Research Prototype & Open-Source Benchmark.
+> **Target Audience:** Computer vision scientists, quality assurance automation engineers, and MLOps researchers.
+> **Key Differentiator:** Combines **Automatic 15-Class Visual Category Recognition** (EfficientNet-B0 with temperature calibration and Shannon entropy open-set rejection) with state-of-the-art unsupervised memory-bank anomaly detection (**PatchCore**), optical image quality gating, and an auditable **4-state decision fusion engine** for both file upload and real-time live camera streams.
 
 ---
 
-## 🌟 Key Features
+## 1. Project Capabilities
 
-- **Real-Time Optical Inspection**:
-  - **Dual-Source Streaming**: Switch between Client Browser Webcam (`getUserMedia`) or Backend MJPEG Video Stream (`/api/stream/{category}`).
-  - **Holographic Reticle HUD**: Neon corner brackets dynamically reacting to severity (`#10B981` Normal/Minor, `#F59E0B` Moderate, `#EF4444` Critical), crosshair tracking reticle, and laser scanline sweep.
-  - **Spacebar Snapshot Hotkey**: Instant frame capture triggering in-memory PatchCore feature distance scoring & EfficientNet inference in under ~60ms.
-  - **Live Audit Ticker & Split Heatmap Modal**: Tracks all inspected specimens with interactive before/after blend slider and raw anomaly distance maps.
-- **Specimen Inspection & Presets**: 1-click test specimen presets across all 15 MVTec AD categories (`bottle`, `cable`, `capsule`, `carpet`, `grid`, `hazelnut`, `leather`, `metal_nut`, `pill`, `screw`, `tile`, `toothbrush`, `transistor`, `wood`, `zipper`).
-- **4-Model Benchmark Leaderboard**:
-  - **EfficientNet-B0 v3**: 0.9732 Mean AUROC (Best Classifier)
-  - **PatchCore**: 0.9651 Mean AUROC (Best Localization)
-  - **PaDiM**: 0.8911 Mean AUROC
-  - **Autoencoder**: 0.6872 Mean AUROC
-- **1,725 Benchmark History Browser**: Searchable, filterable audit log of every official test sample with modal defect overlays.
-- **High-Throughput Batch Processing**: Multi-file dropzone with async polling and defect rate distribution analytics.
-- **Grounded RAG Defect Copilot**: 16 industrial defect taxonomies and semantic Q&A assistant querying `all-MiniLM-L6-v2` embeddings.
-- **Ask the Data**: Natural language conversational analytics calculated directly from inspection logs.
-- **Production Drift Monitor & Active Learning / RCA**: 3-stream feature drift detection and review budget sensitivity curves (checking 10.4% uncertain items recovers 82.5% of errors).
+Manufacturing visual inspection requires rapid, reliable anomaly detection across diverse product lines without requiring operators to manually switch software profiles.
+
+DefectVision AI provides an end-to-end, zero-click optical inspection system:
+- **Automatic Category Recognition:** Automatically recognizes which of the 15 official MVTec AD categories is presented, routing to the correct memory bank without manual operator selection.
+- **Image Upload Inspection:** Drag-and-drop image analysis with automatic class detection, calibrated anomaly scoring, and interactive false-color heatmaps.
+- **Real-Time Live Camera Stream:** In-memory optical inspection of browser webcam or industrial camera feeds with HUD targeting reticle and telemetry overlays.
+- **Optical Image Quality Gate:** Intercepts out-of-focus, motion-blurred, underexposed, or glare-saturated frames before computational inference.
+- **Category-Specific PatchCore Routing:** 15 resident memory banks indexed for fast nearest-neighbor distance scoring.
+- **Auditable 4-State Decision Fusion:** Calibrated category thresholds with an explicit $\pm 8\%$ borderline guard band for human triage.
+- **Open-Set Out-of-Distribution (OOD) Rejection:** Rejects non-industrial or unsupported items via Shannon entropy ($H_{norm} \ge 0.65$) and calibrated confidence gating.
+- **Inspection History & Telemetry:** Thread-safe audit ring buffer with session statistics and one-click inspection modal review.
 
 ---
 
-## 🏗️ Architecture
+## 2. Six-Stage End-to-End Architecture
 
-```
-DefectVision AI
-├── frontend/                     # React 19 + Vite + Tailwind CSS + Three.js
-│   ├── src/
-│   │   ├── api/client.js        # Production API client with VITE_API_URL support
-│   │   ├── components/3d/       # 3D AI Sensor Core (Three.js / React Three Fiber)
-│   │   ├── components/sections/ # Inspection, Models, History, Batch, RAG, Drift, RCA
-│   │   ├── pages/               # LiveStreamInspector.jsx (Real-time optical studio)
-│   │   └── utils/               # 15 MVTec category metadata
-│   ├── vercel.json              # SPA rewrite configuration for Vercel
-│   └── package.json
-│
-├── DefectVisionAI/              # FastAPI High-Throughput Inference Backend
-│   ├── app.py                   # Resident model loader & endpoints (/predict, /stream, /inspect-frame)
-│   ├── src/                     # PatchCore, severity scoring, similarity, RAG, analytics
-│   ├── models/                  # Checkpoints, FAISS indexes, PatchCore memory banks
-│   └── reports/ & logs/         # AUROC matrix, severity logs, drift data
-│
-├── vercel.json                  # Root Vercel build delegation
-├── package.json                 # Monorepo build script
-└── start_defectvision.bat       # 1-Click local startup launcher
+```mermaid
+flowchart TD
+    A["Raw Input Specimen\n(Image Upload or Live Camera Stream)"] --> B["Stage 1: Optical Image Quality Gate\n(Sharpness >= 25, Lum 30-240, Contrast >= 15)"]
+
+    B -- "Quality Defect (Blur / Dark / Overexposed)" --> R1["Verdict: REVIEW REQUIRED\nConclusion: MANUAL INSPECTION REQUIRED\nReason: Quality Gate Failure"]
+
+    B -- "Quality Passed" --> C{"Stage 2: Category Routing Mode"}
+
+    C -- "Mode == 'auto' (Default)" --> D["EfficientNet-B0 15-Class Recognizer\n+ Calibrated Softmax (T = 1.3696)\n+ Shannon Entropy Calculation"]
+
+    C -- "Mode == Manual Override" --> E["Direct Category Assignment\n(Operator Override, Confidence = 1.0)"]
+
+    D -- "Norm Entropy >= 0.65 OR Top Conf < 0.70" --> R2["Verdict: UNSUPPORTED\nConclusion: UNSUPPORTED OR UNKNOWN CATEGORY\nReason: Out-of-Distribution Object"]
+
+    D -- "Supported Category (Conf >= 0.70)" --> F["Stage 3: Region of Interest (ROI) Extraction\n(Contour Segmentation for Objects / Center Crop for Textures)"]
+    E --> F
+
+    F --> G["Stage 4: Resident PatchCore Memory-Bank Routing\n(Category-Specific Feature Bank in Memory)"]
+
+    G --> H["Stage 5: Auditable 4-State Decision Fusion\n(Calibrated Threshold T_cal +/- 8% Margin)"]
+
+    H --> I{"Fusion Logic Evaluation"}
+
+    I -- "Score <= T_cal * 0.92" --> V1["Verdict: NORMAL\nConclusion: NO DEFECT DETECTED"]
+    I -- "Score >= T_cal * 1.08" --> V2["Verdict: DEFECTIVE\nConclusion: POSSIBLE DEFECT DETECTED"]
+    I -- "Borderline (+/- 8% of T_cal)" --> V3["Verdict: REVIEW REQUIRED\nConclusion: MANUAL INSPECTION REQUIRED\nReason: Borderline Anomaly Score"]
+
+    V1 --> J["Stage 6: Heatmap Overlays & Unified Telemetry"]
+    V2 --> J
+    V3 --> J
+    R1 --> J
+    R2 --> J
 ```
 
----
-
-## 🚀 Deployment to Vercel
-
-The application is deployed on Vercel at [**https://defectvision-ai.vercel.app/**](https://defectvision-ai.vercel.app/).
-
-### Build Configuration:
-- **Framework Preset**: `Vite`
-- **Build Command**: `cd frontend && npm install && npm run build`
-- **Output Directory**: `frontend/dist`
-- **Routing**: SPA rewrites configured via [`vercel.json`](./vercel.json)
-
-### Backend Connection:
-To connect the live Vercel frontend with a remote FastAPI server (e.g., hosted on Render, Railway, Fly.io, or AWS EC2), set the environment variable in the Vercel project settings:
-```env
-VITE_API_URL=https://your-backend-api.onrender.com
-```
+For complete technical specifications, see [`docs/REALTIME_AUTOMATIC_INSPECTION.md`](docs/REALTIME_AUTOMATIC_INSPECTION.md).
 
 ---
 
-## 💻 Running Locally
+## 3. Four Inspection Outcomes Contract
 
-### Option A: 1-Click Launcher (Windows)
-Double-click [`start_defectvision.bat`](./start_defectvision.bat) to launch both FastAPI and Vite servers.
+| Verdict | Operator Conclusion | Badge Tone | Trigger Criteria | Action Required |
+| :--- | :--- | :---: | :--- | :--- |
+| **`NORMAL`** | `NO DEFECT DETECTED` | Emerald | Quality passed; Category recognized; Score $\le 0.92 \times T_{cal}$. | Component passes automated inspection. |
+| **`DEFECTIVE`** | `POSSIBLE DEFECT DETECTED` | Rose | Quality passed; Category recognized; Score $\ge 1.08 \times T_{cal}$. | Reject or divert part to quarantine. |
+| **`REVIEW REQUIRED`** | `MANUAL INSPECTION REQUIRED` | Amber | Quality gate failed OR Score within borderline band ($\pm 8\%$). | Secondary manual inspection by human QA specialist. |
+| **`UNSUPPORTED`** | `UNSUPPORTED OR UNKNOWN CATEGORY` | Purple | Category recognizer entropy $\ge 0.65$ or confidence $< 70\%$. | Verify part placement or register new product profile. |
 
-### Option B: Manual Startup
+### Standardized Limitation Disclaimer
+Every diagnosis record generated by the system embeds the standardized disclaimer:
+> *"The result reflects the model's learned visual patterns and does not guarantee the absence of all possible defects."*
 
-**1. Launch Backend (Port 8000):**
-```bash
-cd DefectVisionAI
-set KMP_DUPLICATE_LIB_OK=TRUE
-python -m uvicorn app:app --host 127.0.0.1 --port 8000
+---
+
+## 4. Verified Benchmark Results
+
+### 1. Category Classifier (EfficientNet-B0)
+Evaluated across nominal validation (726 images), official test split (1,725 images across all 15 classes), and open-set OOD rejection cohorts:
+- **Validation Accuracy (726 images):** **100.00%** (Macro F1: 100.00%)
+- **Official Test Set Accuracy (1,725 images):** **99.94%** (Macro F1: 99.94%)
+  - Only 1 specimen misclassified across all 1,725 test images (1,724 / 1,725 correct).
+  - 13 out of 15 categories achieved **100.00% Precision and 100.00% Recall**.
+- **CPU Inference Latency:** Mean: 86.82 ms | p50: 82.92 ms | p95: 124.05 ms.
+- **Open-Set OOD Rejection:** Synthetic noise, solid color, and untextured surfaces correctly rejected as `UNSUPPORTED`.
+
+### 2. PatchCore Anomaly Inspection (1,725 Test Images)
+Evaluated on official quarantined test specimens using disjoint category memory banks and calibrated decision thresholds:
+- **Macro Image AUROC:** **97.15%**
+- **Macro Image AUPRC:** **98.98%**
+- **Defect Recall (Sensitivity):** **95.40%** (1,200 defects detected out of 1,258)
+- **Specificity:** **70.96%** (351 nominals cleared out of 467)
+- **Macro F1-Score:** **92.40%**
+
+> **Scientific Disclosure on Specificity:**
+> The 70.96% specificity indicates a meaningful false-positive burden (116 false alarms out of 467 nominal test samples), primarily occurring on stochastic surface textures (`leather`, `tile`, `wood`, `toothbrush`). The system prioritizes high sensitivity (95.40% recall) to minimize defect escapes in industrial quality control, routing ambiguous specimens to `REVIEW REQUIRED` rather than forcing premature rejection.
+
+Full per-category tables and confusion matrices are documented in [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md).
+
+---
+
+## 5. Supported MVTec AD Categories
+
+The system supports all 15 official MVTec Anomaly Detection domains:
+- **Ten Objects:** `bottle`, `cable`, `capsule`, `hazelnut`, `metal_nut`, `pill`, `screw`, `toothbrush`, `transistor`, `zipper`.
+- **Five Textures:** `carpet`, `grid`, `leather`, `tile`, `wood`.
+
+Detailed dataset split structures and model training guides are published in [`docs/MVTEC_DATASET_AND_MODELS.md`](docs/MVTEC_DATASET_AND_MODELS.md).
+
+---
+
+## 6. Installation & Quickstart Guide
+
+### Prerequisites
+- **Operating System:** Windows 10 / 11 (64-bit), Linux, or macOS.
+- **Python:** 3.10, 3.11, or 3.12 (Tested on Python 3.12.x).
+- **Node.js:** 18.x, 20.x, or newer with `npm`.
+- **Hardware:** 8 GB RAM minimum (16 GB recommended). Multi-core CPU supported out-of-the-box via FAISS-CPU and PyTorch-CPU.
+
+### Step 1: Clone Repository
+```powershell
+git clone https://github.com/suryacharan945/DefectVision-AI.git
+cd DefectVision-AI
 ```
 
-**2. Launch Frontend (Port 5173):**
-```bash
+### Step 2: Set Up Python Virtual Environment
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Step 3: Install Frontend Dependencies
+```powershell
 cd frontend
 npm install
-npm run dev
+cd ..
 ```
 
-Open [**`http://localhost:5173`**](http://localhost:5173) in your browser!
+### Step 4: Launch the Full Stack
+```powershell
+# In terminal 1 - Start FastAPI Backend:
+cd DefectVisionAI
+..\.venv\Scripts\uvicorn.exe app:app --host 0.0.0.0 --port 8000
+
+# In terminal 2 - Start React Frontend:
+cd frontend
+npm run dev
+```
+Open your web browser and navigate to `http://localhost:5173`.
 
 ---
 
-## 📄 License
-This project is licensed under the MIT License.
+## 7. Verification & Automated Test Suite
+
+DefectVision AI includes a comprehensive test suite of **48 automated tests** covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, and live stream inspection:
+
+```powershell
+# Run the complete test suite (48 tests):
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
+
+# Verify frontend production build:
+cd frontend
+npm run build
+```
+
+Result:
+```
+Ran 48 tests in 4.467s
+OK
+✓ 2459 modules transformed. Built in 4.20s.
+```
+
+---
+
+## 8. Documentation Index
+
+For in-depth architectural, operational, and benchmarking details, refer to the documentation suite in `docs/`:
+
+1. [**Real-Time Automatic Inspection Guide**](docs/REALTIME_AUTOMATIC_INSPECTION.md): Detailed 6-stage pipeline explanation, HUD reticle integration, and 4-state verdict specifications.
+2. [**MVTec Dataset & Model Architectures**](docs/MVTEC_DATASET_AND_MODELS.md): Dataset partitioning, registration/calibration/test splits, model weights, and reproduction instructions.
+3. [**Comprehensive Evaluation Results**](docs/EVALUATION_RESULTS.md): Full per-category performance tables, sensitivity/specificity trade-off analysis, and latency profiles.
+4. [**Optical Inspection REST API**](docs/API_INSPECTION_ENDPOINTS.md): Complete typed JSON schemas, endpoint specifications, and curl/fetch integration examples.
+5. [**Release Notes (v1.1.0)**](docs/RELEASE_NOTES.md): Complete changelog, backwards compatibility guarantees, and migration details.
+
+---
+
+## 9. License & Third-Party Attribution
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+> **Notice Regarding Dataset & Precomputed Memory Banks:**
+> The software code and system architecture of DefectVision AI are licensed under the MIT License. However, the precomputed PatchCore memory banks (`DefectVisionAI/models/patchcore/`) and benchmark evaluation sets were computed from images in the MVTec Anomaly Detection dataset (Bergmann et al., CVPR 2019 / IJCV 2021). The MVTec AD dataset is distributed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
+>
+> DefectVision AI is an academic research and engineering prototype. Precomputed feature representations are provided strictly for academic research and evaluation. Commercial production deployments require fitting memory banks on proprietary imagery.
+
+### Academic Citations:
+- **MVTec AD Dataset:** Bergmann et al., *"MVTec AD — A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection"*, CVPR 2019 / IJCV 2021.
+- **PatchCore:** Roth et al., *"Towards Total Recall in Industrial Anomaly Detection"*, CVPR 2022.
+- **EfficientNet:** Tan & Le, *"EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks"*, ICML 2019.
+- **FAISS:** Johnson et al., *"Billion-scale similarity search with GPUs"*, IEEE Transactions on Big Data 2019.

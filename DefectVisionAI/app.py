@@ -41,6 +41,7 @@ from src.dashboard_analytics import DashboardAnalytics
 from src.pattern_analysis import PatternAnalyzer
 from src.numeric_validator import numbers_are_grounded
 from src.batch_inspection import build_batch_report
+from src.camera_service import OpticalInspectionEngine
 
 # -----------------------------
 # Setup Global Configurations & Devices
@@ -48,12 +49,16 @@ from src.batch_inspection import build_batch_report
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-MODELS_DIR = "models"
-REPORTS_DIR = "reports"
-LOGS_DIR = "logs"
-BATCH_DIR = "batch_inspections"
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(APP_DIR, "models")
+REPORTS_DIR = os.path.join(APP_DIR, "reports")
+LOGS_DIR = os.path.join(APP_DIR, "logs")
+BATCH_DIR = os.path.join(APP_DIR, "batch_inspections")
+OUTPUTS_DIR = os.path.join(APP_DIR, "outputs")
 
 os.makedirs(BATCH_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 # -----------------------------
 # Startup Model Caching
@@ -79,8 +84,11 @@ PATCHCORE_DIR = os.path.join(MODELS_DIR, "patchcore")
 loaded_patchcore_models = {}
 def get_patchcore_model(category):
     if category not in loaded_patchcore_models:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        if not os.path.exists(mb_path):
+            return None
         m = PatchCoreModel()
-        m.load(os.path.join(PATCHCORE_DIR, category, "memory_bank.npy"), grid_size=GRID_SIZE)
+        m.load(mb_path, grid_size=GRID_SIZE)
         loaded_patchcore_models[category] = m
     return loaded_patchcore_models[category]
 
@@ -94,11 +102,21 @@ for cat in known_categories:
 # Load EfficientNet-B0 Classifier (v3 best model)
 print("Loading EfficientNet-B0 v3 Classifier...")
 CKPT_DIR_V3 = os.path.join(MODELS_DIR, "efficientnet_baseline_v3")
-best_ckpt = torch.load(os.path.join(CKPT_DIR_V3, "best_model.pt"), map_location=device)
-effnet_model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=2)
-effnet_model.load_state_dict(best_ckpt["model_state"])
-effnet_model = effnet_model.to(device)
-effnet_model.eval()
+effnet_ckpt_path = os.path.join(CKPT_DIR_V3, "best_model.pt")
+effnet_model = None
+if os.path.exists(effnet_ckpt_path):
+    try:
+        best_ckpt = torch.load(effnet_ckpt_path, map_location=device)
+        effnet_model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=2)
+        effnet_model.load_state_dict(best_ckpt["model_state"])
+        effnet_model = effnet_model.to(device)
+        effnet_model.eval()
+        print("EfficientNet-B0 v3 Classifier loaded successfully!")
+    except Exception as e:
+        print(f"Warning: Failed to load EfficientNet checkpoint from {effnet_ckpt_path}: {e}")
+        effnet_model = None
+else:
+    print(f"[Info] EfficientNet checkpoint not found at {effnet_ckpt_path}. Operating in PatchCore-only or demo mode.")
 
 EFF_IMG_SIZE = 256
 eff_transform = A.Compose([
@@ -122,8 +140,17 @@ for cat in known_categories:
 
 # Load Embedding Extractor for query similarity search
 print("Loading Embedding Extractor...")
-embedding_extractor = EmbeddingExtractor(os.path.join(CKPT_DIR_V3, "best_model.pt"), device=device).to(device)
-embedding_extractor.eval()
+embedding_extractor = None
+if os.path.exists(effnet_ckpt_path):
+    try:
+        embedding_extractor = EmbeddingExtractor(effnet_ckpt_path, device=device).to(device)
+        embedding_extractor.eval()
+        print("Embedding Extractor loaded successfully!")
+    except Exception as e:
+        print(f"Warning: Failed to load Embedding Extractor: {e}")
+        embedding_extractor = None
+else:
+    print(f"[Info] Embedding Extractor checkpoint not found at {effnet_ckpt_path}. Operating in weights-pending mode.")
 
 # Load RAG Knowledge Base and semantic index
 print("Initializing RAG Knowledge Base...")
@@ -135,7 +162,15 @@ kb_index.build(kb_df)
 
 # Initialize Analytics classes
 analytics = DashboardAnalytics(logs_dir=LOGS_DIR, reports_dir=REPORTS_DIR)
-severity_log_df = pd.read_csv(os.path.join(LOGS_DIR, "step9_severity_log.csv"))
+severity_log_path = os.path.join(LOGS_DIR, "step9_severity_log.csv")
+if os.path.exists(severity_log_path):
+    severity_log_df = pd.read_csv(severity_log_path)
+else:
+    severity_log_df = pd.DataFrame(columns=[
+        "filepath", "category", "true_label", "defect_type",
+        "raw_patchcore_score", "anomaly_norm_0_100", "defect_area_pct",
+        "confidence_pct", "severity_score", "severity_level"
+    ])
 auroc_matrix_path = os.path.join(REPORTS_DIR, "step8_per_category_auroc_matrix.csv")
 auroc_matrix = pd.read_csv(auroc_matrix_path, index_col=0) if os.path.exists(auroc_matrix_path) else None
 rca = PatternAnalyzer(severity_log=severity_log_df, per_category_auroc_matrix=auroc_matrix)
@@ -151,6 +186,17 @@ try:
     print("Phi-3 LLM loaded successfully!")
 except Exception as e:
     print(f"Warning: Phi-3 LLM could not be loaded ({e}). Server starting with high-quality template fallbacks.")
+
+# -----------------------------
+# Real-Time Optical Inspection Singleton
+# -----------------------------
+optical_engine = None
+def get_optical_engine():
+    global optical_engine
+    if optical_engine is None:
+        print("Initializing Real-Time Optical Inspection Engine...", flush=True)
+        optical_engine = OpticalInspectionEngine(device=device)
+    return optical_engine
 
 # -----------------------------
 # Helper Functions
@@ -170,6 +216,12 @@ def inspect_single_image(filepath, category):
 
     baseline = baseline_lookup[category]
     patchcore_model = get_patchcore_model(category)
+    if patchcore_model is None:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact for category '{category}' not found at {mb_path}. Please download authorized dataset and generate memory banks following REPRODUCIBILITY.md."
+        )
 
     pc_tensor = load_pc_tensor(filepath)
     if pc_tensor is None:
@@ -182,25 +234,36 @@ def inspect_single_image(filepath, category):
     defect_area_pct = 100.0 * (dist_map_norm >= 0.5).sum() / dist_map_norm.size
     anomaly_norm = normalize_anomaly_score(raw_score, baseline["baseline_mean"], baseline["baseline_p99"])
 
+    optimal_thresh = float(round(baseline["baseline_p99"], 4))
+    patchcore_defective = bool(raw_score > optimal_thresh)
+
     image_bgr = cv2.imread(filepath)
     if image_bgr is None:
         return None
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = effnet_model(eff_tensor)
-        prob_defective = F.softmax(output, dim=1)[0, 1].item()
+
+    if effnet_model is not None:
+        eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
+        with torch.no_grad():
+            output = effnet_model(eff_tensor)
+            prob_defective = F.softmax(output, dim=1)[0, 1].item()
+    else:
+        prob_defective = 1.0 if patchcore_defective else 0.0
     confidence_pct = prob_defective * 100
+    effnet_defective = bool(prob_defective >= 0.5)
+    
+    # Joint decision: flag as defective if either unsupervised PatchCore or supervised EfficientNet triggers
+    predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
 
     severity_score = compute_severity_score(anomaly_norm, defect_area_pct, confidence_pct)
     severity_level = bucket_severity(severity_score)
-    predicted_label = "defective" if prob_defective >= 0.5 else "normal"
 
     # Identify nearest historical defect from FAISS gallery
     defect_type = "anomaly"
     nearest_matches = []
-    if category in loaded_faiss_indices:
+    if category in loaded_faiss_indices and embedding_extractor is not None:
         try:
+            eff_tensor = eff_transform(image=image_rgb)["image"].unsqueeze(0).to(device)
             with torch.no_grad():
                 eff_emb = embedding_extractor(eff_tensor)[0].cpu().numpy()
             nearest_matches = loaded_faiss_indices[category].search(eff_emb, k=3)
@@ -222,6 +285,8 @@ def inspect_single_image(filepath, category):
         "defect_type": defect_type,
         "confidence_pct": float(round(confidence_pct, 2)),
         "raw_patchcore_score": float(round(raw_score, 6)),
+        "anomaly_score": float(round(raw_score, 6)),
+        "optimal_threshold": optimal_thresh,
         "anomaly_norm_0_100": float(round(anomaly_norm, 2)),
         "defect_area_pct": float(round(defect_area_pct, 2)),
         "severity_score": float(round(severity_score, 2)),
@@ -241,6 +306,12 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
     t_start = time.perf_counter()
     baseline = baseline_lookup[category]
     patchcore_model = get_patchcore_model(category)
+    if patchcore_model is None:
+        mb_path = os.path.join(PATCHCORE_DIR, category, "memory_bank.npy")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact for category '{category}' not found at {mb_path}. Please download authorized dataset and generate memory banks following REPRODUCIBILITY.md."
+        )
 
     # 1. PatchCore feature extraction & distance scoring
     h, w = image_bgr.shape[:2]
@@ -256,22 +327,30 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
     defect_area_pct = float(100.0 * (dist_map_norm >= 0.5).sum() / dist_map_norm.size)
     anomaly_norm = float(normalize_anomaly_score(raw_score, baseline["baseline_mean"], baseline["baseline_p99"]))
 
+    optimal_thresh = float(round(baseline["baseline_p99"], 4))
+    patchcore_defective = bool(raw_score > optimal_thresh)
+
     # 2. EfficientNet-B0 defect classification
-    eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = effnet_model(eff_tensor)
-        prob_defective = float(F.softmax(output, dim=1)[0, 1].item())
+    if effnet_model is not None:
+        eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
+        with torch.no_grad():
+            output = effnet_model(eff_tensor)
+            prob_defective = float(F.softmax(output, dim=1)[0, 1].item())
+    else:
+        prob_defective = 1.0 if patchcore_defective else 0.0
     confidence_pct = float(round(prob_defective * 100, 2))
+    effnet_defective = bool(prob_defective >= 0.5)
 
     # 3. Severity scoring & nearest FAISS match
+    predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
     severity_score = float(round(compute_severity_score(anomaly_norm, defect_area_pct, confidence_pct), 2))
     severity_level = bucket_severity(severity_score)
-    predicted_label = "defective" if prob_defective >= 0.5 else "normal"
 
     defect_type = "anomaly"
     nearest_matches = []
-    if category in loaded_faiss_indices:
+    if category in loaded_faiss_indices and embedding_extractor is not None:
         try:
+            eff_tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
             with torch.no_grad():
                 eff_emb = embedding_extractor(eff_tensor)[0].cpu().numpy()
             nearest_matches = loaded_faiss_indices[category].search(eff_emb, k=3)
@@ -308,6 +387,7 @@ def inspect_frame_in_memory(image_bgr, category="bottle"):
         "severity_level": severity_level,
         "severity_score": severity_score,
         "anomaly_score": float(round(raw_score, 4)),
+        "optimal_threshold": optimal_thresh,
         "anomaly_norm": float(round(anomaly_norm, 2)),
         "confidence_pct": confidence_pct,
         "defect_area_pct": float(round(defect_area_pct, 2)),
@@ -348,7 +428,7 @@ def generate_stream_frames(category="bottle"):
 
     # Prepare specimen fallback frames if webcam is not used
     specimen_frames = []
-    cat_dir = os.path.join("outputs", "gradcam", category)
+    cat_dir = os.path.join(OUTPUTS_DIR, "gradcam", category)
     if os.path.exists(cat_dir):
         files = [f for f in os.listdir(cat_dir) if f.endswith((".png", ".jpg"))][:25]
         for f in files:
@@ -356,7 +436,7 @@ def generate_stream_frames(category="bottle"):
             if img is not None:
                 specimen_frames.append(img)
     if not specimen_frames:
-        demo_path = os.path.join("outputs", "similarity_search_samples", f"{category}_similarity_demo.png")
+        demo_path = os.path.join(OUTPUTS_DIR, "similarity_search_samples", f"{category}_similarity_demo.png")
         if os.path.exists(demo_path):
             d_img = cv2.imread(demo_path)
             if d_img is not None:
@@ -550,8 +630,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if os.path.exists("outputs"):
-    app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+if os.path.exists(OUTPUTS_DIR):
+    app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
 active_batches = {}
 
@@ -583,57 +663,38 @@ def read_root():
     }
 
 @app.post("/predict")
-async def predict_endpoint(file: UploadFile = File(...), category: str = Form(...)):
-    if category not in known_categories:
-        raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories}")
+async def predict_endpoint(file: UploadFile = File(...), category: str = Form("auto")):
+    """
+    Unified Image Upload Optical Inspection Endpoint.
+    Automatically recognizes category (default: "auto") or accepts operator category override,
+    evaluates optical image quality gate, executes category-specific PatchCore memory bank,
+    runs auditable decision fusion, and returns unified inspection schema.
+    """
+    if category != "auto" and category != "" and category not in known_categories:
+        raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories} or 'auto'")
 
-    # Write temporary file
-    temp_dir = tempfile.mkdtemp()
-    filepath = os.path.join(temp_dir, file.filename)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise HTTPException(status_code=400, detail="Failed to decode uploaded image file.")
 
-    try:
-        result = inspect_single_image(filepath, category)
-        if result is None:
-            raise HTTPException(status_code=500, detail="Inference returned empty result.")
-
-        # Overlay heatmap on original image and encode to base64
-        dist_map_norm = result.pop("dist_map_norm")
-        image_bgr = cv2.imread(filepath)
-        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        overlay = overlay_heatmap(image_rgb, dist_map_norm)
-        overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
-        _, buffer = cv2.imencode(".jpg", overlay_bgr)
-        heatmap_base64 = base64.b64encode(buffer).decode("utf-8")
-
-        _, orig_buffer = cv2.imencode(".jpg", image_bgr)
-        orig_base64 = base64.b64encode(orig_buffer).decode("utf-8")
-
-        hm = cv2.resize(dist_map_norm, (image_rgb.shape[1], image_rgb.shape[0]))
-        hm = cv2.applyColorMap(np.uint8(255 * hm), cv2.COLORMAP_JET)
-        _, raw_hm_buffer = cv2.imencode(".jpg", hm)
-        raw_hm_base64 = base64.b64encode(raw_hm_buffer).decode("utf-8")
-
-        result["heatmap"] = f"data:image/jpeg;base64,{heatmap_base64}"
-        result["original_image"] = f"data:image/jpeg;base64,{orig_base64}"
-        result["raw_heatmap"] = f"data:image/jpeg;base64,{raw_hm_base64}"
-        return result
-    finally:
-        # Cleanup temp file
-        shutil.rmtree(temp_dir, ignore_errors=True)
+    engine = get_optical_engine()
+    operator_override = None if (category == "auto" or not category) else category
+    result = engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="upload")
+    return result
 
 @app.post("/api/inspect-frame")
 @app.post("/inspect-frame")
 async def inspect_frame_endpoint(
     frame: UploadFile = File(None),
     file: UploadFile = File(None),
-    category: str = Form("bottle")
+    category: str = Form("auto")
 ):
     """
     Accepts raw frame bytes from browser webcam or edge sensor.
-    Decodes in-memory with zero disk write, runs resident PatchCore + EfficientNet-B0,
-    and returns comprehensive optical defect telemetry in under ~80ms.
+    Decodes in-memory with zero disk write, runs resident PatchCore + category routing,
+    and returns comprehensive optical defect telemetry in unified schema.
     """
     upload = frame or file
     if upload is None:
@@ -645,11 +706,89 @@ async def inspect_frame_endpoint(
     if image_bgr is None:
         raise HTTPException(status_code=400, detail="Failed to decode image buffer into OpenCV matrix.")
 
-    if category not in known_categories and category != "all":
-        category = "bottle"
+    engine = get_optical_engine()
+    operator_override = None if (category == "auto" or not category) else category
+    return engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="live")
 
-    result = inspect_frame_in_memory(image_bgr, category)
+@app.post("/api/optical-inspection/inspect-frame")
+@app.post("/optical-inspection/inspect-frame")
+async def optical_inspect_frame_endpoint(
+    frame: UploadFile = File(None),
+    file: UploadFile = File(None),
+    operator_override: str = Form("auto")
+):
+    """
+    Accepts raw camera frame, executes automatic category recognition,
+    optical image quality gate, PatchCore anomaly routing, and decision fusion.
+    """
+    upload = frame or file
+    if upload is None:
+        raise HTTPException(status_code=400, detail="Missing frame or file image payload.")
+
+    contents = await upload.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise HTTPException(status_code=400, detail="Failed to decode image buffer into OpenCV matrix.")
+
+    engine = get_optical_engine()
+    override = None if (operator_override == "auto" or not operator_override) else operator_override
+    result = engine.inspect_frame(image_bgr, operator_category_override=override, mode="live")
     return result
+
+@app.get("/api/optical-inspection/model-status")
+@app.get("/optical-inspection/model-status")
+def optical_model_status_endpoint():
+    """
+    Returns deployment status and calibrated thresholds for all 15 MVTec AD categories.
+    """
+    engine = get_optical_engine()
+    status = engine.registry.get_models_status()
+    return {
+        "categories": status,
+        "total_categories": len(status),
+        "all_ready": all(m.get("is_ready", False) for m in status.values()),
+        "system_timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/optical-inspection/history")
+@app.get("/optical-inspection/history")
+def optical_history_endpoint(category: str = "all", verdict: str = "all", limit: int = 40):
+    """
+    Retrieves real-time optical inspection history records and session summary statistics.
+    """
+    engine = get_optical_engine()
+    records = engine.history_service.get_history(category=category, verdict=verdict, limit=limit)
+    stats = engine.history_service.get_statistics()
+    return {
+        "records": records,
+        "statistics": stats
+    }
+
+@app.post("/api/optical-inspection/history/clear")
+@app.post("/optical-inspection/history/clear")
+def optical_history_clear_endpoint():
+    """
+    Clears in-memory inspection history buffer.
+    """
+    engine = get_optical_engine()
+    engine.history_service.clear_history()
+    return {"status": "cleared", "message": "Optical inspection history cleared successfully."}
+
+@app.get("/api/optical-inspection/categories")
+@app.get("/optical-inspection/categories")
+def optical_categories_endpoint():
+    """
+    Returns list of all 15 supported MVTec AD categories and their configuration metadata.
+    """
+    engine = get_optical_engine()
+    cats = engine.registry.get_all_categories()
+    configs = {cat: engine.registry.get_category_config(cat) for cat in cats}
+    return {
+        "categories": cats,
+        "total": len(cats),
+        "configs": configs
+    }
 
 @app.get("/api/stream/{category}")
 @app.get("/stream/{category}")
@@ -745,6 +884,11 @@ async def similarity_endpoint(file: UploadFile = File(...), category: str = Form
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
     if category not in loaded_faiss_indices:
         raise HTTPException(status_code=400, detail=f"No FAISS index available for {category}")
+    if embedding_extractor is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Embedding extractor model artifact not found. Please train model or see REPRODUCIBILITY.md."
+        )
 
     temp_dir = tempfile.mkdtemp()
     filepath = os.path.join(temp_dir, file.filename)
@@ -925,7 +1069,8 @@ def ask_rca_endpoint(payload: AskPayload):
             ans = f"The correlation between the physical defect area percentage and the overall severity score is {res['correlation']} (n={res['n_samples']})."
         elif "weakest" in q or "struggle" in q or "auroc" in q:
             res = rca.weakest_detection_categories()
-            ans = f"Based on the evaluation AUROC, the categories where the detection model struggles the most are: {', '.join([f'{r['category']} (avg AUROC: {r['avg_auroc']})' for r in res])}."
+            weakest_str = ", ".join([f"{r['category']} (avg AUROC: {r['avg_auroc']})" for r in res])
+            ans = f"Based on the evaluation AUROC, the categories where the detection model struggles the most are: {weakest_str}."
         else:
             # default to defect type severity ranking
             cat = extract_category(question, known_categories)

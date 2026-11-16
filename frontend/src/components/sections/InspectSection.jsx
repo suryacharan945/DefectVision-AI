@@ -3,6 +3,8 @@ import {
   UploadCloud,
   ShieldCheck,
   AlertOctagon,
+  AlertTriangle,
+  CheckCircle2,
   Sparkles,
   RefreshCw,
   Search,
@@ -20,8 +22,16 @@ import MetricCard from '../ui/MetricCard';
 import HeatmapSlider from '../ui/HeatmapSlider';
 import Tooltip from '../ui/Tooltip';
 
-export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG }) {
-  const [category, setCategory] = useState('bottle');
+export default function InspectSection({
+  onNavigateToSimilarity,
+  onNavigateToRAG,
+  backendHealth,
+  demoMode,
+  onToggleDemoMode,
+  onRetryConnection,
+}) {
+  const isBackendReady = backendHealth?.status === 'ready';
+  const [category, setCategory] = useState('auto');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [presets, setPresets] = useState([]);
@@ -166,23 +176,28 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
     }
   };
 
-  // Fetch explanation via /explain
+  // Fetch explanation via /explain or use engine diagnosis
   const fetchExplanation = async (infResult, cat) => {
+    if (infResult?.diagnosis) {
+      setExplanation(infResult.diagnosis);
+      return;
+    }
     setLoadingExplanation(true);
+    const targetCat = infResult?.detected_category || infResult?.category || cat || 'bottle';
     try {
       const explainRes = await api.explain({
-        category: cat,
+        category: targetCat === 'auto' ? 'bottle' : targetCat,
         defect_type: infResult.defect_type || (infResult.predicted_label === 'defective' ? 'anomaly' : 'normal'),
-        severity_level: infResult.severity_level,
-        severity_score: infResult.severity_score,
-        defect_area_pct: infResult.defect_area_pct,
-        confidence_pct: infResult.confidence_pct,
+        severity_level: infResult.severity_level || 'normal',
+        severity_score: infResult.severity_score || 0,
+        defect_area_pct: infResult.defect_area_pct || 0,
+        confidence_pct: infResult.confidence_pct || 95,
       });
       setExplanation(explainRes.explanation);
     } catch (err) {
       console.warn('LLM explanation failed, falling back:', err);
       setExplanation(
-        `Inspection of ${cat} confirmed ${infResult.predicted_label} state (severity score: ${infResult.severity_score}/100, confidence: ${infResult.confidence_pct}%).`
+        `Inspection of ${targetCat} confirmed ${infResult.verdict || infResult.predicted_label} state (anomaly score: ${infResult.anomaly_score || 0}, calibrated threshold: ${infResult.calibrated_threshold || infResult.optimal_threshold || 1.7452}). The result reflects the model's learned visual patterns and does not guarantee the absence of all possible defects.`
       );
     } finally {
       setLoadingExplanation(false);
@@ -225,14 +240,14 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
           </button>
         </div>
 
-        {/* Required Category Selection Constraint */}
-        <div className="flex flex-col gap-1.5 min-w-[280px]">
+        {/* Category Selection: Auto Recognition by Default with Manual Override */}
+        <div className="flex flex-col gap-1.5 min-w-[290px]">
           <label htmlFor="category-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
             <span className="flex items-center gap-1">
-              <span>Target Product Category</span>
+              <span>Product Category Routing</span>
               <span className="text-cyan-400 font-bold">*</span>
             </span>
-            <Tooltip text="Required constraint: PatchCore memory banks and FAISS indexes are trained per-category. A model trained on bottle cannot inspect a screw." />
+            <Tooltip text="Default: Automatic Category Recognition via EfficientNet-B0. Select a specific category only to force a manual override." />
           </label>
           <div className="relative">
             <select
@@ -243,16 +258,17 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
                 setResult(null);
                 setExplanation(null);
               }}
-              className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-medium text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer"
+              className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-medium text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer font-sans"
             >
-              <optgroup label="Objects (10 Categories)">
+              <option value="auto">⭐ Auto Recognize Category (Default)</option>
+              <optgroup label="Manual Overrides — Objects (10 Categories)">
                 {CATEGORIES.filter((c) => c.type === 'Object').map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.label} ({c.type})
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="Textures (5 Categories)">
+              <optgroup label="Manual Overrides — Textures (5 Categories)">
                 {CATEGORIES.filter((c) => c.type === 'Texture').map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.label} ({c.type})
@@ -265,7 +281,11 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
             </div>
           </div>
           <span className="text-[11px] text-slate-400">
-            Active: <strong className="text-cyan-300">{currentCatMeta.label}</strong> ({currentCatMeta.desc})
+            {category === 'auto' ? (
+              <span>Active: <strong className="text-cyan-300">Automatic Category Recognition</strong> (EfficientNet-B0)</span>
+            ) : (
+              <span>Override: <strong className="text-amber-300">{currentCatMeta.label}</strong> ({currentCatMeta.desc})</span>
+            )}
           </span>
         </div>
       </div>
@@ -436,14 +456,47 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
             </div>
           )}
 
+          {/* Backend Unavailable Notice */}
+          {!isBackendReady && !demoMode && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex flex-col gap-2">
+              <div className="flex items-center gap-2 font-semibold text-rose-300">
+                <AlertOctagon className="w-4 h-4 text-rose-400" />
+                <span>Real Model Execution Offline</span>
+              </div>
+              <p className="text-slate-300 leading-relaxed">
+                The local Python backend daemon (FastAPI on port 8000) is unreachable. Genuine neural network inference cannot be performed.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={onRetryConnection}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium border border-slate-700"
+                >
+                  Retry Connection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleDemoMode(true)}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-medium border border-amber-500/40"
+                >
+                  Enable Demo Mode (Synthetic)
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               type="button"
-              disabled={!selectedFile || status === 'analyzing'}
+              disabled={!selectedFile || status === 'analyzing' || (!isBackendReady && !demoMode)}
               onClick={handleRunInspection}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all shadow-lg ${
                 status === 'analyzing'
                   ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700'
+                  : (!isBackendReady && !demoMode)
+                  ? 'bg-slate-850 text-slate-500 cursor-not-allowed border border-slate-800'
+                  : demoMode && !isBackendReady
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.35)] active:scale-[0.98]'
                   : 'bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-[0_0_20px_rgba(139,92,246,0.35)] active:scale-[0.98]'
               }`}
             >
@@ -451,6 +504,16 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
                   <span>Processing Inference...</span>
+                </>
+              ) : (!isBackendReady && !demoMode) ? (
+                <>
+                  <AlertOctagon className="w-4 h-4 text-slate-500" />
+                  <span>Inference Disabled (Backend Offline)</span>
+                </>
+              ) : demoMode && !isBackendReady ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-black" />
+                  <span>Run Demo Inspection (Synthetic)</span>
                 </>
               ) : (
                 <>
@@ -504,29 +567,149 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
           {result ? (
             <div className="flex flex-col gap-6 animate-in fade-in duration-500">
               
-              {/* Verdict Header Banner */}
-              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/80 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
+              {/* Provenance & Inference Mode Indicator */}
+              {result.is_demo ? (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-mono font-bold text-[10px] shrink-0">
+                      DEMO MODE
+                    </span>
+                    <span className="font-medium">
+                      Synthetic client-side simulation. NOT genuine neural network predictions.
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-amber-400/80 shrink-0">
+                    Backend Server Offline
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold text-[10px] shrink-0">
+                      LIVE INFERENCE
+                    </span>
+                    <span className="font-mono text-[11px] text-slate-300">
+                      {result.model_id || result.model_selected || `PatchCore-${result.category || result.detected_category || 'Model'}`} (Score: {Number(result.anomaly_score || 0).toFixed(4)} | Threshold: {Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-cyan-400 shrink-0">
+                    {(result.inference_latency_ms || result.processing_time_ms || 0).toFixed(1)}ms
+                  </span>
+                </div>
+              )}
+
+              {/* 4-State Verdict Banner */}
+              <div className="p-4 rounded-2xl bg-slate-900/95 border border-slate-800/90 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
                 <div>
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1">
-                    Automated Visual Verdict
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-2">
+                    <span>Inspection Verdict</span>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-cyan-400">{result.mode === 'upload' ? 'Image Upload' : 'Live Inspection'}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold tracking-tight text-white capitalize">
-                      {result.predicted_label === 'defective' ? 'Defective Specimen' : 'Conforming Specimen'}
+                    <span className={`px-3 py-1 rounded-xl text-base sm:text-lg font-heading font-black tracking-wide uppercase border ${
+                      result.verdict === 'NORMAL'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                        : result.verdict === 'DEFECTIVE'
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                        : result.verdict === 'REVIEW REQUIRED'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                        : 'bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
+                    }`}>
+                      {result.conclusion || (result.verdict === 'NORMAL' ? 'NO DEFECT DETECTED' : result.verdict === 'DEFECTIVE' ? 'POSSIBLE DEFECT DETECTED' : result.verdict === 'REVIEW REQUIRED' ? 'MANUAL INSPECTION REQUIRED' : 'UNSUPPORTED OR UNKNOWN CATEGORY')}
                     </span>
-                    <SeverityBadge level={result.severity_level} score={result.severity_score} size="lg" />
+                    {result.severity_level && result.severity_level !== 'unsupported' && result.severity_level !== 'review' && (
+                      <SeverityBadge level={result.severity_level} score={result.severity_score} size="lg" />
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-right">
+                <div className="flex items-center gap-3 text-right">
                   <div>
-                    <div className="text-[10px] font-mono text-slate-400 uppercase">Defect Classification</div>
-                    <div className="text-sm font-mono font-bold text-cyan-300 capitalize">
-                      {result.defect_type || 'Unclassified anomaly'}
+                    <div className="text-[10px] font-mono text-slate-400 uppercase">Decision State</div>
+                    <div className="text-sm font-mono font-bold text-white capitalize">
+                      {result.verdict || 'Evaluated'}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Automatic Recognition & Quality Gate Telemetry Bar */}
+              <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-slate-400">Category:</span>
+                  <strong className="text-white uppercase font-bold">
+                    {result.detected_category || result.category || 'UNKNOWN'}
+                  </strong>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    {result.category_type || 'Object'}
+                  </span>
+                  <span className="text-violet-300 font-semibold">
+                    {result.category_confidence
+                      ? `${(result.category_confidence * 100).toFixed(1)}%`
+                      : (result.confidence_pct ? `${result.confidence_pct}%` : '')}
+                  </span>
+                  {result.category_status === 'OPERATOR_OVERRIDE' && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      Override
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 text-slate-400">
+                  <span>
+                    Quality:{' '}
+                    <strong className={
+                      (result.image_quality?.status || result.image_quality_status) === 'PASSED'
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    }>
+                      {result.image_quality?.status || result.image_quality_status || 'PASSED'}
+                    </strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Score:{' '}
+                    <strong className="text-cyan-300">
+                      {Number(result.anomaly_score || 0).toFixed(4)}
+                    </strong>{' '}
+                    / Thresh:{' '}
+                    <span className="text-slate-300">
+                      {Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Actionable Callout Banner for Review Required or Unsupported */}
+              {(result.verdict === 'REVIEW REQUIRED' || result.verdict === 'UNSUPPORTED') && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
+                  result.verdict === 'UNSUPPORTED'
+                    ? 'bg-purple-950/40 border-purple-500/40 text-purple-200'
+                    : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+                }`}>
+                  <div className="mt-0.5 shrink-0">
+                    {result.verdict === 'UNSUPPORTED' ? (
+                      <AlertOctagon className="w-5 h-5 text-purple-400" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-heading font-bold text-sm tracking-wide uppercase">
+                        {result.conclusion || result.verdict}: Attention Required
+                      </h4>
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 border border-white/10">
+                        Gate: {result.recognition_status || result.category_status || result.image_quality_status || 'GATE_TRIGGERED'}
+                      </span>
+                    </div>
+                    <p className="leading-relaxed opacity-90">
+                      {result.review_reason || 'Specimen requires secondary inspection review.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Heatmap Slider: Before vs After Localization */}
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 backdrop-blur-md">
@@ -610,8 +793,13 @@ export default function InspectSection({ onNavigateToSimilarity, onNavigateToRAG
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-slate-200 leading-relaxed font-normal">
-                      {explanation}
+                      {result.diagnosis || explanation}
                     </p>
+                    {(!result.diagnosis || !result.diagnosis.includes("guarantee")) && (
+                      <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/60 font-mono">
+                        Note: The result reflects the model's learned visual patterns and does not guarantee the absence of all possible defects.
+                      </p>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
                       <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs">

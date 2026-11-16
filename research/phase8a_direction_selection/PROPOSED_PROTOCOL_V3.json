@@ -1,0 +1,113 @@
+{
+  "protocol_id": "Q1-EXP-PROTOCOL-V3-PROSPECTIVE",
+  "title": "Prospective Experimental Protocol: Multi-Category Adaptive Cost-Weighted Budget Allocation (MACBA) for Human-in-the-Loop Industrial Visual Anomaly Detection",
+  "version": "3.0.0-PROPOSAL",
+  "status": "PROSPECTIVE_UNREVIEWED",
+  "date_proposed": "2026-10-31",
+  "supersedes": "None (Draft Proposal separate from frozen Protocol V2)",
+  "target_journals": [
+    "IEEE Transactions on Industrial Informatics (T-II)",
+    "Pattern Recognition (PR)",
+    "IEEE Transactions on Pattern Analysis and Machine Intelligence (T-PAMI)"
+  ],
+  "hypothesis": {
+    "primary_statement": "In multi-product industrial manufacturing environments operating under a global bounded human review capacity (B <= 20% of total plant throughput), category-aware adaptive budget allocation driven by marginal error-density knapsack optimization and conformal quantile normalization achieves statistically superior Multi-Category Error Capture Rate (MC-ECR) and Net Financial Risk Reduction compared to uniform line splitting, global raw score pooling, or production-volume proportional allocation.",
+    "novelty_barrier": "The proposed allocation method must demonstrate statistically significant improvement (paired Wilcoxon signed-rank test across multi-category bootstrap resamples, p < 0.05, Holm-Bonferroni corrected) over both Uniform Category Allocation (BL0) and Global Distance Pooling (BL2) across independent evaluation categories without requiring defect training samples.",
+    "theoretical_scope": "Bridges non-parametric visual anomaly detection with multi-choice knapsack resource allocation. Conformal calibration provides distribution-free standardization across disparate feature manifolds, while marginal utility triage optimizes human inspection yield under asymmetric economic penalties."
+  },
+  "datasets": {
+    "development_partition": [
+      {
+        "name": "MVTec AD — Multi-Category Development Subset",
+        "categories": ["bottle", "capsule", "metal_nut"],
+        "total_images": 330,
+        "base_errors": 62,
+        "base_fn": 59,
+        "base_fp": 3,
+        "role": "Algorithmic development, tuning, and internal paired evaluation."
+      }
+    ],
+    "quarantined_independent_benchmarks": [
+      {
+        "name": "VisA (Visual Anomaly Dataset — 11 Untouched Categories)",
+        "categories": [
+          "candle", "cashew", "chewinggum", "fryum", "macaroni1",
+          "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4", "pipe_fryum"
+        ],
+        "total_images": 10119,
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 prior runs)",
+        "quarantine_rule": "Strictly quarantined until Protocol V3 is reviewed, frozen, and approved."
+      },
+      {
+        "name": "BTAD (BeanTech Anomaly Detection)",
+        "categories": ["01", "02", "03"],
+        "total_images": 2830,
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 prior runs)",
+        "quarantine_rule": "Strictly quarantined until Protocol V3 is reviewed, frozen, and approved."
+      }
+    ]
+  },
+  "method_specification": {
+    "name": "Multi-Category Adaptive Cost-Weighted Budget Allocation (MACBA)",
+    "stages": [
+      {
+        "stage": 1,
+        "description": "Conformal Quantile Normalization using nominal calibration splits to map incommensurable raw scores S_c(X) into standardized nominal non-conformity percentiles."
+      },
+      {
+        "stage": 2,
+        "description": "Empirical marginal expected cost reduction curve estimation Delta_Cost_c(k) for each production line as a function of allocated inspection reviews k."
+      },
+      {
+        "stage": 3,
+        "description": "Multi-choice knapsack optimization solving for optimal per-line review quotas K_c* subject to sum K_c <= B_total and operational minimum floor K_min,c."
+      },
+      {
+        "stage": 4,
+        "description": "Within-line prioritization ordering specimens by cost-weighted boundary proximity |S_c(X) - tau_c| * lambda_c."
+      }
+    ]
+  },
+  "experimental_design": {
+    "budget_fractions": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+    "primary_budget": 0.10,
+    "cost_ratio_grid": {
+      "lambda_values": [1, 5, 20, 50, 100],
+      "gamma_values": [2, 5, 10]
+    },
+    "human_models": [
+      {"name": "Ideal_Auditor", "p_sensitivity": 1.00, "p_specificity": 1.00},
+      {"name": "Realistic_Auditor", "p_sensitivity": 0.95, "p_specificity": 0.98}
+    ],
+    "baselines": [
+      "BL0: Uniform Category Allocation (K_c = B / C)",
+      "BL1: Global Pooled Top-Score Allocation",
+      "BL2: Global Pooled Distance-to-Threshold Allocation",
+      "BL3: Volume-Proportional Allocation",
+      "BL4: Prior-Proportional Allocation",
+      "BL5: Global Conformal Non-Conformity Triage"
+    ],
+    "primary_metrics": [
+      "Multi-Category Error Capture Rate (MC-ECR)",
+      "Total Financial Risk Reduction (Delta_Risk)",
+      "Multi-Category Defect Escape Reduction (MC-DER)"
+    ],
+    "secondary_metrics": [
+      "Global Error Review Yield",
+      "Gini Allocation Equity",
+      "Per-Line Allocation Fractions (K_c / B_total)"
+    ]
+  },
+  "statistical_protocol": {
+    "bootstrap_resamples": 2000,
+    "paired_difference_metrics": ["Delta_MC_ECR", "Delta_Risk", "Delta_MC_DER"],
+    "confidence_interval_level": 0.95,
+    "hypothesis_test": "Two-sided paired Wilcoxon signed-rank test",
+    "fwer_control": "Holm-Bonferroni correction at alpha = 0.05"
+  },
+  "stopping_and_failure_criteria": {
+    "stop_rule_1": "If MACBA fails to outperform Uniform Allocation (BL0) by at least +5.0% MC-ECR at 10% budget on internal development validation.",
+    "stop_rule_2": "If the allocation algorithm requires retraining backbones or incurs > 100 ms optimization latency per batch.",
+    "stop_rule_3": "If any independent VisA category is unblinded prior to formal protocol freeze."
+  }
+}

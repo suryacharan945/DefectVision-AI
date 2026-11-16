@@ -1,0 +1,168 @@
+{
+  "protocol_id": "Q1-EXP-PROTOCOL-V2",
+  "title": "Pre-Registered Experimental Protocol for Selective Anomaly Detection and Human Review Prioritization in Industrial Visual Inspection",
+  "version": "2.0.0",
+  "registration_date": "2026-10-31",
+  "status": "PRE_REGISTERED_FROZEN_V2",
+  "supersedes": {
+    "protocol_id": "Q1-EXP-PROTOCOL-V1",
+    "sha256": "e3cfed296037ba59e5cc371f8ae7815884e7ea3cdfd7a10b0d18fd4c4e9fae6d"
+  },
+  "target_journals": [
+    "IEEE Transactions on Industrial Informatics (T-II)",
+    "Pattern Recognition (PR)",
+    "IEEE Transactions on Pattern Analysis and Machine Intelligence (T-PAMI)"
+  ],
+  "hypothesis": {
+    "primary_statement": "In unsupervised one-class industrial visual anomaly detection operating under bounded human review budgets (B <= 20%), selective review prioritization driven by decision-boundary proximity and local patch neighborhood geometry achieves statistically superior Error Capture Rate (ECR) and Defect Escape Reduction (DER) compared to naive score-based triaging or uniform random sampling, without requiring access to defect training samples.",
+    "novelty_barrier": "Candidate patch-neighborhood dispersion metrics (CPND) must demonstrate statistically significant improvement (paired Wilcoxon signed-rank test, p < 0.05, Holm-Bonferroni corrected) over the Distance-to-Threshold baseline (|S(X) - tau_c|) across independent evaluation categories.",
+    "theoretical_scope": "Split conformal prediction on nominal calibration samples provides finite-sample distribution-free control of the nominal False Positive Rate (FPR <= alpha). Defect capture and review triage effectiveness are empirical ranking properties governed by uncertainty-error concordance, not distribution-free conformal guarantees."
+  },
+  "datasets": {
+    "development_and_ablation_benchmarks": [
+      {
+        "name": "MVTec Anomaly Detection (MVTec AD)",
+        "categories_count": 15,
+        "total_images": 5354,
+        "role": "Development and ablation benchmark. 100% development-exposed through historical training, architecture selection, and threshold tuning."
+      },
+      {
+        "name": "VisA — Capsules Subset",
+        "category": "capsules",
+        "total_images": 702,
+        "partitions": {
+          "fit_normal": 461,
+          "calibration_normal": 40,
+          "validation_normal": 41,
+          "official_test": 160
+        },
+        "role": "Development-exposed ablation subset. Quarantined from final unexposed generalization benchmarks due to prior V1 test and V2 development evaluations."
+      }
+    ],
+    "held_out_generalization_benchmarks": [
+      {
+        "name": "VisA (Visual Anomaly Dataset — 11 Untouched Categories)",
+        "categories": [
+          "candle", "cashew", "chewinggum", "fryum", "macaroni1",
+          "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4", "pipe_fryum"
+        ],
+        "categories_count": 11,
+        "total_images": 10119,
+        "normal_images": 9019,
+        "defective_images": 1100,
+        "license": "CC BY 4.0",
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 model fitting, 0 feature extraction, 0 threshold calibration, 0 evaluation runs)",
+        "access_rule": "Strictly quarantined until selective review algorithm, hyperparameters, and decision rules are completely frozen."
+      },
+      {
+        "name": "BTAD (BeanTech Anomaly Detection — Mishra et al., 2021)",
+        "categories": ["01", "02", "03"],
+        "categories_count": 3,
+        "total_images": 2830,
+        "normal_images": 2540,
+        "defective_images": 290,
+        "exposure_status": "POTENTIALLY INDEPENDENT / UNTOUCHED (0 prior executions in DefectVision AI)",
+        "access_rule": "Strictly quarantined until selective review algorithm, hyperparameters, and decision rules are completely frozen."
+      }
+    ],
+    "quarantined_datasets": [
+      {
+        "name": "Chukyo Real-World Automotive Dataset",
+        "status": "PERMANENTLY BLOCKED",
+        "rationale": "Quarantined in cold storage due to 14 identical capture pairs and 25 duplicate similarity pairs."
+      }
+    ]
+  },
+  "metrics": {
+    "primary": [
+      {
+        "name": "Error Capture Rate (ECR@B)",
+        "formula": "Errors_captured_in_review(B) / Total_base_classification_errors(E0)",
+        "budgets": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+        "interpretation": "Fraction of overall model misclassifications (false negatives + false positives) intercepted and corrected under review budget B."
+      },
+      {
+        "name": "Defect Escape Reduction (DER@B)",
+        "formula": "False_Negatives_captured_in_review(B) / Total_base_false_negatives(FN0)",
+        "budgets": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+        "interpretation": "Fraction of escaped defects recovered by human auditor under budget B."
+      }
+    ],
+    "secondary": [
+      {
+        "name": "Area Under Cost-Coverage Curve (AUCCC)",
+        "reference": "Geifman & El-Yaniv, NeurIPS 2017",
+        "coverage_range": [0.80, 1.00]
+      },
+      {
+        "name": "Review Precision / Defect Yield (DY@B)",
+        "formula": "True_Defects_Recovered / Total_Images_Reviewed"
+      },
+      {
+        "name": "Macro-Averaged Category AUROC",
+        "formula": "(1 / C) * sum_{c=1}^C AUROC_c"
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "id": "BL0",
+      "name": "Uniform Random Selection",
+      "type": "Stochastic Baseline",
+      "procedure": "Samples k = floor(B * N) images uniformly at random without replacement (1,000 Monte Carlo trials)"
+    },
+    {
+      "id": "BL1",
+      "name": "Highest Anomaly Score",
+      "type": "Naive Heuristic",
+      "procedure": "Ranks images descending by raw PatchCore anomaly score S(X)"
+    },
+    {
+      "id": "BL2",
+      "name": "Distance to Category Threshold",
+      "type": "Competitive Unsupervised Baseline",
+      "formula": "u(X) = 1.0 / (|S(X) - tau_c| + eps)",
+      "procedure": "Prioritizes samples closest to the decision threshold tau_c"
+    },
+    {
+      "id": "BL3",
+      "name": "Supervised Prediction Margin",
+      "type": "Supervised Oracle Upper Bound",
+      "formula": "u(X) = 1.0 - |2.0 * p(X) - 1.0|",
+      "procedure": "Ranks by epistemic margin of supervised classifier (requires labeled defect training)"
+    },
+    {
+      "id": "PROPOSED",
+      "name": "Calibrated Patch-Neighborhood Dispersion (CPND)",
+      "type": "Candidate Unsupervised Method",
+      "formula": "std_k(distances) / mean_k(distances) for top-K FAISS neighbors",
+      "ablation_requirement": "Must be evaluated alone and in combination with BL2: u_joint(X) = alpha * u_BL2(X) + (1 - alpha) * u_CPND(X)"
+    }
+  ],
+  "fixed_review_budgets": [0.01, 0.02, 0.05, 0.10, 0.15, 0.20],
+  "calibration_strategy": {
+    "method": "Split Conformal Prediction on Nominal Training/Validation Partitions",
+    "calibration_split": "Nominal (good) specimens exclusively",
+    "coverage_guarantee": "Under exchangeability of normal test items: P(S(X) <= q_hat | X in Normal) >= 1 - alpha. No distribution-free guarantee on defective items."
+  },
+  "statistical_testing": {
+    "confidence_interval_method": "Non-parametric BCa bootstrap (1,000 resamples per category)",
+    "sampling_unit": "Image specimen",
+    "sampling_unit_rationale": "In industrial production lines, each arriving item represents an independent inspection event; resampling at the image level captures operational batch variance without assuming Gaussian error distributions.",
+    "significance_test": "Two-tailed paired Wilcoxon signed-rank test across independent categories with Holm-Bonferroni correction (alpha = 0.05)"
+  },
+  "stopping_and_failure_rules": {
+    "superiority_criterion": "CPND demonstrates statistically significant higher mean ECR@10% than BL2 (p < 0.05).",
+    "negative_finding_criterion": "If CPND fails to beat BL2 (p >= 0.05), report transparently as a negative result demonstrating that scalar decision boundary distance dominates local patch dispersion in nearest-neighbor triage.",
+    "no_post_hoc_cherrypicking": "Hyperparameters (k, coreset fraction, distance weighting) selected on development data (MVTec AD + VisA capsules) shall not be retuned after observing held-out benchmark results."
+  },
+  "computational_budget": {
+    "max_cpu_runtime_hours": 5.0,
+    "max_ram_gb": 8.0,
+    "hardware_target": "Standard x86_64 CPU workstation or Google Colab T4 environment"
+  },
+  "pre_registration_freeze": {
+    "locked": true,
+    "phase": "PRE_REGISTRATION_V2_FROZEN_NO_HELD_OUT_INFERENCE_RUN"
+  }
+}

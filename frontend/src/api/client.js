@@ -17,6 +17,17 @@ import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// Explicit Demo Mode State Management
+let _demoModeEnabled = false;
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('defectvision_demo_mode');
+    if (saved === 'true') _demoModeEnabled = true;
+  } catch (e) {
+    // ignore localStorage errors
+  }
+}
+
 class ApiError extends Error {
   constructor(message, status, detail) {
     super(message);
@@ -27,21 +38,21 @@ class ApiError extends Error {
 }
 
 const defaultDefectTypes = {
-  bottle: 'Sidewall Structural Fracture',
-  cable: 'Deformed Core Wire',
-  capsule: 'Surface Crack & Squeeze',
-  carpet: 'Weave Fiber Hole',
-  grid: 'Bent Wire & Mesh Deformation',
-  hazelnut: 'Cracked Outer Shell',
-  leather: 'Surface Fold & Stain',
-  metal_nut: 'Thread Scratch',
-  pill: 'Tablet Coating Contamination',
-  screw: 'Thread Damage',
-  tile: 'Glaze Surface Crack',
-  toothbrush: 'Misaligned Bristle Tuft',
-  transistor: 'Bent Lead & Casing Scratch',
-  wood: 'Wood Grain Surface Hole',
-  zipper: 'Broken Zipper Tooth'
+  bottle: 'surface_anomaly',
+  cable: 'surface_anomaly',
+  capsule: 'surface_anomaly',
+  carpet: 'surface_anomaly',
+  grid: 'surface_anomaly',
+  hazelnut: 'surface_anomaly',
+  leather: 'surface_anomaly',
+  metal_nut: 'surface_anomaly',
+  pill: 'surface_anomaly',
+  screw: 'surface_anomaly',
+  tile: 'surface_anomaly',
+  toothbrush: 'surface_anomaly',
+  transistor: 'surface_anomaly',
+  wood: 'surface_anomaly',
+  zipper: 'surface_anomaly'
 };
 
 async function request(endpoint, options = {}) {
@@ -83,19 +94,56 @@ const simulatedBatches = {};
 
 export const api = {
   /**
+   * Check whether user has explicitly engaged demo mode
+   */
+  isDemoMode() {
+    return _demoModeEnabled;
+  },
+
+  /**
+   * Toggle explicit demo mode
+   */
+  setDemoMode(enabled) {
+    _demoModeEnabled = Boolean(enabled);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('defectvision_demo_mode', _demoModeEnabled ? 'true' : 'false');
+      } catch (e) {
+        // ignore
+      }
+    }
+  },
+
+  /**
+   * Get current operational mode label
+   */
+  getInferenceMode() {
+    return _demoModeEnabled ? 'DEMO' : 'LIVE';
+  },
+
+  /**
    * Check backend health, active device, and category readiness
    */
   async checkHealth() {
     try {
-      return await request('/api/');
+      const res = await request('/api/');
+      return {
+        ...res,
+        status: 'ready',
+        mode: 'live',
+        is_live: true,
+        device: res.device || 'Local Host (CPU/CUDA)'
+      };
     } catch (err) {
       return {
-        status: 'ready',
-        mode: 'edge-cloud',
-        device: 'Cloud Edge (Vercel)',
+        status: 'offline',
+        mode: _demoModeEnabled ? 'demo' : 'unavailable',
+        is_live: false,
+        device: 'Offline',
         version: '3.0.0',
         categories_count: 15,
-        llm_loaded: true
+        llm_loaded: false,
+        error: 'Backend offline: connection refused at 127.0.0.1:8000'
       };
     }
   },
@@ -112,49 +160,62 @@ export const api = {
   },
 
   /**
-   * Run live PatchCore anomaly localization & EfficientNet classification
+   * Run live category-aware optical inspection pipeline on uploaded image.
+   * Defaults to automatic category recognition (category = 'auto').
    * @param {File|Blob} file Image file to inspect
-   * @param {string} category One of the 15 MVTec AD categories
+   * @param {string} category 'auto' (default) or one of the 15 MVTec AD categories
    */
-  async predict(file, category) {
+  async predict(file, category = 'auto') {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('category', category);
+      formData.append('category', category || 'auto');
 
-      return await request('/predict', {
+      const res = await request('/predict', {
         method: 'POST',
         body: formData,
       });
-    } catch (err) {
-      const cat = String(category || 'bottle').toLowerCase();
-      console.info(`[DefectVision Edge] Running in-memory inference fallback for: ${cat}`);
-      
-      const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
-      const defectType = defaultDefectTypes[cat] || 'Surface Anomaly';
-      
-      const rawScore = 1.35 + (Math.sin(cat.length) * 0.2);
-      const anomalyScore = Math.min(0.95, Math.max(0.65, 0.78 + (Math.cos(cat.length) * 0.12)));
-      const severityScore = Math.min(96, Math.max(72, Math.round(anomalyScore * 105)));
-      const severityLevel = severityScore >= 80 ? 'Critical' : 'Moderate';
-      const confidence = 98.6 + Math.round(Math.random() * 12) / 10;
-      const defectArea = (3.5 + Math.round(Math.random() * 45) / 10).toFixed(1);
 
       return {
-        predicted_label: 'defective',
-        severity_level: severityLevel,
-        severity_score: severityScore,
-        anomaly_score: parseFloat(anomalyScore.toFixed(3)),
-        raw_patchcore_score: parseFloat(rawScore.toFixed(3)),
-        confidence_pct: parseFloat(confidence.toFixed(1)),
-        defect_area_pct: parseFloat(defectArea),
-        defect_type: defectType,
-        optimal_threshold: 0.45,
+        ...res,
+        is_demo: false,
+        inference_mode: 'LIVE (Unified Optical Engine)'
+      };
+    } catch (err) {
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Backend Unavailable',
+          503,
+          'Real inference cannot be performed because the backend server is unreachable. Please start the local backend (uvicorn app:app --port 8000) or toggle Demo Mode.'
+        );
+      }
+
+      const cat = String(category || 'bottle').toLowerCase();
+      console.warn(`[DefectVision Demo] Serving client-side demonstration result for category: ${cat}`);
+      
+      const sampleImgUrl = file ? URL.createObjectURL(file) : `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
+
+      return {
+        verdict: 'NORMAL',
+        predicted_label: 'normal',
+        severity_level: 'normal',
+        severity_score: 0.0,
+        anomaly_score: 0.215,
+        raw_patchcore_score: 1.120,
+        calibrated_threshold: 1.467,
+        confidence_pct: 95.0,
+        defect_area_pct: 0.0,
+        defect_type: 'normal',
+        optimal_threshold: 1.467,
         processing_time_ms: 38.4,
         heatmap: sampleImgUrl,
-        original_image: file ? URL.createObjectURL(file) : sampleImgUrl,
+        original_image: sampleImgUrl,
         raw_heatmap: sampleImgUrl,
-        edge_inference: true
+        edge_inference: true,
+        is_demo: true,
+        inference_mode: 'DEMO MODE (Client Simulation — Backend Offline)',
+        diagnosis: `Demonstration mode: backend model is offline. Simulating nominal baseline for ${cat}. The result reflects client-side demonstration only.`,
+        warning: 'DEMONSTRATION ONLY: Synthetic simulation generated client-side. Backend model offline.'
       };
     }
   },
@@ -569,7 +630,7 @@ export const api = {
   /**
    * Run real-time in-memory frame inspection on camera snapshot
    * @param {Blob|File} frameBlob Binary JPEG blob from webcam or video element
-   * @param {string} category One of the 15 MVTec AD categories
+   * @param {string} category One of the 15 MVTec AD categories, or 'auto'
    */
   async inspectFrame(frameBlob, category = 'bottle') {
     try {
@@ -582,17 +643,93 @@ export const api = {
         body: formData,
       });
     } catch (err) {
-      const cat = String(category || 'bottle').toLowerCase();
-      const sampleImgUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Backend Unavailable',
+          503,
+          'Real camera optical stream inspection cannot be performed: local backend is offline.'
+        );
+      }
+      const isAuto = category === 'auto' || !category;
       return {
-        predicted_label: 'defective',
-        severity_level: 'Critical',
-        severity_score: 86.4,
-        anomaly_score: 0.835,
-        confidence_pct: 99.2,
-        processing_time_ms: 41.2,
-        heatmap_base64: sampleImgUrl
+        verdict: isAuto ? 'UNSUPPORTED' : 'NORMAL',
+        conclusion: isAuto ? 'UNSUPPORTED OR UNKNOWN CATEGORY' : 'NO DEFECT DETECTED',
+        predicted_label: isAuto ? 'unsupported' : 'normal',
+        detected_category: isAuto ? 'unsupported' : category,
+        candidate_category: isAuto ? 'unknown' : category,
+        category_type: isAuto ? 'unknown' : (['carpet','grid','leather','tile','wood'].includes(category) ? 'texture' : 'object'),
+        category_confidence: isAuto ? 0.0 : 1.0,
+        recognition_status: isAuto ? 'UNSUPPORTED_OR_UNCERTAIN' : 'OPERATOR_OVERRIDE',
+        model_selected: isAuto ? 'None' : `PatchCore-${category.charAt(0).toUpperCase() + category.slice(1)}-MemoryBank`,
+        severity_level: isAuto ? 'unsupported' : 'normal',
+        severity_score: 0.0,
+        anomaly_score: 0.0,
+        defect_area_pct: 0.0,
+        defect_type: isAuto ? 'unsupported' : 'normal',
+        calibrated_threshold: 1.467,
+        confidence_pct: isAuto ? 0.0 : 100.0,
+        processing_time_ms: 12.0,
+        heatmap_base64: '',
+        original_image: '',
+        is_demo: true,
+        inference_mode: 'DEMO MODE (Stream Simulation — Backend Offline)'
       };
+    }
+  },
+
+  /**
+   * Run real-time category-aware optical inspection pipeline
+   * Automatically recognizes MVTec AD category, routes to category model,
+   * validates optical image quality, and localizes defects.
+   * @param {Blob|File} frameBlob
+   * @param {string} operatorOverride 'auto' or specific category name
+   */
+  async inspectOpticalFrame(frameBlob, operatorOverride = 'auto') {
+    try {
+      const formData = new FormData();
+      formData.append('frame', frameBlob, 'frame.jpg');
+      formData.append('operator_override', operatorOverride);
+
+      return await request('/api/optical-inspection/inspect-frame', {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (err) {
+      // Fallback to inspectFrame if optical endpoint fails or in demo mode
+      return await this.inspectFrame(frameBlob, operatorOverride);
+    }
+  },
+
+  /**
+   * Fetch category model registry status for all 15 MVTec AD categories
+   */
+  async getOpticalModelStatus() {
+    try {
+      return await request('/api/optical-inspection/model-status');
+    } catch (err) {
+      return {};
+    }
+  },
+
+  /**
+   * Fetch optical inspection telemetry history
+   */
+  async getOpticalHistory(category = 'all', verdict = 'all', limit = 40) {
+    try {
+      return await request(`/api/optical-inspection/history?category=${encodeURIComponent(category)}&verdict=${encodeURIComponent(verdict)}&limit=${limit}`);
+    } catch (err) {
+      return [];
+    }
+  },
+
+  /**
+   * Clear optical inspection history
+   */
+  async clearOpticalHistory() {
+    try {
+      return await request('/api/optical-inspection/history/clear', { method: 'POST' });
+    } catch (err) {
+      return { status: 'cleared' };
     }
   },
 

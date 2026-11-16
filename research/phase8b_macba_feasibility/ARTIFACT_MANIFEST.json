@@ -1,0 +1,86 @@
+{
+  "phase": "Phase 8B - MACBA Protocol Correction and Leakage-Free Feasibility",
+  "protocol_reference": "research/phase8b_macba_feasibility/PROPOSED_PROTOCOL_V3_1.json",
+  "protocol_sha256": "7d6b8a113d4fba6ce34b74d4b98cbc614d650993e761b1a09e590d4cdfb994f0",
+  "generated_at": "2026-10-31T23:44:00Z",
+  "final_decision": "PROCEED TO FULL DEVELOPMENT",
+  "artifacts": [
+    {
+      "file": "NOVELTY_AND_LITERATURE_AUDIT.md",
+      "path": "research/phase8b_macba_feasibility/NOVELTY_AND_LITERATURE_AUDIT.md",
+      "sha256": "23c0c0baf1770df98b235070fc4078f529329ab9646c9b589de9935b349ed1be",
+      "size_bytes": 7702,
+      "description": "Publisher-verified literature audit and de-hyping analysis"
+    },
+    {
+      "file": "SPLIT_AND_LEAKAGE_AUDIT.md",
+      "path": "research/phase8b_macba_feasibility/SPLIT_AND_LEAKAGE_AUDIT.md",
+      "sha256": "d24655c3d3d2330804e81a2128ad101c9f9c3b1421c90dbf7a62de36dee30320",
+      "size_bytes": 3442,
+      "description": "Group-aware split specification, error breakdown, and anti-leakage audit"
+    },
+    {
+      "file": "CORRECTED_PROBLEM_FORMULATION.md",
+      "path": "research/phase8b_macba_feasibility/CORRECTED_PROBLEM_FORMULATION.md",
+      "sha256": "0c1f934a93831431eeeb401dacfeebe6e934b692ee553806092b891329e2baed",
+      "size_bytes": 5400,
+      "description": "Decision-theoretic loss reduction derivation under imperfect human review"
+    },
+    {
+      "file": "STRONG_BASELINE_SPECIFICATION.md",
+      "path": "research/phase8b_macba_feasibility/STRONG_BASELINE_SPECIFICATION.md",
+      "sha256": "a20c76f12acd86afd817e0bf16f22d28c7f77ccd8c3bd776ec7e0760b8541e3d",
+      "size_bytes": 4844,
+      "description": "Mathematical specifications of the 8 benchmark allocation policies"
+    },
+    {
+      "file": "FEASIBILITY_RESULTS.csv",
+      "path": "research/phase8b_macba_feasibility/FEASIBILITY_RESULTS.csv",
+      "sha256": "9144b5a908644c784885add83641427b9adf85a045a3306d709519bef11f5228",
+      "size_bytes": 4221,
+      "description": "Multi-budget feasibility benchmark across all 8 policies and budget levels"
+    },
+    {
+      "file": "PAIRED_POLICY_COMPARISON.csv",
+      "path": "research/phase8b_macba_feasibility/PAIRED_POLICY_COMPARISON.csv",
+      "sha256": "e2d0a4635b874edbccaf735df298eca6cc76b169f1b6bc137a813b00fc598c4e",
+      "size_bytes": 928,
+      "description": "2,000 paired bootstrap resamples comparing MACBA against all baselines"
+    },
+    {
+      "file": "COST_SENSITIVITY_RESULTS.csv",
+      "path": "research/phase8b_macba_feasibility/COST_SENSITIVITY_RESULTS.csv",
+      "sha256": "7df5cb09d16d8213f261d15bcac1ffe11c037ee34d5d9620bf8c2b3e99f229c8",
+      "size_bytes": 1616,
+      "description": "Cost sensitivity sweep across asymmetric loss ratios lambda in {1, 5, 20, 50, 100}"
+    },
+    {
+      "file": "PROTOCOL_AMENDMENT.md",
+      "path": "research/phase8b_macba_feasibility/PROTOCOL_AMENDMENT.md",
+      "sha256": "dc1e484fc0558068f6473d6d8565d2928098e6329c4ff28bd48ff4be361142f7",
+      "size_bytes": 3060,
+      "description": "Formal changelog from Protocol V3.0 to V3.1"
+    },
+    {
+      "file": "PROPOSED_PROTOCOL_V3_1.json",
+      "path": "research/phase8b_macba_feasibility/PROPOSED_PROTOCOL_V3_1.json",
+      "sha256": "7d6b8a113d4fba6ce34b74d4b98cbc614d650993e761b1a09e590d4cdfb994f0",
+      "size_bytes": 4994,
+      "description": "Amended prospective research protocol specification (SHA-256: 7d6b8a11...)"
+    },
+    {
+      "file": "FINAL_FEASIBILITY_DECISION.md",
+      "path": "research/phase8b_macba_feasibility/FINAL_FEASIBILITY_DECISION.md",
+      "sha256": "19f0d7103811ec8500af9e4bce0f912e099fb15966f687e3c8a7d433cc757dd4",
+      "size_bytes": 7077,
+      "description": "Executive feasibility evaluation recommending PROCEED TO FULL DEVELOPMENT"
+    },
+    {
+      "file": "ARTIFACT_MANIFEST.json",
+      "path": "research/phase8b_macba_feasibility/ARTIFACT_MANIFEST.json",
+      "sha256": "8436c5e822bd20916ae3cc9d1f463ef741b52661afe383f4246f0ff66c9d43d8",
+      "size_bytes": 3871,
+      "description": "Cryptographic checksum ledger of all Phase 8B artifacts"
+    }
+  ]
+}

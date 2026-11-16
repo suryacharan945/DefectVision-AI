@@ -1,0 +1,8 @@
+Comparison,Delta_Cost_Reduction_Pct,Delta_Cost_95CI,Delta_MC_ECR,Delta_ECR_95CI,Delta_MC_DER,Delta_DER_95CI,Statistically_Superior
+Proposed_MACBA vs BL0_Uniform,18.35,"[5.91%, 32.65%]",11.43,"[-4.66%, 27.03%]",18.75,"[6.06%, 33.33%]",True
+Proposed_MACBA vs BL1_Volume,15.24,"[3.59%, 29.22%]",8.57,"[-6.25%, 24.24%]",15.62,"[4.00%, 29.74%]",True
+Proposed_MACBA vs BL2_Pooled_Distance,15.09,"[3.40%, 29.08%]",5.71,"[-9.38%, 21.22%]",15.62,"[3.85%, 29.73%]",True
+Proposed_MACBA vs BL3_Normalized_Distance,15.09,"[3.14%, 28.59%]",5.71,"[-9.68%, 21.43%]",15.62,"[3.70%, 29.17%]",True
+Proposed_MACBA vs BL4_Prior_Allocation,12.29,"[2.48%, 25.32%]",8.57,"[-3.57%, 21.21%]",12.5,"[2.63%, 25.81%]",True
+Proposed_MACBA vs BL5_Calibrated_Risk,15.09,"[3.01%, 28.59%]",5.71,"[-10.00%, 21.63%]",15.62,"[3.45%, 29.17%]",True
+Proposed_MACBA vs BL6_Cost_Weighted_Risk,0.0,"[0.00%, 0.00%]",0.0,"[0.00%, 0.00%]",0.0,"[0.00%, 0.00%]",False

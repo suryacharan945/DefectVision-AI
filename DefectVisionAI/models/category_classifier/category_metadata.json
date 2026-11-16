@@ -1,0 +1,64 @@
+{
+  "model_name": "EfficientNet-B0-MVTec-CategoryRecognizer",
+  "model_path": "models/category_classifier/category_classifier.pth",
+  "architecture": "efficientnet_b0",
+  "num_classes": 15,
+  "categories": [
+    "bottle",
+    "cable",
+    "capsule",
+    "carpet",
+    "grid",
+    "hazelnut",
+    "leather",
+    "metal_nut",
+    "pill",
+    "screw",
+    "tile",
+    "toothbrush",
+    "transistor",
+    "wood",
+    "zipper"
+  ],
+  "category_types": {
+    "bottle": "object",
+    "cable": "object",
+    "capsule": "object",
+    "carpet": "texture",
+    "grid": "texture",
+    "hazelnut": "object",
+    "leather": "texture",
+    "metal_nut": "object",
+    "pill": "object",
+    "screw": "object",
+    "tile": "texture",
+    "toothbrush": "object",
+    "transistor": "object",
+    "wood": "texture",
+    "zipper": "object"
+  },
+  "input_resolution": [
+    224,
+    224
+  ],
+  "normalization": {
+    "mean": [
+      0.48500001430511475,
+      0.4560000002384186,
+      0.4059999883174896
+    ],
+    "std": [
+      0.2290000021457672,
+      0.2240000069141388,
+      0.22499999403953552
+    ]
+  },
+  "temperature": 1.3696,
+  "confidence_threshold": 0.7,
+  "peak_val_accuracy": 100.0,
+  "trained_epochs": 30,
+  "training_samples": 2903,
+  "validation_samples": 726,
+  "random_seed": 42,
+  "training_device": "cpu"
+}

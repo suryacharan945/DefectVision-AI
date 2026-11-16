@@ -1,0 +1,7 @@
+test_name,description,expected_code,actual_code,passed,details
+corrupt_image_payload,Upload corrupted non-image byte sequence to /inspect-frame,400,400,True,"{""error"":""Failed to decode image buffer into OpenCV matrix."",""detail"":""Failed to decode image buffer into OpenCV matrix."
+unknown_category_rejection,Submit inference request with non-existent category name,400,400,True,"{""error"":""Unknown category: flux_capacitor_v9. Choose from ['bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut', "
+malicious_string_injection,Attempt SQL injection in category parameter,400,400,True,"{""error"":""Unknown category: ' OR 1=1; DROP TABLE users;--. Choose from ['bottle', 'cable', 'capsule', 'carpet', 'grid', "
+extreme_aspect_ratio_1200x50,Submit ultra-wide aspect ratio image to verify resize stability,200,200,True,Pred: defective
+high_resolution_2048x2048,Submit 2048x2048 image to /inspect-frame to test memory footprint,200,200,True,Latency: 2135.63ms
+rapid_burst_10_requests,Fire 10 back-to-back requests on /inspect-frame,200,200,True,"Avg: 912.0ms, p95: 1424.7ms"

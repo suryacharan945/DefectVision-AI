@@ -1,0 +1,137 @@
+{
+  "bottle": {
+    "calibrated_threshold": 1.4666,
+    "baseline_mean": 0.9732,
+    "baseline_std": 0.1074,
+    "baseline_p99": 1.4348,
+    "baseline_p995": 1.4666,
+    "n_calibration_samples": 42,
+    "memory_bank_tokens": 14739
+  },
+  "cable": {
+    "calibrated_threshold": 2.4577,
+    "baseline_mean": 1.7409,
+    "baseline_std": 0.1996,
+    "baseline_p99": 2.4556,
+    "baseline_p995": 2.4577,
+    "n_calibration_samples": 45,
+    "memory_bank_tokens": 15758
+  },
+  "capsule": {
+    "calibrated_threshold": 1.1502,
+    "baseline_mean": 0.7614,
+    "baseline_std": 0.0854,
+    "baseline_p99": 1.1124,
+    "baseline_p995": 1.1502,
+    "n_calibration_samples": 44,
+    "memory_bank_tokens": 15444
+  },
+  "carpet": {
+    "calibrated_threshold": 1.3543,
+    "baseline_mean": 0.969,
+    "baseline_std": 0.0823,
+    "baseline_p99": 1.2974,
+    "baseline_p995": 1.3543,
+    "n_calibration_samples": 56,
+    "memory_bank_tokens": 19756
+  },
+  "grid": {
+    "calibrated_threshold": 1.4634,
+    "baseline_mean": 1.0921,
+    "baseline_std": 0.1142,
+    "baseline_p99": 1.4592,
+    "baseline_p995": 1.4634,
+    "n_calibration_samples": 53,
+    "memory_bank_tokens": 18580
+  },
+  "hazelnut": {
+    "calibrated_threshold": 2.3403,
+    "baseline_mean": 1.2826,
+    "baseline_std": 0.2487,
+    "baseline_p99": 2.2507,
+    "baseline_p995": 2.3403,
+    "n_calibration_samples": 78,
+    "memory_bank_tokens": 27518
+  },
+  "leather": {
+    "calibrated_threshold": 1.1136,
+    "baseline_mean": 0.8975,
+    "baseline_std": 0.0548,
+    "baseline_p99": 1.0973,
+    "baseline_p995": 1.1136,
+    "n_calibration_samples": 49,
+    "memory_bank_tokens": 17248
+  },
+  "metal_nut": {
+    "calibrated_threshold": 1.8271,
+    "baseline_mean": 1.3742,
+    "baseline_std": 0.0877,
+    "baseline_p99": 1.7745,
+    "baseline_p995": 1.8271,
+    "n_calibration_samples": 44,
+    "memory_bank_tokens": 15523
+  },
+  "pill": {
+    "calibrated_threshold": 1.7575,
+    "baseline_mean": 1.228,
+    "baseline_std": 0.1505,
+    "baseline_p99": 1.7478,
+    "baseline_p995": 1.7575,
+    "n_calibration_samples": 53,
+    "memory_bank_tokens": 18816
+  },
+  "screw": {
+    "calibrated_threshold": 1.4684,
+    "baseline_mean": 1.0915,
+    "baseline_std": 0.1146,
+    "baseline_p99": 1.4636,
+    "baseline_p995": 1.4684,
+    "n_calibration_samples": 64,
+    "memory_bank_tokens": 22579
+  },
+  "tile": {
+    "calibrated_threshold": 1.4735,
+    "baseline_mean": 1.2218,
+    "baseline_std": 0.0653,
+    "baseline_p99": 1.4723,
+    "baseline_p995": 1.4735,
+    "n_calibration_samples": 46,
+    "memory_bank_tokens": 16228
+  },
+  "toothbrush": {
+    "calibrated_threshold": 1.4593,
+    "baseline_mean": 1.1695,
+    "baseline_std": 0.093,
+    "baseline_p99": 1.441,
+    "baseline_p995": 1.4593,
+    "n_calibration_samples": 12,
+    "memory_bank_tokens": 4233
+  },
+  "transistor": {
+    "calibrated_threshold": 1.7787,
+    "baseline_mean": 1.4013,
+    "baseline_std": 0.081,
+    "baseline_p99": 1.7582,
+    "baseline_p995": 1.7787,
+    "n_calibration_samples": 43,
+    "memory_bank_tokens": 14974
+  },
+  "wood": {
+    "calibrated_threshold": 1.344,
+    "baseline_mean": 1.0621,
+    "baseline_std": 0.0694,
+    "baseline_p99": 1.3371,
+    "baseline_p995": 1.344,
+    "n_calibration_samples": 49,
+    "memory_bank_tokens": 17404
+  },
+  "zipper": {
+    "calibrated_threshold": 1.1627,
+    "baseline_mean": 0.9202,
+    "baseline_std": 0.0663,
+    "baseline_p99": 1.1625,
+    "baseline_p995": 1.1627,
+    "n_calibration_samples": 48,
+    "memory_bank_tokens": 16934
+  }
+}
