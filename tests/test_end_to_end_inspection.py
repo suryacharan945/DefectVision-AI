@@ -92,6 +92,7 @@ class TestUnifiedInspectionPipeline(unittest.TestCase):
             img = cv2.imread(self.sample_bottle_normal)
         else:
             img = np.full((300, 300, 3), 120, dtype=np.uint8)
+            cv2.circle(img, (150, 150), 60, (200, 200, 200), -1)
 
         buf = encode_image_bytes(img)
         res = client.post(
@@ -111,6 +112,7 @@ class TestUnifiedInspectionPipeline(unittest.TestCase):
             img = cv2.imread(self.sample_bottle_broken)
         else:
             img = np.full((300, 300, 3), 120, dtype=np.uint8)
+            cv2.circle(img, (150, 150), 60, (200, 200, 200), -1)
 
         buf = encode_image_bytes(img)
         res = client.post(
