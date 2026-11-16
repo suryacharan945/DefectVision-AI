@@ -1,0 +1,16 @@
+category,type,support,true_positives,false_positives,false_negatives,precision,recall,f1_score
+bottle,object,83,83,0,0,1.0,1.0,1.0
+cable,object,150,150,0,0,1.0,1.0,1.0
+capsule,object,132,132,0,0,1.0,1.0,1.0
+carpet,texture,117,117,0,0,1.0,1.0,1.0
+grid,texture,78,78,0,0,1.0,1.0,1.0
+hazelnut,object,110,110,0,0,1.0,1.0,1.0
+leather,texture,124,124,0,0,1.0,1.0,1.0
+metal_nut,object,115,115,0,0,1.0,1.0,1.0
+pill,object,167,167,0,0,1.0,1.0,1.0
+screw,object,160,160,1,0,0.9938,1.0,0.9969
+tile,texture,117,117,0,0,1.0,1.0,1.0
+toothbrush,object,42,42,0,0,1.0,1.0,1.0
+transistor,object,100,100,0,0,1.0,1.0,1.0
+wood,texture,79,78,0,1,1.0,0.9873,0.9936
+zipper,object,151,151,0,0,1.0,1.0,1.0

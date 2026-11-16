@@ -1,0 +1,16 @@
+category,type,train_total,registration_80%,calibration_20%,test_good,test_defect,test_total
+bottle,object,209,167,42,20,63,83
+cable,object,224,179,45,58,92,150
+capsule,object,219,175,44,23,109,132
+carpet,texture,280,224,56,28,89,117
+grid,texture,264,211,53,21,57,78
+hazelnut,object,391,313,78,40,70,110
+leather,texture,245,196,49,32,92,124
+metal_nut,object,220,176,44,22,93,115
+pill,object,267,214,53,26,141,167
+screw,object,320,256,64,41,119,160
+tile,texture,230,184,46,33,84,117
+toothbrush,object,60,48,12,12,30,42
+transistor,object,213,170,43,60,40,100
+wood,texture,247,198,49,19,60,79
+zipper,object,240,192,48,32,119,151

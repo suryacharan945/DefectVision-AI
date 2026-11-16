@@ -41,6 +41,7 @@ from src.dashboard_analytics import DashboardAnalytics
 from src.pattern_analysis import PatternAnalyzer
 from src.numeric_validator import numbers_are_grounded
 from src.batch_inspection import build_batch_report
+from src.camera_service import OpticalInspectionEngine
 
 # -----------------------------
 # Setup Global Configurations & Devices
@@ -185,6 +186,17 @@ try:
     print("Phi-3 LLM loaded successfully!")
 except Exception as e:
     print(f"Warning: Phi-3 LLM could not be loaded ({e}). Server starting with high-quality template fallbacks.")
+
+# -----------------------------
+# Real-Time Optical Inspection Singleton
+# -----------------------------
+optical_engine = None
+def get_optical_engine():
+    global optical_engine
+    if optical_engine is None:
+        print("Initializing Real-Time Optical Inspection Engine...", flush=True)
+        optical_engine = OpticalInspectionEngine(device=device)
+    return optical_engine
 
 # -----------------------------
 # Helper Functions
@@ -651,57 +663,38 @@ def read_root():
     }
 
 @app.post("/predict")
-async def predict_endpoint(file: UploadFile = File(...), category: str = Form(...)):
-    if category not in known_categories:
-        raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories}")
+async def predict_endpoint(file: UploadFile = File(...), category: str = Form("auto")):
+    """
+    Unified Image Upload Optical Inspection Endpoint.
+    Automatically recognizes category (default: "auto") or accepts operator category override,
+    evaluates optical image quality gate, executes category-specific PatchCore memory bank,
+    runs auditable decision fusion, and returns unified inspection schema.
+    """
+    if category != "auto" and category != "" and category not in known_categories:
+        raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories} or 'auto'")
 
-    # Write temporary file
-    temp_dir = tempfile.mkdtemp()
-    filepath = os.path.join(temp_dir, file.filename)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise HTTPException(status_code=400, detail="Failed to decode uploaded image file.")
 
-    try:
-        result = inspect_single_image(filepath, category)
-        if result is None:
-            raise HTTPException(status_code=500, detail="Inference returned empty result.")
-
-        # Overlay heatmap on original image and encode to base64
-        dist_map_norm = result.pop("dist_map_norm")
-        image_bgr = cv2.imread(filepath)
-        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        overlay = overlay_heatmap(image_rgb, dist_map_norm)
-        overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
-        _, buffer = cv2.imencode(".jpg", overlay_bgr)
-        heatmap_base64 = base64.b64encode(buffer).decode("utf-8")
-
-        _, orig_buffer = cv2.imencode(".jpg", image_bgr)
-        orig_base64 = base64.b64encode(orig_buffer).decode("utf-8")
-
-        hm = cv2.resize(dist_map_norm, (image_rgb.shape[1], image_rgb.shape[0]))
-        hm = cv2.applyColorMap(np.uint8(255 * hm), cv2.COLORMAP_JET)
-        _, raw_hm_buffer = cv2.imencode(".jpg", hm)
-        raw_hm_base64 = base64.b64encode(raw_hm_buffer).decode("utf-8")
-
-        result["heatmap"] = f"data:image/jpeg;base64,{heatmap_base64}"
-        result["original_image"] = f"data:image/jpeg;base64,{orig_base64}"
-        result["raw_heatmap"] = f"data:image/jpeg;base64,{raw_hm_base64}"
-        return result
-    finally:
-        # Cleanup temp file
-        shutil.rmtree(temp_dir, ignore_errors=True)
+    engine = get_optical_engine()
+    operator_override = None if (category == "auto" or not category) else category
+    result = engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="upload")
+    return result
 
 @app.post("/api/inspect-frame")
 @app.post("/inspect-frame")
 async def inspect_frame_endpoint(
     frame: UploadFile = File(None),
     file: UploadFile = File(None),
-    category: str = Form("bottle")
+    category: str = Form("auto")
 ):
     """
     Accepts raw frame bytes from browser webcam or edge sensor.
-    Decodes in-memory with zero disk write, runs resident PatchCore + EfficientNet-B0,
-    and returns comprehensive optical defect telemetry in under ~80ms.
+    Decodes in-memory with zero disk write, runs resident PatchCore + category routing,
+    and returns comprehensive optical defect telemetry in unified schema.
     """
     upload = frame or file
     if upload is None:
@@ -713,11 +706,84 @@ async def inspect_frame_endpoint(
     if image_bgr is None:
         raise HTTPException(status_code=400, detail="Failed to decode image buffer into OpenCV matrix.")
 
-    if category not in known_categories and category != "all":
-        category = "bottle"
+    engine = get_optical_engine()
+    operator_override = None if (category == "auto" or not category) else category
+    return engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="live")
 
-    result = inspect_frame_in_memory(image_bgr, category)
+@app.post("/api/optical-inspection/inspect-frame")
+async def optical_inspect_frame_endpoint(
+    frame: UploadFile = File(None),
+    file: UploadFile = File(None),
+    operator_override: str = Form("auto")
+):
+    """
+    Accepts raw camera frame, executes automatic category recognition,
+    optical image quality gate, PatchCore anomaly routing, and decision fusion.
+    """
+    upload = frame or file
+    if upload is None:
+        raise HTTPException(status_code=400, detail="Missing frame or file image payload.")
+
+    contents = await upload.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise HTTPException(status_code=400, detail="Failed to decode image buffer into OpenCV matrix.")
+
+    engine = get_optical_engine()
+    override = None if (operator_override == "auto" or not operator_override) else operator_override
+    result = engine.inspect_frame(image_bgr, operator_category_override=override, mode="live")
     return result
+
+@app.get("/api/optical-inspection/model-status")
+def optical_model_status_endpoint():
+    """
+    Returns deployment status and calibrated thresholds for all 15 MVTec AD categories.
+    """
+    engine = get_optical_engine()
+    status = engine.registry.get_models_status()
+    return {
+        "categories": status,
+        "total_categories": len(status),
+        "all_ready": all(m.get("is_ready", False) for m in status.values()),
+        "system_timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/optical-inspection/history")
+def optical_history_endpoint(category: str = "all", verdict: str = "all", limit: int = 40):
+    """
+    Retrieves real-time optical inspection history records and session summary statistics.
+    """
+    engine = get_optical_engine()
+    records = engine.history_service.get_history(category=category, verdict=verdict, limit=limit)
+    stats = engine.history_service.get_statistics()
+    return {
+        "records": records,
+        "statistics": stats
+    }
+
+@app.post("/api/optical-inspection/history/clear")
+def optical_history_clear_endpoint():
+    """
+    Clears in-memory inspection history buffer.
+    """
+    engine = get_optical_engine()
+    engine.history_service.clear_history()
+    return {"status": "cleared", "message": "Optical inspection history cleared successfully."}
+
+@app.get("/api/optical-inspection/categories")
+def optical_categories_endpoint():
+    """
+    Returns list of all 15 supported MVTec AD categories and their configuration metadata.
+    """
+    engine = get_optical_engine()
+    cats = engine.registry.get_all_categories()
+    configs = {cat: engine.registry.get_category_config(cat) for cat in cats}
+    return {
+        "categories": cats,
+        "total": len(cats),
+        "configs": configs
+    }
 
 @app.get("/api/stream/{category}")
 @app.get("/stream/{category}")
