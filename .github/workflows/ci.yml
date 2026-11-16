@@ -2,7 +2,7 @@ name: DefectVision AI CI
 
 on:
   push:
-    branches: [ main, chore/**, fix/**, feat/** ]
+    branches: [ main, chore/**, fix/**, feat/**, feature/** ]
   pull_request:
     branches: [ main ]
 
@@ -12,13 +12,39 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Run evaluation report test suite
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        env:
+          PYTHONPATH: .:DefectVisionAI
         run: |
           python -m unittest discover tests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
