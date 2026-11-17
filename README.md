@@ -151,6 +151,27 @@ cd ..
 ```
 
 ### Step 4: Launch the Full Stack (Local Development)
+
+#### Option A: Native Windows PowerShell Script (Recommended for Windows)
+A single command boots the FastAPI backend, waits for truthful model readiness on `/health`, and launches the Vite React frontend:
+```powershell
+# Launch full stack:
+.\start.ps1
+
+# Stop all services cleanly when finished:
+.\stop.ps1
+```
+
+#### Option B: Docker Compose (Cross-Platform)
+```bash
+# Build and run backend and frontend containers:
+docker compose up --build
+
+# Stop container services:
+docker compose down
+```
+
+#### Option C: Manual Terminal Launch
 ```powershell
 # In terminal 1 - Start FastAPI Backend:
 cd DefectVisionAI
@@ -176,20 +197,22 @@ For production deployment, the frontend and backend are decoupled:
 DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, live stream inspection, CORS security, and production health contracts:
 
 ```powershell
-# Run the complete test suite:
+# Run the complete test suite (71 tests):
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
 
+# Run the automated end-to-end ML inference smoke test:
+.\.venv\Scripts\python.exe -m unittest tests/test_inference_smoke.py
+
 # Verify frontend production build:
-cd frontend
-npm run build
+npm --prefix frontend run build
 ```
 
 ### Continuous Integration Test Breakdown
 The GitHub Actions workflow (`.github/workflows/ci.yml`) executes both backend tests and frontend compilation on every push:
-- **Test Suite Execution:** **64 tests total: 62 passed, 2 skipped**.
-  - **62 Passed:** Covers all unit, functional, fusion, integration, and security tests.
-  - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all 64/64 tests pass.
-- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors.
+- **Test Suite Execution:** **71 tests total: 69 passed, 2 skipped**.
+  - **69 Passed:** Covers all unit, functional, fusion, integration, real ML inference smoke tests, and security tests.
+  - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all tests pass.
+- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors (1.4 MB bundle, gzip 359 kB).
 - **Docker Container Build & Healthcheck:** CI builds the backend container, starts it detached, verifies `/health` (`status: "ready"`, `process_reachable: true`), checks `/api/models/status` (`total_categories: 15`), and verifies clean container lifecycle.
 
 ---

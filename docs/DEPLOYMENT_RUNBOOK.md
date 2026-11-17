@@ -59,9 +59,33 @@ The backend requires sufficient resident RAM to hold the 15 category memory bank
 
 ---
 
-## 3. Step-by-Step Backend Deployment
+## 3. Deployment Options & Execution Guide
 
-### Option A: Render (Recommended for Rapid Zero-Config Deployment)
+### Option 0: Local Full-Stack Execution (Development & Offline Testing)
+
+#### 0.1 Native Windows PowerShell (Single-Command Launch & Shutdown)
+Boot the entire full stack locally with built-in readiness polling:
+```powershell
+# 1. Start backend and frontend services:
+.\start.ps1
+
+# 2. Stop all services and release ports 8000 & 5173:
+.\stop.ps1
+```
+The startup script automatically resolves the virtual environment, verifies port availability, polls `http://localhost:8000/health` until the optical engine reports `"ready"`, and boots the Vite development server on `http://localhost:5173`.
+
+#### 0.2 Docker Compose (Multi-Container Setup)
+```bash
+# Build and run backend and frontend containers:
+docker compose up --build
+
+# Shutdown containers:
+docker compose down
+```
+
+---
+
+### Option A: Render (Recommended for Rapid Cloud Zero-Config Deployment)
 
 1. **Owner Approval & Dashboard Access:**
    - Review Render's current instance pricing at [render.com/pricing](https://render.com/pricing).

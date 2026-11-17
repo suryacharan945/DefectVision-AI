@@ -1,11 +1,12 @@
 # DefectVision AI — Production Deployment Baseline & Architecture Audit
 
-**Document Version:** 1.0.0  
+**Document Version:** 1.1.0  
 **Audit Date:** 2026-11-17  
-**System Status:** Stale Deployed Frontend (39 commits behind) / Backend Unconnected  
-**Authoritative Git Branch:** `main` (commit `660accec0ed41d59606eb2bb365153268d6f58a8`)  
+**System Status:** Full-Stack Integration Complete (PR #3 Merged to `main` at `b71a621`) / Local Startup & Docker Compose Delivered / Cloud Backend Ready Pending Owner Funding Approval  
+**Authoritative Git Branch:** `main` (commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854`)  
+**Release Branch:** `release/full-stack-completion-2026-11-17`  
 **Production Frontend Host:** Vercel (`https://defectvision-ai.vercel.app/`)  
-**Active Production Deployed Commit:** `2fd48675bc7515d01cade08376e75fe607dcd112`  
+**Active Production Deployed Commit:** `2fd48675bc7515d01cade08376e75fe607dcd112` (Awaiting backend deployment before triggering Vercel redeployment)  
 
 ---
 
@@ -13,11 +14,11 @@
 
 A comprehensive infrastructure and deployment audit of the DefectVision AI project was performed across GitHub, Vercel, and local runtime environments.
 
-The audit verified two critical findings:
-1. **Frontend Version Drift:** The production URL `https://defectvision-ai.vercel.app/` is serving build assets compiled from commit `2fd4867` (authored before the 15-category automatic optical inspection engine and OOD gating implementation), leaving production **39 commits behind `main`**.
-2. **Backend Detachment:** The production frontend does not have an active backend connection. Because Vercel only hosts the static Vite bundle and the environment variable `VITE_API_URL` is undefined, the frontend issues API requests to its own domain (`/predict`, `/api/inspect-frame`, `/api/optical-inspection/model-status`). On Vercel, these requests hit the static file server, returning **HTTP 405 Method Not Allowed** for POST requests and **HTTP 200 with HTML (SPA catch-all rewrite)** for GET requests.
-
-This document details the exact technical baseline, diagnostic evidence, root causes, resource requirements for 15-category anomaly detection, and the architectural blueprint to achieve a production-connected system.
+Key Milestones Verified:
+1. **Repository Synchronization & PR #3 Merge:** PR #3 was successfully hardened and merged into `main` at commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854`.
+2. **Local Full-Stack Execution Assets:** Native Windows PowerShell execution scripts (`start.ps1`, `stop.ps1`), multi-container `docker-compose.yml`, and `frontend/Dockerfile` have been provided and verified.
+3. **Automated ML Inference Smoke Test:** `tests/test_inference_smoke.py` exercises genuine nominal specimens, defective specimens, texture routing, object routing, OOD rejection, and API contracts (7/7 passed in 12.1s).
+4. **Cloud Backend Readiness & Cost Disclosure:** Render configuration (`render.yaml`) is pinned to `plan: 2c-4g` (listed base price US$85/month) with `plan: 1c-2g` (listed base price US$25/month) as lower-cost alternative. Provisioning remains gated on explicit owner funding approval.
 
 ---
 
@@ -26,13 +27,13 @@ This document details the exact technical baseline, diagnostic evidence, root ca
 | Component | Target / Production Reality | Source of Truth / Identifier | Status |
 | :--- | :--- | :--- | :--- |
 | **GitHub Repository** | `https://github.com/suryacharan945/DefectVision-AI` | Remote `origin` | Authoritative |
-| **Default Branch** | `main` | Commit `660accec0ed41d59606eb2bb365153268d6f58a8` | Fully Passing CI (Run #18) |
-| **Feature Branch** | `fix/production-backend-integration` | Branch tracking `origin/main` | Active Working Branch |
+| **Default Branch** | `main` | Commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854` | Fully Passing CI (PR #3 Merged) |
+| **Release Branch** | `release/full-stack-completion-2026-11-17` | Branch tracking `origin/main` | Active Release Branch |
 | **Vercel Project** | `defectvision-ai` | Project ID `prj_jmVHZCfTfEc6DYJp2nHn51vCJIVF` | Connected to GitHub Repo |
 | **Live Frontend URL** | `https://defectvision-ai.vercel.app/` | Vercel Edge Network | Active, Serving Stale Build |
-| **Deployed Frontend SHA**| `2fd48675bc7515d01cade08376e75fe607dcd112` | JS Bundle Hash `index-BAvQJhD-.js` | **39 Commits Behind Main** |
-| **FastAPI Backend Host** | Unset / Missing in Production | `VITE_API_URL` undefined | **Disconnected (HTTP 405 / HTML Fallback)** |
-| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | Workflow Run #20 & PR #3 | **100% Green (62 Passed, 2 Skipped)** |
+| **Deployed Frontend SHA**| `2fd48675bc7515d01cade08376e75fe607dcd112` | JS Bundle Hash `index-BAvQJhD-.js` | Awaiting Backend URL |
+| **FastAPI Backend Host** | Prepared in `render.yaml` & `Dockerfile` | Gated on owner approval | **Pending Owner Funding Approval** |
+| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | 71 Tests (69 Passed, 2 Conditionally Skipped) | **100% Green** |
 
 ---
 
