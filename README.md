@@ -153,7 +153,7 @@ cd ..
 ### Step 4: Launch the Full Stack (Local Development)
 
 #### Option A: Native Windows PowerShell Script (Recommended for Windows)
-A single command boots the FastAPI backend, waits for truthful model readiness on `/health`, and launches the Vite React frontend:
+A single command boots the FastAPI backend, waits for truthful model readiness on `/health` (verifying all 15 category memory banks), and launches the Vite React frontend:
 ```powershell
 # Launch full stack:
 .\start.ps1
@@ -161,14 +161,18 @@ A single command boots the FastAPI backend, waits for truthful model readiness o
 # Stop all services cleanly when finished:
 .\stop.ps1
 ```
+*Process Handling Safety:* The PowerShell scripts inspect listening PIDs via CIM/WMI, verify DefectVision AI ownership against application signatures and recorded PID files, and terminate managed process trees cleanly using `taskkill /T /F`. Foreign third-party applications occupying ports 8000 or 5173 are never touched; conflicts are safely reported.
 
-#### Option B: Docker Compose (Cross-Platform)
+#### Option B: Docker Compose (Cross-Platform Local Orchestration)
 ```bash
-# Build and run backend and frontend containers:
-docker compose up --build
+# Validate Compose configuration:
+docker compose config
 
-# Stop container services:
-docker compose down
+# Build and run backend and frontend containers:
+docker compose up -d --build
+
+# Stop container services cleanly:
+docker compose down --remove-orphans
 ```
 
 #### Option C: Manual Terminal Launch
@@ -185,9 +189,9 @@ Open your web browser and navigate to `http://localhost:5173`.
 
 ### Step 5: Cloud Production Deployment
 For production deployment, the frontend and backend are decoupled:
-- **Frontend:** Hosted on Vercel at [`https://defectvision-ai.vercel.app/`](https://defectvision-ai.vercel.app/).
-- **Backend:** Packaged via [`Dockerfile`](Dockerfile) and deployed to a container host (Render, Railway, Fly.io, or AWS ECS/Cloud Run).
-- **Wiring:** Set `VITE_API_URL=https://<your-backend-domain>` in Vercel project environment variables.
+- **Frontend Host:** Deployed on Vercel at [`https://defectvision-ai.vercel.app/`](https://defectvision-ai.vercel.app/). *(Note: Currently serving commit `2fd4867` deployed via CLI; automatic Git-based deployment is unverified and pending backend connection).*
+- **Backend Container Host:** Configured in [`render.yaml`](render.yaml) (`plan: 2c-4g` at US$85/month base, `plan: 1c-2g` at US$25/month base) and [`Dockerfile`](Dockerfile). *(Note: Cloud backend deployment is gated on explicit repository owner funding approval).*
+- **Wiring:** Once backend is provisioned, set `VITE_API_URL=https://<your-backend-domain>` in Vercel project environment variables.
 - See [`docs/DEPLOYMENT_RUNBOOK.md`](docs/DEPLOYMENT_RUNBOOK.md) for full step-by-step instructions.
 
 ---
@@ -213,7 +217,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) executes both backend t
   - **69 Passed:** Covers all unit, functional, fusion, integration, real ML inference smoke tests, and security tests.
   - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all tests pass.
 - **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors (1.4 MB bundle, gzip 359 kB).
-- **Docker Container Build & Healthcheck:** CI builds the backend container, starts it detached, verifies `/health` (`status: "ready"`, `process_reachable: true`), checks `/api/models/status` (`total_categories: 15`), and verifies clean container lifecycle.
+- **Docker Compose Full-Stack Verification:** CI validates `docker compose config`, builds and starts both backend and frontend services detached (`docker compose up -d --build`), polls backend `/health` (`status: "ready"`, `process_reachable: true`), validates `/api/optical-inspection/model-status` (`total_categories: 15`), polls frontend on port 5173 (`HTTP 200 OK`), and cleanly tears down via `docker compose down --remove-orphans`.
 
 ---
 

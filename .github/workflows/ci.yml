@@ -2,7 +2,7 @@ name: DefectVision AI CI
 
 on:
   push:
-    branches: [ main, chore/**, fix/**, feat/**, feature/** ]
+    branches: [ main, release/**, chore/**, fix/**, feat/**, feature/** ]
   pull_request:
     branches: [ main ]
 
@@ -49,19 +49,19 @@ jobs:
           cd frontend
           npm run build
 
-      - name: Verify Docker build and container healthcheck
+      - name: Validate and test Docker Compose full stack
         run: |
-          echo "=== 1. Building Docker container image ==="
-          docker build -t defectvision-backend:ci .
+          echo "=== 1. Validating Docker Compose configuration ==="
+          docker compose config
 
-          echo "=== 2. Starting backend container ==="
-          docker run -d --name test-backend -p 8000:8000 -e PORT=8000 -e HOST=0.0.0.0 defectvision-backend:ci
+          echo "=== 2. Building and starting full stack ==="
+          docker compose up -d --build
 
-          echo "=== 3. Polling /health endpoint ==="
+          echo "=== 3. Polling Backend /health endpoint ==="
           HEALTH_URL="http://localhost:8000/health"
           MODELS_URL="http://localhost:8000/api/optical-inspection/model-status"
           MAX_ATTEMPTS=45
-          SUCCESS=0
+          BACKEND_READY=0
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
             echo "Attempt $i/$MAX_ATTEMPTS: checking $HEALTH_URL..."
@@ -69,42 +69,34 @@ jobs:
               echo "Health response received:"
               cat /tmp/health_resp.json
               echo ""
-              SUCCESS=1
-              break
-            fi
-            
-            if [ -z "$(docker ps -q -f name=test-backend)" ]; then
-              echo "ERROR: Backend container terminated prematurely!"
-              docker logs test-backend
-              exit 1
+              if grep -q '"status": *"ready"' /tmp/health_resp.json; then
+                BACKEND_READY=1
+                break
+              fi
             fi
             sleep 2
           done
 
-          if [ $SUCCESS -ne 1 ]; then
-            echo "ERROR: Healthcheck timed out after $MAX_ATTEMPTS attempts."
-            docker logs test-backend
-            docker rm -f test-backend || true
+          if [ $BACKEND_READY -ne 1 ]; then
+            echo "ERROR: Backend healthcheck failed or timed out!"
+            docker compose logs
+            docker compose down --remove-orphans
             exit 1
           fi
 
           echo "=== 4. Validating health payload contracts ==="
           grep -q '"process_reachable": *true' /tmp/health_resp.json || {
             echo "ERROR: Assertion failed - process_reachable is not true"
-            docker logs test-backend
+            docker compose logs
+            docker compose down --remove-orphans
             exit 1
           }
 
-          grep -q '"status": *"ready"' /tmp/health_resp.json || {
-            echo "ERROR: Assertion failed - status is not 'ready'"
-            docker logs test-backend
-            exit 1
-          }
-
-          echo "=== 5. Checking model status endpoint ==="
+          echo "=== 5. Checking model status endpoint (15 categories) ==="
           curl -s -f "$MODELS_URL" -o /tmp/models_resp.json || {
             echo "ERROR: Failed to query $MODELS_URL"
-            docker logs test-backend
+            docker compose logs
+            docker compose down --remove-orphans
             exit 1
           }
           cat /tmp/models_resp.json
@@ -112,11 +104,35 @@ jobs:
 
           grep -q '"total_categories": *15' /tmp/models_resp.json || {
             echo "ERROR: Assertion failed - total_categories is not 15"
-            docker logs test-backend
+            docker compose logs
+            docker compose down --remove-orphans
             exit 1
           }
 
-          echo "=== 6. Cleanup container ==="
-          docker stop test-backend
-          docker rm test-backend
-          echo "Docker container verification completed successfully."
+          echo "=== 6. Polling Frontend endpoint (http://localhost:5173) ==="
+          FE_URL="http://localhost:5173"
+          FE_READY=0
+          for i in $(seq 1 20); do
+            echo "Frontend attempt $i/20: checking $FE_URL..."
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FE_URL" || true)
+            if [ "$STATUS_CODE" = "200" ]; then
+              echo "Frontend responded with HTTP 200 OK!"
+              FE_READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ $FE_READY -ne 1 ]; then
+            echo "ERROR: Frontend failed to respond with HTTP 200 within timeout!"
+            docker compose logs
+            docker compose down --remove-orphans
+            exit 1
+          fi
+
+          echo "=== 7. Full-stack Docker Compose verification succeeded! ==="
+
+      - name: Cleanup Docker Compose services
+        if: always()
+        run: |
+          docker compose down --remove-orphans

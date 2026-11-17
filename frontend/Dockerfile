@@ -1,15 +1,17 @@
-# DefectVision AI — Frontend Container
-# Multi-stage or dev container for Vite React application
+# DefectVision AI — Local Development Frontend Container
+# PURPOSE: Runs the Vite development server in local Docker Compose environments.
+# NOTE: Cloud production deployment is decoupled: static frontend assets are built
+# via 'npm run build' and served from Vercel Edge CDN (see docs/DEPLOYMENT_RUNBOOK.md).
 
 FROM node:20-alpine
 
 WORKDIR /app
 
 # Copy dependency manifests
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
-# Install frontend dependencies
-RUN npm ci || npm install
+# Deterministic lockfile-based dependency installation
+RUN npm ci
 
 # Copy frontend source code
 COPY . .
