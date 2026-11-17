@@ -59,7 +59,7 @@ jobs:
 
           echo "=== 3. Polling /health endpoint ==="
           HEALTH_URL="http://localhost:8000/health"
-          MODELS_URL="http://localhost:8000/api/models/status"
+          MODELS_URL="http://localhost:8000/api/optical-inspection/model-status"
           MAX_ATTEMPTS=45
           SUCCESS=0
 

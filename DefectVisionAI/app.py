@@ -837,6 +837,8 @@ async def optical_inspect_frame_endpoint(
 
 @app.get("/api/optical-inspection/model-status")
 @app.get("/optical-inspection/model-status")
+@app.get("/api/models/status")
+@app.get("/models/status")
 def optical_model_status_endpoint():
     """
     Returns deployment status and calibrated thresholds for all 15 MVTec AD categories.

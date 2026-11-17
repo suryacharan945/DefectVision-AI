@@ -168,12 +168,14 @@ class TestProductionApiIntegration(unittest.TestCase):
     # -------------------------------------------------------------
 
     def test_optical_model_status_endpoint(self):
-        """Verify model-status endpoint returns calibrated thresholds and readiness for all 15 categories."""
-        resp = self.client.get("/api/optical-inspection/model-status")
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertIn("categories", data)
-        self.assertEqual(data.get("total_categories"), 15)
+        """Verify model-status endpoint returns calibrated thresholds and readiness for all 15 categories across all aliases."""
+        for path in ["/api/optical-inspection/model-status", "/optical-inspection/model-status", "/api/models/status", "/models/status"]:
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 200, f"Failed on path {path}")
+            data = resp.json()
+            self.assertIn("categories", data)
+            self.assertEqual(data.get("total_categories"), 15)
+            self.assertTrue(data.get("all_ready"))
         categories = data["categories"]
         for cat in known_categories:
             self.assertIn(cat, categories)
