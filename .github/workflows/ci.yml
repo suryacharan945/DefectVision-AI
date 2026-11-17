@@ -49,6 +49,16 @@ jobs:
           cd frontend
           npm run build
 
+      - name: Free runner disk space for Docker builds
+        run: |
+          echo "=== Freeing runner disk space ==="
+          df -h
+          pip cache purge || true
+          npm cache clean --force || true
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost || true
+          echo "=== Disk space after cleanup ==="
+          df -h
+
       - name: Validate and test Docker Compose full stack
         run: |
           echo "=== 1. Validating Docker Compose configuration ==="
@@ -60,7 +70,7 @@ jobs:
           echo "=== 3. Polling Backend /health endpoint ==="
           HEALTH_URL="http://localhost:8000/health"
           MODELS_URL="http://localhost:8000/api/optical-inspection/model-status"
-          MAX_ATTEMPTS=45
+          MAX_ATTEMPTS=60
           BACKEND_READY=0
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
@@ -112,15 +122,15 @@ jobs:
           echo "=== 6. Polling Frontend endpoint (http://localhost:5173) ==="
           FE_URL="http://localhost:5173"
           FE_READY=0
-          for i in $(seq 1 20); do
-            echo "Frontend attempt $i/20: checking $FE_URL..."
+          for i in $(seq 1 45); do
+            echo "Frontend attempt $i/45: checking $FE_URL..."
             STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FE_URL" || true)
             if [ "$STATUS_CODE" = "200" ]; then
               echo "Frontend responded with HTTP 200 OK!"
               FE_READY=1
               break
             fi
-            sleep 1
+            sleep 2
           done
 
           if [ $FE_READY -ne 1 ]; then
