@@ -7,7 +7,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-orange)](https://pytorch.org/)
 [![FAISS](https://img.shields.io/badge/FAISS-CPU%201.7%2B-green)](https://github.com/facebookresearch/faiss)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-teal)](https://fastapi.tiangolo.com/)
-[![Tests: 48/48 Passed](https://img.shields.io/badge/Tests-48%2F48%20Passed-brightgreen.svg)](tests/)
+[![Tests: Passing](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](tests/)
 
 > **Status:** Research Prototype & Open-Source Benchmark.
 > **Target Audience:** Computer vision scientists, quality assurance automation engineers, and MLOps researchers.
@@ -150,7 +150,7 @@ npm install
 cd ..
 ```
 
-### Step 4: Launch the Full Stack
+### Step 4: Launch the Full Stack (Local Development)
 ```powershell
 # In terminal 1 - Start FastAPI Backend:
 cd DefectVisionAI
@@ -162,14 +162,21 @@ npm run dev
 ```
 Open your web browser and navigate to `http://localhost:5173`.
 
+### Step 5: Cloud Production Deployment
+For production deployment, the frontend and backend are decoupled:
+- **Frontend:** Hosted on Vercel at [`https://defectvision-ai.vercel.app/`](https://defectvision-ai.vercel.app/).
+- **Backend:** Packaged via [`Dockerfile`](Dockerfile) and deployed to a container host (Render, Railway, Fly.io, or AWS ECS/Cloud Run).
+- **Wiring:** Set `VITE_API_URL=https://<your-backend-domain>` in Vercel project environment variables.
+- See [`docs/DEPLOYMENT_RUNBOOK.md`](docs/DEPLOYMENT_RUNBOOK.md) for full step-by-step instructions.
+
 ---
 
 ## 7. Verification & Automated Test Suite
 
-DefectVision AI includes a comprehensive test suite of **48 automated tests** covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, and live stream inspection:
+DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, live stream inspection, CORS security, and production health contracts:
 
 ```powershell
-# Run the complete test suite (48 tests):
+# Run the complete test suite:
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
 
 # Verify frontend production build:
@@ -177,12 +184,13 @@ cd frontend
 npm run build
 ```
 
-Result:
-```
-Ran 48 tests in 4.467s
-OK
-✓ 2459 modules transformed. Built in 4.20s.
-```
+### Continuous Integration Test Breakdown
+The GitHub Actions workflow (`.github/workflows/ci.yml`) executes both backend tests and frontend compilation on every push:
+- **Test Suite Execution:** **64 tests total: 62 passed, 2 skipped**.
+  - **62 Passed:** Covers all unit, functional, fusion, integration, and security tests.
+  - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all 64/64 tests pass.
+- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors.
+- **Docker Container Build & Healthcheck:** CI builds the backend container, starts it detached, verifies `/health` (`status: "ready"`, `process_reachable: true`), checks `/api/models/status` (`total_categories: 15`), and verifies clean container lifecycle.
 
 ---
 
@@ -190,11 +198,13 @@ OK
 
 For in-depth architectural, operational, and benchmarking details, refer to the documentation suite in `docs/`:
 
-1. [**Real-Time Automatic Inspection Guide**](docs/REALTIME_AUTOMATIC_INSPECTION.md): Detailed 6-stage pipeline explanation, HUD reticle integration, and 4-state verdict specifications.
-2. [**MVTec Dataset & Model Architectures**](docs/MVTEC_DATASET_AND_MODELS.md): Dataset partitioning, registration/calibration/test splits, model weights, and reproduction instructions.
-3. [**Comprehensive Evaluation Results**](docs/EVALUATION_RESULTS.md): Full per-category performance tables, sensitivity/specificity trade-off analysis, and latency profiles.
-4. [**Optical Inspection REST API**](docs/API_INSPECTION_ENDPOINTS.md): Complete typed JSON schemas, endpoint specifications, and curl/fetch integration examples.
-5. [**Release Notes (v1.1.0)**](docs/RELEASE_NOTES.md): Complete changelog, backwards compatibility guarantees, and migration details.
+1. [**Production Deployment Status & Baseline Audit**](docs/PRODUCTION_DEPLOYMENT_STATUS.md): Production vs. local baseline audit, drift analysis, and root causes.
+2. [**Production Deployment Runbook**](docs/DEPLOYMENT_RUNBOOK.md): Containerization, cloud hosting, Vercel configuration, and incident troubleshooting.
+3. [**Real-Time Automatic Inspection Guide**](docs/REALTIME_AUTOMATIC_INSPECTION.md): Detailed 6-stage pipeline explanation, HUD reticle integration, and 4-state verdict specifications.
+4. [**MVTec Dataset & Model Architectures**](docs/MVTEC_DATASET_AND_MODELS.md): Dataset partitioning, registration/calibration/test splits, model weights, and reproduction instructions.
+5. [**Comprehensive Evaluation Results**](docs/EVALUATION_RESULTS.md): Full per-category performance tables, sensitivity/specificity trade-off analysis, and latency profiles.
+6. [**Optical Inspection REST API**](docs/API_INSPECTION_ENDPOINTS.md): Complete typed JSON schemas, endpoint specifications, and curl/fetch integration examples.
+7. [**Release Notes (v1.1.0)**](docs/RELEASE_NOTES.md): Complete changelog, backwards compatibility guarantees, and migration details.
 
 ---
 

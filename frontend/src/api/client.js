@@ -15,7 +15,8 @@ import fallbackSeverityLogs from '../data/severity_logs.json';
 import fallbackBatches from '../data/batch_list.json';
 import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const rawBaseUrl = import.meta.env.VITE_API_URL || '';
+const BASE_URL = rawBaseUrl.trim().replace(/\/+$/, '');
 
 // Explicit Demo Mode State Management
 let _demoModeEnabled = false;
@@ -56,7 +57,8 @@ const defaultDefectTypes = {
 };
 
 async function request(endpoint, options = {}) {
-  const url = `${BASE_URL}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${BASE_URL}${cleanEndpoint}`;
   try {
     const res = await fetch(url, options);
     const contentType = res.headers.get('content-type') || '';
@@ -71,10 +73,19 @@ async function request(endpoint, options = {}) {
       } catch (e) {
         // ignore
       }
+
+      const isHtml = contentType.includes('text/html');
+      const errorMsg = isHtml
+        ? 'Backend Unavailable: Endpoint returned HTML SPA fallback'
+        : (errBody.error || errBody.detail || `HTTP ${res.status}`);
+      const status = isHtml && res.ok ? 503 : res.status;
+
       throw new ApiError(
-        errBody.error || errBody.detail || `HTTP ${res.status}`,
-        res.status,
-        errBody.detail || 'Endpoint returned non-JSON or error status.'
+        errorMsg,
+        status,
+        errBody.detail || (isHtml
+          ? 'The API request reached the frontend host or an invalid path instead of the FastAPI backend. Check that VITE_API_URL points to the live backend server.'
+          : 'Endpoint returned non-JSON or error status.')
       );
     }
 
@@ -93,6 +104,13 @@ async function request(endpoint, options = {}) {
 const simulatedBatches = {};
 
 export const api = {
+  /**
+   * Get configured API Base URL
+   */
+  getBaseUrl() {
+    return BASE_URL;
+  },
+
   /**
    * Check whether user has explicitly engaged demo mode
    */
@@ -122,30 +140,96 @@ export const api = {
   },
 
   /**
-   * Check backend health, active device, and category readiness
+   * Check backend health, active device, and category readiness.
+   * Truthfully validates subsystem readiness instead of unconditionally promoting to 'ready'.
    */
   async checkHealth() {
+    let rawHealth = null;
+    let fetchError = null;
+
     try {
-      const res = await request('/api/');
+      rawHealth = await request('/api/health');
+    } catch (err1) {
+      try {
+        rawHealth = await request('/api/');
+      } catch (err2) {
+        fetchError = err2.detail || err2.message || err1.detail || err1.message || 'Connection refused';
+      }
+    }
+
+    if (!rawHealth) {
       return {
-        ...res,
-        status: 'ready',
-        mode: 'live',
-        is_live: true,
-        device: res.device || 'Local Host (CPU/CUDA)'
-      };
-    } catch (err) {
-      return {
-        status: 'offline',
+        status: 'unavailable',
         mode: _demoModeEnabled ? 'demo' : 'unavailable',
         is_live: false,
         device: 'Offline',
         version: '3.0.0',
-        categories_count: 15,
+        categories_count: 0,
+        total_supported_categories: 15,
+        ready_category_models_count: 0,
+        all_required_models_ready: false,
+        classifier_ready: false,
+        optical_engine_ready: false,
         llm_loaded: false,
-        error: 'Backend offline: connection refused at 127.0.0.1:8000'
+        api_url: BASE_URL || 'http://127.0.0.1:8000',
+        error: fetchError || 'Backend offline or unreachable'
       };
     }
+
+    // Guard against malformed or non-object responses
+    if (typeof rawHealth !== 'object' || rawHealth === null) {
+      return {
+        status: 'degraded',
+        mode: 'degraded',
+        is_live: false,
+        device: 'Unknown',
+        api_url: BASE_URL || 'Local Host (Port 8000)',
+        error: 'Malformed backend health response: payload is not a valid object.'
+      };
+    }
+
+    const opticalEngineReady = Boolean(rawHealth.optical_engine_ready || rawHealth.optical_engine_initialized);
+    const classifierReady = Boolean(rawHealth.classifier_ready);
+    const allModelsReady = Boolean(rawHealth.all_required_models_ready);
+    const readyModelsCount = Number(rawHealth.ready_category_models_count ?? (allModelsReady ? 15 : 0));
+    const totalCategories = Number(rawHealth.total_supported_categories ?? rawHealth.total_categories ?? 15);
+    const backendReportedStatus = String(rawHealth.status || '').toLowerCase();
+
+    // Truthful operational readiness evaluation:
+    // Only 'ready' when backend explicitly reports ready, optical engine is ready,
+    // classifier is loaded, and ALL 15 category memory banks are confirmed ready.
+    const isTrulyReady = (
+      backendReportedStatus === 'ready' &&
+      opticalEngineReady &&
+      classifierReady &&
+      allModelsReady &&
+      readyModelsCount >= totalCategories &&
+      totalCategories === 15
+    );
+
+    let evaluatedStatus = 'degraded';
+    if (isTrulyReady) {
+      evaluatedStatus = 'ready';
+    } else if (backendReportedStatus === 'not_ready' || readyModelsCount === 0 || !opticalEngineReady) {
+      evaluatedStatus = 'not_ready';
+    } else {
+      evaluatedStatus = 'degraded';
+    }
+
+    return {
+      ...rawHealth,
+      status: evaluatedStatus,
+      raw_backend_status: backendReportedStatus,
+      mode: isTrulyReady ? 'live' : evaluatedStatus,
+      is_live: isTrulyReady,
+      optical_engine_ready: opticalEngineReady,
+      classifier_ready: classifierReady,
+      all_required_models_ready: allModelsReady,
+      ready_category_models_count: readyModelsCount,
+      total_supported_categories: totalCategories,
+      device: rawHealth.device || 'CPU',
+      api_url: BASE_URL || 'Local Host (Port 8000)'
+    };
   },
 
   /**
@@ -695,7 +779,11 @@ export const api = {
         body: formData,
       });
     } catch (err) {
-      // Fallback to inspectFrame if optical endpoint fails or in demo mode
+      // In live mode, fail cleanly so caller can surface backend connectivity state
+      if (!_demoModeEnabled) {
+        throw err;
+      }
+      // Only in explicit demo mode, fallback to synthetic demo frame
       return await this.inspectFrame(frameBlob, operatorOverride);
     }
   },
@@ -738,6 +826,6 @@ export const api = {
    * @param {string} category
    */
   getStreamUrl(category = 'bottle') {
-    return `/stream/${encodeURIComponent(category)}`;
+    return `${BASE_URL}/stream/${encodeURIComponent(category)}`;
   },
 };

@@ -43,6 +43,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
   const [inspectInterval, setInspectInterval] = useState(1500); // ms
   const [isInspecting, setIsInspecting] = useState(false);
   const [shutterFlash, setShutterFlash] = useState(false);
+  const [inspectionError, setInspectionError] = useState(null);
 
   // Real-time Metrics & HUD
   const [fps, setFps] = useState(24);
@@ -261,6 +262,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
     async (silent = false) => {
       if (isInspectingRef.current) return;
       setIsInspecting(true);
+      setInspectionError(null);
 
       if (!silent) {
         setShutterFlash(true);
@@ -321,6 +323,9 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
         setEventHistory((prev) => [inspectionEvent, ...prev.slice(0, 49)]);
       } catch (err) {
         console.error('Frame inspection error:', err);
+        setInspectionError(
+          err.detail || err.message || 'Frame inspection failed: backend service unreachable. Verify backend deployment or switch to Demo Mode.'
+        );
       } finally {
         setIsInspecting(false);
       }
@@ -402,10 +407,17 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                 <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-white">
                   Real-Time Optical Inspection
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                  LIVE STREAM
-                </span>
+                {api.isDemoMode() ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    DEMO SIMULATION
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    LIVE STREAM
+                  </span>
+                )}
                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
                   <Sparkles className="w-3 h-3 text-cyan-400" />
                   Auto-Category Recognition
@@ -482,6 +494,23 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Column: Video Viewport & Telemetry HUD (8 cols) */}
         <div className="xl:col-span-8 space-y-4">
+          {/* Active Inspection Error Alert */}
+          {inspectionError && (
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-between gap-3 text-xs text-rose-300 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+              <div className="flex items-center gap-2.5">
+                <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{inspectionError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectionError(null)}
+                className="p-1 hover:bg-rose-500/20 rounded text-rose-400 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Main Video Viewport Card */}
           <div className="relative rounded-2xl border border-slate-800 bg-slate-950/90 overflow-hidden shadow-2xl aspect-[16/10] flex items-center justify-center">
             {/* Shutter Flash Animation */}

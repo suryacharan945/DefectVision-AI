@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: defectvision-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Recommended Production Plan: 2 vCPUs, 4 GB RAM (US$85/month listed base price; sufficient headroom for PyTorch + 15 PatchCore memory banks)
+    # Lower-cost alternative with limited memory headroom: 1c-2g (1 vCPU, 2 GB RAM; US$25/month listed base price)
+    # NOTE: Render web services are paid. Prices are listed base rates subject to change and additional charges.
+    # Do NOT provision until repository owner approves the displayed recurring cost.
+    plan: 2c-4g
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HOST
+        value: 0.0.0.0
+      - key: CORS_ORIGINS
+        value: https://defectvision-ai.vercel.app,http://localhost:5173,http://127.0.0.1:5173

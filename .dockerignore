@@ -1,0 +1,55 @@
+# Version Control and IDE
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.vscode
+.idea
+
+# Frontend assets (hosted on Vercel CDN, not needed in FastAPI backend container)
+frontend/
+
+# Local workspace documentation and non-production scripts
+scratch/
+release/
+docs/
+*.pdf
+*.docx
+*.zip
+BUILD_STATUS.md
+ENVIRONMENT_VERIFICATION.md
+IEEEtran.cls
+scripts/
+
+# Dataset directories (MVTec AD raw and processed)
+DefectVisionAI/dataset/
+
+# Research experiments & unneeded model checkpoints (~1.0 GB savings)
+DefectVisionAI/models/autoencoder*
+DefectVisionAI/models/padim*
+DefectVisionAI/models/checkpoint.pth
+DefectVisionAI/models/efficientnet_baseline
+DefectVisionAI/models/efficientnet_baseline.pth
+DefectVisionAI/models/efficientnet_baseline_v2
+DefectVisionAI/models/efficientnet_normal_distribution.npz
+DefectVisionAI/models/drift_reference
+
+# Offline research evaluation outputs & heatmaps (~1.5 GB savings)
+DefectVisionAI/outputs/padim*
+DefectVisionAI/outputs/autoencoder*
+DefectVisionAI/outputs/patchcore_heatmaps*
+DefectVisionAI/outputs/gradcam*
+DefectVisionAI/outputs/features*
+DefectVisionAI/outputs/sample_batch.pt
+DefectVisionAI/outputs/*.png
+!DefectVisionAI/outputs/similarity_search_samples/
+!DefectVisionAI/outputs/similarity_search_samples/*
+
+# Large ephemeral logs and run histories
+DefectVisionAI/reports/inspection_history.json
+DefectVisionAI/research/
