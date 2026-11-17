@@ -139,6 +139,11 @@ To ensure high-performance, real-time inspection in cloud deployment, the hardwa
 | **Disk Storage** | ~2.5 GB container image | Slim Debian/Ubuntu container with CPU PyTorch, OpenCV headless, FAISS-cpu, and model checkpoints |
 | **Per-Frame Inference Latency** | 35 ms – 55 ms (CPU) | ResNet-18 patch feature extraction + FAISS index distance computation |
 
+> [!NOTE]
+> **Cloud Provider Plan Mapping:**
+> - **Render:** Recommended production tier is `plan: 2c-4g` (2 vCPUs, 4 GB RAM); lower-cost minimum is `plan: 1c-2g` (1 vCPU, 2 GB RAM). Legacy `starter` (512 MB) is unsuitable and will fail with OOM.
+> - **Owner Approval Required:** Render cloud services are paid. No cloud deployment should be initiated without repository owner approval of the recurring cost.
+
 ---
 
 ## 6. Execution Plan & Hardening Milestones

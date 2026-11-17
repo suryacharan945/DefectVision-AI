@@ -39,13 +39,19 @@ DefectVision AI is an enterprise-grade industrial optical inspection system cons
 
 The backend requires sufficient resident RAM to hold the 15 category memory banks and PyTorch neural network weights in memory without swapping.
 
-| Specification | Minimum Required | Recommended Production |
+| Specification | Minimum Required (Lower-Cost) | Recommended Production |
 | :--- | :--- | :--- |
-| **RAM** | 2.0 GB | 4.0 GB |
+| **RAM** | 2.0 GB (`1c-2g`) | 4.0 GB (`2c-4g`) |
 | **vCPU** | 1.0 vCPU | 2.0 vCPUs |
 | **Base OS** | Debian / Ubuntu Linux | Debian 12 Slim (`python:3.11-slim`) |
 | **Disk Space** | 3.0 GB | 5.0 GB |
 | **Inference Mode** | PyTorch CPU with OpenMP | PyTorch CPU with OpenMP |
+| **Peak Runtime RAM** | ~1.2 GB – 1.8 GB | ~1.2 GB – 1.8 GB (Ample headroom) |
+
+> [!CAUTION]
+> **Cloud Hosting Cost Disclosure:**
+> Hosting the DefectVision AI backend requires a paid container instance (`1c-2g` or `2c-4g`). Free-tier or legacy `starter` plans (512 MB RAM) are **unsuitable** and will trigger immediate Out-Of-Memory termination (Exit Code 137).
+> **No cloud service should be created until the repository owner approves the displayed recurring hosting cost.**
 
 ---
 
@@ -53,7 +59,10 @@ The backend requires sufficient resident RAM to hold the 15 category memory bank
 
 ### Option A: Render (Recommended for Rapid Zero-Config Deployment)
 
-1. **Login to Render Dashboard:** Navigate to [dashboard.render.com](https://dashboard.render.com).
+1. **Owner Approval & Dashboard Access:**
+   - Review Render's current instance pricing at [render.com/pricing](https://render.com/pricing).
+   - Ensure repository owner approves the selected plan cost.
+   - Navigate to [dashboard.render.com](https://dashboard.render.com).
 2. **Create New Web Service:**
    - Click **New +** > **Web Service**.
    - Connect your GitHub repository: `suryacharan945/DefectVision-AI`.
@@ -62,7 +71,10 @@ The backend requires sufficient resident RAM to hold the 15 category memory bank
    - **Environment:** `Docker`
    - **Dockerfile Path:** `./Dockerfile`
    - **Docker Context:** `.`
-   - **Instance Type:** `Starter` (2 GB RAM, 1 vCPU) or higher.
+   - **Instance Type / Plan:**
+     - **Recommended Production:** `2c-4g` (2 vCPUs, 4 GB RAM) — provides full headroom for simultaneous live stream frames and batch tensor transformations.
+     - **Lower-Cost Minimum:** `1c-2g` (1 vCPU, 2 GB RAM) — functional for single-stream inspection but has limited headroom during concurrent requests.
+     - *Do not use 512 MB Starter.*
 4. **Configure Environment Variables:**
    - `PORT`: `8000`
    - `HOST`: `0.0.0.0`
