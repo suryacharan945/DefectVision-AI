@@ -140,8 +140,10 @@ To ensure high-performance, real-time inspection in cloud deployment, the hardwa
 | **Per-Frame Inference Latency** | 35 ms – 55 ms (CPU) | ResNet-18 patch feature extraction + FAISS index distance computation |
 
 > [!NOTE]
-> **Cloud Provider Plan Mapping:**
-> - **Render:** Recommended production tier is `plan: 2c-4g` (2 vCPUs, 4 GB RAM); lower-cost minimum is `plan: 1c-2g` (1 vCPU, 2 GB RAM). Legacy `starter` (512 MB) is unsuitable and will fail with OOM.
+> **Cloud Provider Plan Mapping & Cost Disclosure:**
+> - **Render Recommended Production Plan:** `plan: 2c-4g` (2 vCPUs, 4 GB RAM) — listed base price **US$85/month** (billed per second of runtime; subject to change and additional charges such as workspace fees, bandwidth overages, or persistent disk).
+> - **Render Lower-Cost Alternative:** `plan: 1c-2g` (1 vCPU, 2 GB RAM) — listed base price **US$25/month** (billed per second of runtime; subject to change and additional charges; limited memory headroom).
+> - Legacy `starter` (512 MB RAM) is unsuitable and will fail with OOM.
 > - **Owner Approval Required:** Render cloud services are paid. No cloud deployment should be initiated without repository owner approval of the recurring cost.
 
 ---

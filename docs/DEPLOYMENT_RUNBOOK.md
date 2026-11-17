@@ -39,19 +39,23 @@ DefectVision AI is an enterprise-grade industrial optical inspection system cons
 
 The backend requires sufficient resident RAM to hold the 15 category memory banks and PyTorch neural network weights in memory without swapping.
 
-| Specification | Minimum Required (Lower-Cost) | Recommended Production |
+| Specification | Minimum Required (Lower-Cost Alternative) | Recommended Production |
 | :--- | :--- | :--- |
-| **RAM** | 2.0 GB (`1c-2g`) | 4.0 GB (`2c-4g`) |
+| **Render Plan** | `plan: 1c-2g` | `plan: 2c-4g` |
+| **Listed Base Price** | **US$25/month** (base instance price)* | **US$85/month** (base instance price)* |
 | **vCPU** | 1.0 vCPU | 2.0 vCPUs |
+| **RAM** | 2.0 GB | 4.0 GB |
 | **Base OS** | Debian / Ubuntu Linux | Debian 12 Slim (`python:3.11-slim`) |
 | **Disk Space** | 3.0 GB | 5.0 GB |
 | **Inference Mode** | PyTorch CPU with OpenMP | PyTorch CPU with OpenMP |
-| **Peak Runtime RAM** | ~1.2 GB – 1.8 GB | ~1.2 GB – 1.8 GB (Ample headroom) |
+| **Peak Runtime RAM** | ~1.2 GB – 1.8 GB (Limited headroom) | ~1.2 GB – 1.8 GB (Ample headroom) |
+
+*\*Note on Listed Base Prices: Pricing figures reflect Render Web Service compute instance rates published at [render.com/pricing](https://render.com/pricing) as of November 2026. These are base compute instance prices billed per second of runtime and are subject to change and additional charges (e.g., workspace-level plan fees, bandwidth overages, or persistent storage).*
 
 > [!CAUTION]
-> **Cloud Hosting Cost Disclosure:**
-> Hosting the DefectVision AI backend requires a paid container instance (`1c-2g` or `2c-4g`). Free-tier or legacy `starter` plans (512 MB RAM) are **unsuitable** and will trigger immediate Out-Of-Memory termination (Exit Code 137).
-> **No cloud service should be created until the repository owner approves the displayed recurring hosting cost.**
+> **Cloud Hosting Cost Disclosure & Owner Approval Required:**
+> Hosting the DefectVision AI backend requires a paid container instance (`1c-2g` at US$25/month base or `2c-4g` at US$85/month base). Free-tier or legacy `starter` plans (512 MB RAM) are **unsuitable** and will trigger immediate Out-Of-Memory termination (Exit Code 137).
+> **No cloud service should be created on Render or Railway until the repository owner approves the displayed recurring hosting cost.**
 
 ---
 
@@ -72,9 +76,10 @@ The backend requires sufficient resident RAM to hold the 15 category memory bank
    - **Dockerfile Path:** `./Dockerfile`
    - **Docker Context:** `.`
    - **Instance Type / Plan:**
-     - **Recommended Production:** `2c-4g` (2 vCPUs, 4 GB RAM) — provides full headroom for simultaneous live stream frames and batch tensor transformations.
-     - **Lower-Cost Minimum:** `1c-2g` (1 vCPU, 2 GB RAM) — functional for single-stream inspection but has limited headroom during concurrent requests.
+     - **Recommended Production:** `2c-4g` (2 vCPUs, 4 GB RAM, listed base price US$85/month*) — provides full headroom for simultaneous live stream frames and batch tensor transformations.
+     - **Lower-Cost Alternative:** `1c-2g` (1 vCPU, 2 GB RAM, listed base price US$25/month*) — functional for single-stream inspection but has limited headroom during concurrent requests.
      - *Do not use 512 MB Starter.*
+     - *\*Base instance prices billed per second of runtime; subject to change and additional charges.*
 4. **Configure Environment Variables:**
    - `PORT`: `8000`
    - `HOST`: `0.0.0.0`
