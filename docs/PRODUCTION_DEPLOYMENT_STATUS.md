@@ -32,7 +32,7 @@ This document details the exact technical baseline, diagnostic evidence, root ca
 | **Live Frontend URL** | `https://defectvision-ai.vercel.app/` | Vercel Edge Network | Active, Serving Stale Build |
 | **Deployed Frontend SHA**| `2fd48675bc7515d01cade08376e75fe607dcd112` | JS Bundle Hash `index-BAvQJhD-.js` | **39 Commits Behind Main** |
 | **FastAPI Backend Host** | Unset / Missing in Production | `VITE_API_URL` undefined | **Disconnected (HTTP 405 / HTML Fallback)** |
-| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | Workflow Run #18 on `main` | **100% Green (50 Passed, 2 Skipped)** |
+| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | Workflow Run #20 & PR #3 | **100% Green (62 Passed, 2 Skipped)** |
 
 ---
 
@@ -141,22 +141,130 @@ To ensure high-performance, real-time inspection in cloud deployment, the hardwa
 
 ---
 
-## 6. Action Plan for Production Readiness
+## 6. Execution Plan & Hardening Milestones
 
-1. **Frontend API Hardening (`frontend/src/api/client.js`):**
-   - Normalize `VITE_API_URL` (strip trailing slashes, validate URL structure).
-   - Detect HTML SPA fallback responses (text/html) and throw explicit `ApiError('Backend Unavailable: Endpoint returned HTML SPA fallback', 503)`.
-   - Fix `getStreamUrl` to prepend `BASE_URL`.
-   - Prevent silent degradation: Demo Mode must be strictly opt-in; LIVE mode must report truthful connectivity diagnostics.
-2. **FastAPI Backend Hardening (`DefectVisionAI/app.py`):**
-   - Add dynamic CORS middleware supporting `https://defectvision-ai.vercel.app`, Vercel preview domains (`https://*.vercel.app`), and local development hosts.
-   - Add dedicated health endpoints (`/health`, `/api/health`, `/api/`, `/api`) returning JSON status with model registry verification.
-   - Bind host and port dynamically via `HOST` and `PORT` environment variables.
-3. **Containerization & Deployment Runbook:**
-   - Provide a production-ready `Dockerfile` targeting Python 3.11/3.12 with PyTorch CPU.
-   - Provide `render.yaml` and `railway.json` for 1-click cloud deployment.
-   - Publish `docs/DEPLOYMENT_RUNBOOK.md` detailing step-by-step instructions for hosting the backend and setting `VITE_API_URL` on Vercel.
-4. **Automated Verification:**
-   - Execute the 52-test Python test suite.
-   - Build the frontend bundle cleanly via `npm run build`.
-   - Submit Pull Request from `fix/production-backend-integration` into `main`.
+The following hardening milestones were executed and validated on branch `fix/production-backend-integration` (PR #3):
+
+1. **Frontend API Hardening (`frontend/src/api/client.js` & `frontend/src/App.jsx`):**
+   - Normalized `VITE_API_URL` (stripped trailing slashes, validated URL structure).
+   - Detects HTML SPA fallback responses (`text/html`) and throws explicit `ApiError('Backend Unavailable: Endpoint returned HTML SPA fallback', 503)`.
+   - Truthful health interpretation: No unconditional promotion to `status: 'ready'`. Distinguishes 4 operational states (`LIVE INFERENCE ACTIVE`, `BACKEND DEGRADED`, `BACKEND UNAVAILABLE`, and `DEMO MODE ACTIVE`).
+   - Prefixes MJPEG stream URLs with `BASE_URL`.
+2. **FastAPI Backend Readiness & CORS Hardening (`DefectVisionAI/app.py`):**
+   - Truthful readiness evaluation: Inspects optical engine initialization, category classifier readiness, all 15 category memory banks, and decision thresholds. Returns `status: "ready"`, `"degraded"`, or `"not_ready"`.
+   - Project-scoped CORS regex: Replaced broad wildcard with strict project-scoped regex `^https:\/\/defectvision-ai(-[a-zA-Z0-9_\-]+)?\.vercel\.app$` alongside explicit `CORS_ORIGINS`.
+   - Unified health endpoints: `/health`, `/api/health`, `/api`, and `/api/`.
+3. **Optimized Containerization (`Dockerfile` & `.dockerignore`):**
+   - Excluded ~2.5 GB of offline research models, PaDiM artifacts, Autoencoder checkpoints, and plot exports via `.dockerignore`.
+   - Retained ~495 MB of genuine production runtime assets (15 PatchCore memory banks, EfficientNet-B0 classifier, FAISS indices, baseline CSVs, demo samples).
+   - Added runtime directory scaffolding (`mkdir -p /app/outputs/similarity_search_samples /app/logs /app/batch_inspections`).
+4. **CI Docker Build & Container Healthcheck Verification (`.github/workflows/ci.yml`):**
+   - Builds container image in CI, starts container detached on port 8000, polls `/health`, asserts `process_reachable: true` and `status: ready`, queries `/api/models/status` verifying 15 categories, and performs graceful teardown.
+5. **Comprehensive Integration Test Suite (`tests/test_production_api_integration.py`):**
+   - Expanded to 12 automated integration tests covering positive CORS, project preview CORS, unapproved origin rejection, arbitrary domain rejection, truthful degraded state reporting, missing memory bank detection, preflight OPTIONS handling, and frontend health evaluation contracts.
+
+---
+
+## 7. Truthful Backend Readiness & Frontend Health Interpretation
+
+### The "Process Reachable" vs. "Inference Ready" Fallacy
+A critical design vulnerability in ML API deployments is confusing network reachability with inference readiness:
+- A basic FastAPI server will respond with `HTTP 200 OK` as soon as Uvicorn binds to the socket.
+- However, if the resident PatchCore memory banks failed to load (e.g., missing directory or corrupt `.npy`), or the EfficientNet category classifier failed to initialize, any subsequent inspection call (`POST /predict` or `POST /api/inspect-frame`) will fail or return invalid classifications.
+
+### Authoritative Readiness States
+`DefectVisionAI/app.py` enforces three distinct health states via `get_system_health()`:
+
+| State | Optical Engine | Classifier Ready | 15 Models Ready | Thresholds Ready | Frontend Banner |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **`ready`** | `true` | `true` | `true` (15/15) | `true` | **`LIVE INFERENCE ACTIVE`** (Emerald) |
+| **`degraded`** | `true` | Partial / `false` | `< 15` | Any | **`BACKEND DEGRADED`** (Amber) |
+| **`not_ready`** | `false` | `false` | `0` | `false` | **`BACKEND UNAVAILABLE`** (Rose) |
+
+In `frontend/src/api/client.js`, `checkHealth()` parses the backend JSON object strictly:
+- If `status === 'ready'` and `optical_engine_ready === true`, the system enters **LIVE INFERENCE ACTIVE**.
+- If `status === 'degraded'`, the frontend alerts the operator that certain categories or classifier features are unavailable.
+- If network connection fails or status is `not_ready`, the UI surfaces **BACKEND UNAVAILABLE**.
+- Demo Mode remains an explicit opt-in state clearly labeled **DEMO MODE ACTIVE (SYNTHETIC FALLBACK)**, preventing operators from mistaking simulated data for genuine optical inspection.
+
+---
+
+## 8. Restricted Project-Scoped CORS Architecture
+
+### Security Vulnerability of Broad Wildcard Regex
+Earlier iterations utilized a broad regular expression:
+```python
+# INSECURE: Matches ANY project on Vercel
+allow_origin_regex=r"^https://.*\.vercel\.app$"
+```
+Because Vercel allows anyone to register subdomains (e.g., `attacker-site.vercel.app`), an arbitrary third-party application hosted on Vercel could make credentialed requests to the DefectVision AI backend, exposing camera telemetry, inspection histories, and model endpoints.
+
+### Hardened Project-Scoped Origin Policy
+The production backend now enforces:
+```python
+PROJECT_PREVIEW_ORIGIN_REGEX = r"^https:\/\/defectvision-ai(-[a-zA-Z0-9_\-]+)?\.vercel\.app$"
+```
+This regex strictly restricts CORS access to:
+1. Production Frontend: `https://defectvision-ai.vercel.app`
+2. Genuine Project Preview Deployments: `https://defectvision-ai-git-branch.vercel.app`, `https://defectvision-ai-hash-team.vercel.app`
+3. Explicit allowlist: Localhost ports (`http://localhost:5173`, `http://127.0.0.1:5173`, etc.) configured via `CORS_ORIGINS`.
+
+Unrelated Vercel projects (e.g., `https://malicious-project.vercel.app`) and arbitrary domains are strictly rejected without `Access-Control-Allow-Origin` headers.
+
+---
+
+## 9. Container Context Optimization & Runtime Asset Inventory
+
+### Docker Context Reduction
+By configuring `.dockerignore` to filter out obsolete research checkpoints and offline evaluation directories, the Docker build context was reduced from **~3.5 GB down to ~550 MB (~84% reduction)**.
+
+### Runtime Asset Inventory Breakdown
+
+| Asset Category | Path | Size | Purpose | Included in Docker |
+| :--- | :--- | :---: | :--- | :---: |
+| **PatchCore Memory Banks** | `models/patchcore/<15_classes>/` | ~374 MB | Nearest-neighbor anomaly detection for all 15 classes | Yes |
+| **Category Classifier** | `models/category_classifier/` | ~33 MB | EfficientNet-B0 weights, metadata, class prototypes | Yes |
+| **Feature Baseline** | `models/efficientnet_baseline_v3/` | ~61 MB | Feature extraction weights | Yes |
+| **FAISS Defect Indices** | `models/faiss_index/<15_classes>/` | ~26 MB | Similarity retrieval defect galleries | Yes |
+| **RAG Knowledge Base** | `models/rag_knowledge_base/` | ~0.01 MB | Maintenance runbooks & defect explanations | Yes |
+| **Similarity Demo PNGs** | `outputs/similarity_search_samples/` | ~0.32 MB | 15 category gallery demo images | Yes |
+| **Baseline Threshold Reports** | `reports/step9_severity_baselines.csv` | ~0.01 MB | Category decision thresholds & guard bands | Yes |
+| **Autoencoder Checkpoints** | `models/autoencoder*` | ~335 MB | Deprecated benchmark model | **Excluded** |
+| **PaDiM Feature Models** | `models/padim*` | ~480 MB | Offline research baseline | **Excluded** |
+| **Legacy Checkpoints** | `models/checkpoint.pth`, `baseline*` | ~166 MB | Intermediate training artifacts | **Excluded** |
+| **Offline Heatmap Dumps** | `outputs/padim*`, `outputs/gradcam*` | ~1.5 GB | Offline benchmark plots & visualizations | **Excluded** |
+| **Raw MVTec AD Dataset** | `dataset/` | ~5.0 GB | Uncompressed dataset images | **Excluded** |
+
+---
+
+## 10. Docker Build & Startup Verification in CI
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) now includes end-to-end container verification:
+1. **Build Image:** Executes `docker build -t defectvision-backend:ci .`.
+2. **Launch Container:** Starts container detached with environment flags `-e PORT=8000 -e HOST=0.0.0.0`.
+3. **Healthcheck Polling:** Iteratively polls `http://localhost:8000/health` up to 45 attempts with 2s sleep intervals.
+4. **Contract Assertions:**
+   - Verifies `process_reachable: true`.
+   - Verifies `status: "ready"`.
+   - Queries `http://localhost:8000/api/models/status` and verifies `total_categories: 15`.
+5. **Teardown:** Stops and removes the test container cleanly. If any assertion fails, container logs are printed to CI console.
+
+---
+
+## 11. Vercel Git Repository Reconciliation Runbook
+
+To ensure that the production frontend on Vercel deploys automatically from this repository, complete the following reconciliation:
+
+1. **Inspect Vercel Project Git Connection:**
+   - Open [Vercel Dashboard](https://vercel.com/dashboard) and select project `defectvision-ai`.
+   - Navigate to **Settings** > **Git**.
+   - Verify that **Connected Git Repository** points to `suryacharan945/DefectVision-AI`.
+   - If pointing to an older fork or detached repository, click **Disconnect** and re-connect `suryacharan945/DefectVision-AI`.
+2. **Production Branch Setting:**
+   - Under **Production Branch**, ensure it is set to `main`.
+3. **Root Directory Configuration:**
+   - In **Settings** > **General**, verify **Root Directory** is set to `frontend` (or left blank if using the root `package.json` proxy build).
+4. **Environment Variables:**
+   - In **Settings** > **Environment Variables**, ensure `VITE_API_URL` is set to the deployed backend URL (e.g., `https://defectvision-backend.onrender.com`).
+5. **Trigger Verification Deployment:**
+   - Under **Deployments**, select **Redeploy** on the latest commit with cache disabled to verify live connection.

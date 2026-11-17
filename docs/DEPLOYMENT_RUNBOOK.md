@@ -141,8 +141,13 @@ curl -s -X GET "https://<your-backend-domain>/health" | jq .
 #   "status": "ready",
 #   "service": "DefectVision AI — Live Inference Server",
 #   "device": "cpu",
+#   "optical_engine_ready": true,
+#   "classifier_ready": true,
+#   "models_ready_count": 15,
+#   "all_models_ready": true,
+#   "thresholds_ready": true,
 #   "total_categories": 15,
-#   "optical_engine_ready": true
+#   "process_reachable": true
 # }
 
 # 2. CORS Preflight & Origin check for production frontend
@@ -178,7 +183,7 @@ curl -s -X GET "https://<your-backend-domain>/api/optical-inspection/model-statu
 - **Remediation:**
   1. Inspect the backend environment variable `CORS_ORIGINS`.
   2. Ensure `https://defectvision-ai.vercel.app` is included.
-  3. Restart or redeploy the backend service. Note: Vercel preview URLs (`*.vercel.app`) are automatically permitted via the configured regular expression `^https://.*\.vercel\.app$`.
+  3. Restart or redeploy the backend service. Note: Project preview URLs are automatically permitted via the configured project-scoped regular expression `^https:\/\/defectvision-ai(-[a-zA-Z0-9_\-]+)?\.vercel\.app$`. Unrelated Vercel projects are strictly denied.
 
 ---
 

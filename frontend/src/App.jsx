@@ -75,16 +75,7 @@ export default function App() {
       <div className="flex-1 flex flex-col md:pl-64 min-w-0">
         {/* Top Operating Mode Banner */}
         <div className="w-full border-b border-slate-800/80 px-4 py-2.5 flex items-center justify-between text-xs font-mono transition-colors duration-300 bg-slate-950/70">
-          {backendHealth?.status === 'ready' ? (
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-                <span className="font-semibold tracking-wide">LIVE INFERENCE ACTIVE</span>
-                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + FAISS Memory Banks ({backendHealth?.api_url || 'Port 8000'})</span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">15 Categories Ready</span>
-            </div>
-          ) : demoMode ? (
+          {demoMode ? (
             <div className="flex items-center justify-between w-full bg-amber-500/10 -mx-4 -my-2.5 px-4 py-2.5 border-b border-amber-500/30">
               <div className="flex items-center gap-2 text-amber-300">
                 <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
@@ -105,6 +96,41 @@ export default function App() {
                   className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px]"
                 >
                   Exit Demo
+                </button>
+              </div>
+            </div>
+          ) : backendHealth?.status === 'ready' && backendHealth?.is_live ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className="font-semibold tracking-wide">LIVE INFERENCE ACTIVE</span>
+                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + 15 FAISS Memory Banks ({backendHealth?.api_url || 'Port 8000'})</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">15 Categories Ready</span>
+            </div>
+          ) : backendHealth?.status === 'degraded' ? (
+            <div className="flex items-center justify-between w-full bg-amber-500/10 -mx-4 -my-2.5 px-4 py-2.5 border-b border-amber-500/30">
+              <div className="flex items-center gap-2 text-amber-300">
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <span className="font-semibold tracking-wide">BACKEND DEGRADED</span>
+                <span className="text-amber-200/70 font-normal hidden sm:inline">
+                  | Process online but ML inference degraded ({backendHealth?.ready_category_models_count ?? 0}/{backendHealth?.total_supported_categories ?? 15} models ready{!backendHealth?.classifier_ready ? ', Classifier Offline' : ''})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => checkServer()}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                >
+                  Retry Connection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleDemoMode(true)}
+                  className="px-2 py-0.5 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[10px] font-semibold"
+                >
+                  Enter Demo Mode
                 </button>
               </div>
             </div>

@@ -173,7 +173,7 @@ For production deployment, the frontend and backend are decoupled:
 
 ## 7. Verification & Automated Test Suite
 
-DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, and live stream inspection:
+DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, live stream inspection, CORS security, and production health contracts:
 
 ```powershell
 # Run the complete test suite:
@@ -183,6 +183,14 @@ DefectVision AI includes an automated test suite covering optical quality gates,
 cd frontend
 npm run build
 ```
+
+### Continuous Integration Test Breakdown
+The GitHub Actions workflow (`.github/workflows/ci.yml`) executes both backend tests and frontend compilation on every push:
+- **Test Suite Execution:** **64 tests total: 62 passed, 2 skipped**.
+  - **62 Passed:** Covers all unit, functional, fusion, integration, and security tests.
+  - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all 64/64 tests pass.
+- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors.
+- **Docker Container Build & Healthcheck:** CI builds the backend container, starts it detached, verifies `/health` (`status: "ready"`, `process_reachable: true`), checks `/api/models/status` (`total_categories: 15`), and verifies clean container lifecycle.
 
 ---
 

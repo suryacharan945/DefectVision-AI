@@ -48,3 +48,75 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+      - name: Verify Docker build and container healthcheck
+        run: |
+          echo "=== 1. Building Docker container image ==="
+          docker build -t defectvision-backend:ci .
+
+          echo "=== 2. Starting backend container ==="
+          docker run -d --name test-backend -p 8000:8000 -e PORT=8000 -e HOST=0.0.0.0 defectvision-backend:ci
+
+          echo "=== 3. Polling /health endpoint ==="
+          HEALTH_URL="http://localhost:8000/health"
+          MODELS_URL="http://localhost:8000/api/models/status"
+          MAX_ATTEMPTS=45
+          SUCCESS=0
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i/$MAX_ATTEMPTS: checking $HEALTH_URL..."
+            if curl -s -f "$HEALTH_URL" -o /tmp/health_resp.json; then
+              echo "Health response received:"
+              cat /tmp/health_resp.json
+              echo ""
+              SUCCESS=1
+              break
+            fi
+            
+            if [ -z "$(docker ps -q -f name=test-backend)" ]; then
+              echo "ERROR: Backend container terminated prematurely!"
+              docker logs test-backend
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if [ $SUCCESS -ne 1 ]; then
+            echo "ERROR: Healthcheck timed out after $MAX_ATTEMPTS attempts."
+            docker logs test-backend
+            docker rm -f test-backend || true
+            exit 1
+          fi
+
+          echo "=== 4. Validating health payload contracts ==="
+          grep -q '"process_reachable": *true' /tmp/health_resp.json || {
+            echo "ERROR: Assertion failed - process_reachable is not true"
+            docker logs test-backend
+            exit 1
+          }
+
+          grep -q '"status": *"ready"' /tmp/health_resp.json || {
+            echo "ERROR: Assertion failed - status is not 'ready'"
+            docker logs test-backend
+            exit 1
+          }
+
+          echo "=== 5. Checking model status endpoint ==="
+          curl -s -f "$MODELS_URL" -o /tmp/models_resp.json || {
+            echo "ERROR: Failed to query $MODELS_URL"
+            docker logs test-backend
+            exit 1
+          }
+          cat /tmp/models_resp.json
+          echo ""
+
+          grep -q '"total_categories": *15' /tmp/models_resp.json || {
+            echo "ERROR: Assertion failed - total_categories is not 15"
+            docker logs test-backend
+            exit 1
+          }
+
+          echo "=== 6. Cleanup container ==="
+          docker stop test-backend
+          docker rm test-backend
+          echo "Docker container verification completed successfully."

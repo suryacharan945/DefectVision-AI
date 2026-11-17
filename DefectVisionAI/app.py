@@ -623,23 +623,30 @@ def fallback_explain(category, defect_type, severity_level, severity_score, defe
 app = FastAPI(title="DefectVision AI — Live Inference Server")
 
 cors_env = os.environ.get("CORS_ORIGINS", "")
+allowed_origins = [
+    "https://defectvision-ai.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000"
+]
+
 if cors_env.strip():
-    allowed_origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
-else:
-    allowed_origins = [
-        "https://defectvision-ai.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000"
-    ]
+    for orig in cors_env.split(","):
+        orig_clean = orig.strip()
+        if orig_clean and orig_clean not in allowed_origins:
+            allowed_origins.append(orig_clean)
+
+# Project-scoped preview regex: ONLY permits Vercel deployments belonging strictly to the defectvision-ai project.
+# Arbitrary/unrelated Vercel projects (e.g. https://unrelated.vercel.app) are rejected.
+PROJECT_PREVIEW_ORIGIN_REGEX = r"^https:\/\/defectvision-ai(-[a-zA-Z0-9_\-]+)?\.vercel\.app$"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
+    allow_origin_regex=PROJECT_PREVIEW_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -665,8 +672,86 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # -----------------------------
-# Endpoints & Production Health
+# Endpoints & Truthful Production Health
 # -----------------------------
+
+def get_system_health():
+    """
+    Evaluates genuine inference readiness across all subsystems:
+    - Backend process availability
+    - Optical inspection engine initialization
+    - Category classifier checkpoint & prototypes
+    - PatchCore memory-bank availability for all 15 categories
+    - Calibrated thresholds availability for all 15 categories
+    """
+    engine_init = False
+    classifier_ready = False
+    all_models_ready = False
+    thresholds_ready = False
+    ready_models_count = 0
+    total_supported = len(known_categories)
+    categories_status = {}
+    engine_error = None
+
+    try:
+        engine = get_optical_engine()
+        if engine is not None:
+            engine_init = True
+
+            # 1. Classifier readiness
+            if hasattr(engine, "category_service") and engine.category_service is not None:
+                classifier_ready = bool(getattr(engine.category_service, "is_loaded", False))
+
+            # 2. PatchCore memory banks status
+            if hasattr(engine, "registry") and engine.registry is not None:
+                models_status = engine.registry.get_models_status()
+                for cat in known_categories:
+                    m_stat = models_status.get(cat, {})
+                    is_cat_ready = bool(m_stat.get("is_ready", False))
+                    categories_status[cat] = is_cat_ready
+                    if is_cat_ready:
+                        ready_models_count += 1
+
+                all_models_ready = bool(ready_models_count == total_supported and total_supported > 0)
+
+                # 3. Calibrated thresholds
+                thresh_dict = getattr(engine.registry, "thresholds", {})
+                thresholds_ready = bool(isinstance(thresh_dict, dict) and len(thresh_dict) >= total_supported)
+    except Exception as e:
+        engine_init = False
+        engine_error = str(e)
+
+    # Truthful status determination:
+    # - "ready": Optical engine initialized, classifier loaded, ALL 15 category models ready, thresholds ready
+    # - "degraded": Engine initialized, but SOME models missing, or classifier offline, or thresholds missing
+    # - "not_ready": Engine failed to initialize, or 0 models ready
+    if not engine_init or ready_models_count == 0:
+        operational_status = "not_ready"
+    elif all_models_ready and classifier_ready and thresholds_ready:
+        operational_status = "ready"
+    else:
+        operational_status = "degraded"
+
+    return {
+        "status": operational_status,
+        "process_reachable": True,
+        "service": "DefectVision AI — Live Inference Server",
+        "version": "3.0.0",
+        "device": str(device),
+        "optical_engine_initialized": engine_init,
+        "optical_engine_ready": bool(engine_init and all_models_ready and classifier_ready),
+        "classifier_ready": classifier_ready,
+        "total_categories": total_supported,
+        "total_supported_categories": total_supported,
+        "ready_category_models_count": ready_models_count,
+        "all_required_models_ready": all_models_ready,
+        "thresholds_ready": thresholds_ready,
+        "categories": known_categories,
+        "categories_status": categories_status,
+        "llm_loaded": bool(llm_loaded),
+        "engine_error": engine_error,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
 
 @app.get("/")
 @app.get("/health")
@@ -674,28 +759,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.get("/api")
 @app.get("/api/")
 def read_root():
-    """
-    Standardized production health check endpoint.
-    Returns backend readiness, hardware device, model registry status, and operational metadata.
-    """
-    engine_ready = False
-    try:
-        engine = get_optical_engine()
-        engine_ready = engine is not None
-    except Exception:
-        engine_ready = False
-
-    return {
-        "status": "ready",
-        "service": "DefectVision AI — Live Inference Server",
-        "version": "3.0.0",
-        "device": str(device),
-        "llm_loaded": bool(llm_loaded),
-        "total_categories": len(known_categories),
-        "categories": known_categories,
-        "optical_engine_ready": engine_ready,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+    return get_system_health()
 
 @app.post("/predict")
 async def predict_endpoint(file: UploadFile = File(...), category: str = Form("auto")):

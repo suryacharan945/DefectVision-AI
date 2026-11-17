@@ -31,6 +31,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy backend application source, model weights, and baseline reports
 COPY DefectVisionAI /app
 
+# Ensure runtime output, log, and batch directories exist
+RUN mkdir -p /app/outputs/similarity_search_samples /app/logs /app/batch_inspections
+
 # Expose standard container port
 EXPOSE 8000
 
