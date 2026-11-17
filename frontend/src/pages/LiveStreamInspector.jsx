@@ -34,7 +34,10 @@ import HeatmapSlider from '../components/ui/HeatmapSlider';
 export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimilarity }) {
   // Stream & Source State
   const [streamMode, setStreamMode] = useState('webcam'); // 'webcam' | 'mjpeg'
+  const [routingMode, setRoutingMode] = useState('benchmark'); // 'benchmark' | 'production'
   const [selectedCategory, setSelectedCategory] = useState('auto'); // 'auto' | 15 MVTec AD categories
+  const [productionProfiles, setProductionProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('bottle_001_station_01');
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamError, setWebcamError] = useState(null);
   
@@ -69,15 +72,22 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
     isInspectingRef.current = isInspecting;
   }, [isInspecting]);
 
-  // Load Model Registry Status
+  // Load Model Registry Status & Production Profiles
   const fetchModelStatus = useCallback(async () => {
     try {
-      const data = await api.getOpticalModelStatus();
-      if (data && data.categories) {
-        setModelStatusData(data);
+      const [statusRes, profilesRes] = await Promise.allSettled([
+        api.getOpticalModelStatus(),
+        api.getProductionProfiles()
+      ]);
+      if (statusRes.status === 'fulfilled' && statusRes.value?.categories) {
+        setModelStatusData(statusRes.value);
+      }
+      if (profilesRes.status === 'fulfilled' && profilesRes.value?.profiles?.length > 0) {
+        setProductionProfiles(profilesRes.value.profiles);
+        setSelectedProfileId(profilesRes.value.profiles[0].profile_id);
       }
     } catch (e) {
-      console.warn('Could not fetch optical model status:', e);
+      console.warn('Could not fetch optical model status or profiles:', e);
     }
   }, []);
 
@@ -309,14 +319,18 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
           throw new Error('Unable to extract frame for inspection. Please ensure camera or stream is active.');
         }
 
-        // Call Category-Aware Optical Inspection Engine
-        const result = await api.inspectOpticalFrame(frameBlob, selectedCategory);
+        // Call Category-Aware or Production-Profile Optical Inspection Engine
+        const options = routingMode === 'production'
+          ? { profile_id: selectedProfileId, routing_mode: 'production' }
+          : { routing_mode: 'benchmark' };
+
+        const result = await api.inspectOpticalFrame(frameBlob, selectedCategory, options);
 
         const inspectionEvent = {
           ...result,
           id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           timestamp: new Date().toLocaleTimeString(),
-          capturedCategory: result.detected_category || selectedCategory,
+          capturedCategory: result.detected_category || (routingMode === 'production' ? result.category : selectedCategory),
         };
 
         setLatestResult(inspectionEvent);
@@ -330,7 +344,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
         setIsInspecting(false);
       }
     },
-    [streamMode, selectedCategory]
+    [streamMode, selectedCategory, routingMode, selectedProfileId]
   );
 
   // Hotkey & Auto-Inspection Listeners
@@ -745,49 +759,111 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
                 </span>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                15 MVTec AD Models
+                {routingMode === 'production' ? 'Production Mode' : '15 MVTec AD Models'}
               </span>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-slate-400 block">
-                Category selection mode (Default: Automatic Recognition):
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center rounded-xl bg-slate-950 p-1 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRoutingMode('benchmark')}
+                className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+                  routingMode === 'benchmark'
+                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <option value="auto">⭐ Automatic Category Recognition (Default)</option>
-                <optgroup label="Manual Category Overrides">
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label} ({cat.type}) — {cat.desc}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                Benchmark (15 MVTec AD)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoutingMode('production')}
+                className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+                  routingMode === 'production'
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🏭 Production Profile
+              </button>
             </div>
 
-            {/* Mode Description */}
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs space-y-1">
-              <div className="flex items-center justify-between text-slate-300 font-medium">
-                <span>
-                  Mode:{' '}
-                  {selectedCategory === 'auto'
-                    ? 'Automated Optical Routing'
-                    : `Pinned: ${selectedCategory.toUpperCase()}`}
-                </span>
-                <span className="text-[10px] font-mono text-cyan-400">
-                  {selectedCategory === 'auto' ? 'Self-Classifying' : 'Operator Override'}
-                </span>
+            {routingMode === 'benchmark' ? (
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 block">
+                  Category selection mode (Default: Automatic Recognition):
+                </label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+                >
+                  <option value="auto">⭐ Automatic Category Recognition (Default)</option>
+                  <optgroup label="Manual Category Overrides">
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label} ({cat.type}) — {cat.desc}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-300 font-medium">
+                    <span>
+                      Mode:{' '}
+                      {selectedCategory === 'auto'
+                        ? 'Automated Optical Routing'
+                        : `Pinned: ${selectedCategory.toUpperCase()}`}
+                    </span>
+                    <span className="text-[10px] font-mono text-cyan-400">
+                      {selectedCategory === 'auto' ? 'Self-Classifying' : 'Operator Override'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {selectedCategory === 'auto'
+                      ? 'EfficientNet-B0 dynamically classifies input image into one of 15 MVTec AD categories and dispatches to resident PatchCore memory bank.'
+                      : `Bypasses automated classification and forces PatchCore anomaly evaluation against ${selectedCategory} memory bank.`}
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-400">
-                {selectedCategory === 'auto'
-                  ? 'EfficientNet-B0 dynamically classifies input image into one of 15 MVTec AD categories and dispatches to resident PatchCore memory bank.'
-                  : `Bypasses automated classification and forces PatchCore anomaly evaluation against ${selectedCategory} memory bank.`}
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 block">
+                  Target Domain Production Inspection Profile:
+                </label>
+                <select
+                  value={selectedProfileId}
+                  onChange={(e) => setSelectedProfileId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-cyan-500/40 text-slate-200 text-xs font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+                >
+                  {productionProfiles.map((p) => (
+                    <option key={p.profile_id} value={p.profile_id}>
+                      {p.product_name} ({p.profile_id})
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const activeProf = productionProfiles.find((p) => p.profile_id === selectedProfileId);
+                  return activeProf ? (
+                    <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs space-y-1.5 font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Station:</span>
+                        <strong className="text-cyan-300">{activeProf.inspection_station}</strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">SKU / Camera:</span>
+                        <span className="text-slate-200">{activeProf.sku} • {activeProf.camera_id}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Threshold:</span>
+                        <span className="text-emerald-400 font-bold">{activeProf.calibrated_threshold} (FAR: {(activeProf.target_far * 100).toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Real-time Defect Event Ticker (Audit Rail) */}

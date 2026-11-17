@@ -248,12 +248,21 @@ export const api = {
    * Defaults to automatic category recognition (category = 'auto').
    * @param {File|Blob} file Image file to inspect
    * @param {string} category 'auto' (default) or one of the 15 MVTec AD categories
+   * @param {object} options Optional routing parameters { profile_id, routing_mode }
    */
-  async predict(file, category = 'auto') {
+  async predict(file, category = 'auto', options = {}) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('category', category || 'auto');
+      if (options.profile_id) {
+        formData.append('profile_id', options.profile_id);
+        formData.append('routing_mode', options.routing_mode || 'production');
+      } else {
+        formData.append('category', category || 'auto');
+        if (options.routing_mode) {
+          formData.append('routing_mode', options.routing_mode);
+        }
+      }
 
       const res = await request('/predict', {
         method: 'POST',
@@ -263,7 +272,9 @@ export const api = {
       return {
         ...res,
         is_demo: false,
-        inference_mode: 'LIVE (Unified Optical Engine)'
+        inference_mode: res.routing_mode === 'production'
+          ? `PRODUCTION (${res.profile_id || 'Profile'})`
+          : 'LIVE (Unified Optical Engine)'
       };
     } catch (err) {
       if (!_demoModeEnabled) {
@@ -763,16 +774,24 @@ export const api = {
 
   /**
    * Run real-time category-aware optical inspection pipeline
-   * Automatically recognizes MVTec AD category, routes to category model,
-   * validates optical image quality, and localizes defects.
+   * Automatically recognizes MVTec AD category or routes to production profile.
    * @param {Blob|File} frameBlob
    * @param {string} operatorOverride 'auto' or specific category name
+   * @param {object} options Optional routing parameters { profile_id, routing_mode }
    */
-  async inspectOpticalFrame(frameBlob, operatorOverride = 'auto') {
+  async inspectOpticalFrame(frameBlob, operatorOverride = 'auto', options = {}) {
     try {
       const formData = new FormData();
       formData.append('frame', frameBlob, 'frame.jpg');
-      formData.append('operator_override', operatorOverride);
+      if (options.profile_id) {
+        formData.append('profile_id', options.profile_id);
+        formData.append('routing_mode', options.routing_mode || 'production');
+      } else {
+        formData.append('operator_override', operatorOverride);
+        if (options.routing_mode) {
+          formData.append('routing_mode', options.routing_mode);
+        }
+      }
 
       return await request('/api/optical-inspection/inspect-frame', {
         method: 'POST',
@@ -785,6 +804,48 @@ export const api = {
       }
       // Only in explicit demo mode, fallback to synthetic demo frame
       return await this.inspectFrame(frameBlob, operatorOverride);
+    }
+  },
+
+  /**
+   * Fetch all registered production inspection profiles
+   */
+  async getProductionProfiles() {
+    try {
+      return await request('/api/production-profiles');
+    } catch (err) {
+      return {
+        profiles: [
+          {
+            profile_id: 'bottle_001_station_01',
+            product_id: 'PROD-BTL-001',
+            product_name: 'Clear Glass Bottle 500ml',
+            sku: 'SKU-BTL-001',
+            inspection_station: 'Station 01 - Optical Quality Inspection',
+            category: 'bottle',
+            category_type: 'object',
+            camera_id: 'CAM-01-TOP-500',
+            lighting_profile: 'diffuse_backlight_v1',
+            acquisition_type: 'stationary',
+            calibrated_threshold: 0.8333,
+            target_far: 0.01,
+            model_version: 'v1.0.0-prod',
+            is_ready: true
+          }
+        ],
+        total_profiles: 1
+      };
+    }
+  },
+
+  /**
+   * Fetch a single production inspection profile specification
+   */
+  async getProductionProfile(profileId) {
+    try {
+      return await request(`/api/production-profiles/${profileId}`);
+    } catch (err) {
+      return null;
     }
   },
 

@@ -1,0 +1,28 @@
+{
+  "profile_id": "bottle_001_station_01",
+  "calibrated_threshold": 0.8333,
+  "target_far": 0.01,
+  "calibration_date": "2026-11-17T20:42:33.147960Z",
+  "sample_counts": {
+    "normal_calibration_samples": 15,
+    "defect_validation_samples": 8
+  },
+  "score_distribution": {
+    "mean": 0.6977,
+    "std": 0.0736,
+    "p50": 0.6814,
+    "p75": 0.767,
+    "p90": 0.8044,
+    "p95": 0.8156,
+    "p99": 0.8223,
+    "max": 0.8239
+  },
+  "validation_metrics": {
+    "defect_samples_count": 8,
+    "defects_detected": 8,
+    "defect_recall": 1.0,
+    "empirical_far": 0.0,
+    "mean_defect_score": 3.3072,
+    "min_defect_score": 3.2425
+  }
+}

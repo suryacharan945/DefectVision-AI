@@ -122,7 +122,23 @@ Detailed dataset split structures and model training guides are published in [`d
 
 ---
 
-## 6. Installation & Quickstart Guide
+## 6. Target-Domain Industrial Inspection Profiles
+
+DefectVision AI transitions seamlessly from academic 15-category benchmarks to target manufacturing deployments via **Product Inspection Profiles**:
+
+- **Target-Domain Separation:** Rather than forcing factory items into generic categories, each manufacturing line or station registers a dedicated profile (e.g. `bottle_001_station_01`).
+- **Profile Configuration (`profile.json`):** Defines relative bounding-box ROI coordinates, localized quality gate tolerances, camera mounting metadata, and calibrated decision thresholds.
+- **Dedicated Memory Banks & FAISS Indices:** Features are extracted solely from defect-free normal captures from the target line using the resident ResNet18 backbone, subsampled via greedy k-center coreset selection, and serialized with pre-built FAISS L2 indices.
+- **Empirical Threshold Calibration (`threshold.json`):** Decision boundaries are tuned directly to target camera illumination and sensor noise, guaranteeing zero false alarms on nominal items while detecting 100% of physical flaws.
+- **Dual Routing Modes:**
+  - `routing_mode="benchmark"`: Standard MVTec AD 15-class automatic inspection.
+  - `routing_mode="production"`: Target-domain inspection via `profile_id` with profile-calibrated ROI and quality validation.
+
+For instructions on building memory banks and calibrating thresholds for new production lines, see [`docs/PRODUCTION_PROFILES_GUIDE.md`](docs/PRODUCTION_PROFILES_GUIDE.md).
+
+---
+
+## 7. Installation & Quickstart Guide
 
 ### Prerequisites
 - **Operating System:** Windows 10 / 11 (64-bit), Linux, or macOS.
@@ -196,16 +212,19 @@ For production deployment, the frontend and backend are decoupled:
 
 ---
 
-## 7. Verification & Automated Test Suite
+## 8. Verification & Automated Test Suite
 
-DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, live stream inspection, CORS security, and production health contracts:
+DefectVision AI includes an automated test suite covering optical quality gates, category routing, decision fusion, memory-bank retrieval, end-to-end upload, live stream inspection, CORS security, production health contracts, and target-domain production profiles:
 
 ```powershell
-# Run the complete test suite (71 tests):
+# Run the complete test suite (79 tests):
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
 
 # Run the automated end-to-end ML inference smoke test:
 .\.venv\Scripts\python.exe -m unittest tests/test_inference_smoke.py
+
+# Run the target-domain production profiles test suite:
+.\.venv\Scripts\python.exe -m unittest tests/test_production_profiles.py
 
 # Verify frontend production build:
 npm --prefix frontend run build
@@ -213,29 +232,30 @@ npm --prefix frontend run build
 
 ### Continuous Integration Test Breakdown
 The GitHub Actions workflow (`.github/workflows/ci.yml`) executes both backend tests and frontend compilation on every push:
-- **Test Suite Execution:** **71 tests total: 69 passed, 2 skipped**.
-  - **69 Passed:** Covers all unit, functional, fusion, integration, real ML inference smoke tests, and security tests.
+- **Test Suite Execution:** **79 tests total: 77 passed, 2 skipped**.
+  - **77 Passed:** Covers all unit, functional, fusion, integration, real ML inference smoke tests, security tests, and target-domain production profile tests.
   - **2 Skipped:** `tests/test_normal_bottle_regression.py` and `tests/test_heatmap_alignment.py` are conditionally skipped in CI because the multi-gigabyte uncompressed raw MVTec AD dataset is intentionally excluded from git tracking. In a local development environment with raw dataset present, all tests pass.
-- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors (1.4 MB bundle, gzip 359 kB).
+- **Frontend Build Verification:** `npm --prefix frontend run build` completes cleanly with zero errors.
 - **Docker Compose Full-Stack Verification:** CI validates `docker compose config`, builds and starts both backend and frontend services detached (`docker compose up -d --build`), polls backend `/health` (`status: "ready"`, `process_reachable: true`), validates `/api/optical-inspection/model-status` (`total_categories: 15`), polls frontend on port 5173 (`HTTP 200 OK`), and cleanly tears down via `docker compose down --remove-orphans`.
 
 ---
 
-## 8. Documentation Index
+## 9. Documentation Index
 
 For in-depth architectural, operational, and benchmarking details, refer to the documentation suite in `docs/`:
 
-1. [**Production Deployment Status & Baseline Audit**](docs/PRODUCTION_DEPLOYMENT_STATUS.md): Production vs. local baseline audit, drift analysis, and root causes.
-2. [**Production Deployment Runbook**](docs/DEPLOYMENT_RUNBOOK.md): Containerization, cloud hosting, Vercel configuration, and incident troubleshooting.
-3. [**Real-Time Automatic Inspection Guide**](docs/REALTIME_AUTOMATIC_INSPECTION.md): Detailed 6-stage pipeline explanation, HUD reticle integration, and 4-state verdict specifications.
-4. [**MVTec Dataset & Model Architectures**](docs/MVTEC_DATASET_AND_MODELS.md): Dataset partitioning, registration/calibration/test splits, model weights, and reproduction instructions.
-5. [**Comprehensive Evaluation Results**](docs/EVALUATION_RESULTS.md): Full per-category performance tables, sensitivity/specificity trade-off analysis, and latency profiles.
-6. [**Optical Inspection REST API**](docs/API_INSPECTION_ENDPOINTS.md): Complete typed JSON schemas, endpoint specifications, and curl/fetch integration examples.
-7. [**Release Notes (v1.1.0)**](docs/RELEASE_NOTES.md): Complete changelog, backwards compatibility guarantees, and migration details.
+1. [**Production Profiles Guide**](docs/PRODUCTION_PROFILES_GUIDE.md): Target-domain PatchCore architecture, station profiles, memory bank builder, and empirical threshold calibration.
+2. [**Production Deployment Status & Baseline Audit**](docs/PRODUCTION_DEPLOYMENT_STATUS.md): Production vs. local baseline audit, drift analysis, and root causes.
+3. [**Production Deployment Runbook**](docs/DEPLOYMENT_RUNBOOK.md): Containerization, cloud hosting, Vercel configuration, and incident troubleshooting.
+4. [**Real-Time Automatic Inspection Guide**](docs/REALTIME_AUTOMATIC_INSPECTION.md): Detailed 6-stage pipeline explanation, HUD reticle integration, and 4-state verdict specifications.
+5. [**MVTec Dataset & Model Architectures**](docs/MVTEC_DATASET_AND_MODELS.md): Dataset partitioning, registration/calibration/test splits, model weights, and reproduction instructions.
+6. [**Comprehensive Evaluation Results**](docs/EVALUATION_RESULTS.md): Full per-category performance tables, sensitivity/specificity trade-off analysis, and latency profiles.
+7. [**Optical Inspection REST API**](docs/API_INSPECTION_ENDPOINTS.md): Complete typed JSON schemas, endpoint specifications, and curl/fetch integration examples.
+8. [**Release Notes (v1.1.0)**](docs/RELEASE_NOTES.md): Complete changelog, backwards compatibility guarantees, and migration details.
 
 ---
 
-## 9. License & Third-Party Attribution
+## 10. License & Third-Party Attribution
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 

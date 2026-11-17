@@ -215,3 +215,70 @@ Specimens failing any of these criteria are safely rejected as `UNSUPPORTED` (`U
       Truthful Health Gate: GET /health returns HTTP 200 with status: "ready" only after all 15
                             PatchCore memory banks and EfficientNet-B0 classifiers are resident.
 ```
+
+---
+
+## 6. Target-Domain Industrial Inspection Profiles & Dual Routing Engine
+
+### 6.1 Motivation & Architecture Separation
+While benchmark datasets (such as MVTec AD) provide standardized multi-class evaluation, operational manufacturing lines require dedicated inspection profiles tuned to specific camera optical trains, illumination geometries, mechanical fixtures, and SKU geometries.
+
+DefectVision AI provides an architectural separation between:
+1. **Mode A — Academic Benchmark Engine (`routing_mode: "benchmark"`):**
+   - 15 frozen MVTec AD category memory banks.
+   - Automatic category recognition via EfficientNet-B0.
+   - Full-frame optical quality gate.
+2. **Mode B — Target-Domain Production Engine (`routing_mode: "production"`):**
+   - Isolated product profiles stored in `DefectVisionAI/models/production_profiles/<profile_id>/`.
+   - Dedicated station camera metadata, calibrated relative ROI, and localized quality tolerances.
+   - Target-domain PatchCore memory bank and FAISS L2 index built exclusively from normal production captures.
+   - Empirically calibrated decision threshold guaranteeing bounded false alarm rates.
+
+```mermaid
+flowchart TD
+    In["Acquisition Frame (Upload / Camera Feed)"] --> Mode{"Routing Mode"}
+
+    %% Benchmark Flow
+    Mode -- "benchmark" --> BQ["1. Full-Frame Quality Gate"]
+    BQ -- Fail --> BR1["REVIEW REQUIRED (rejection_stage: quality_gate)"]
+    BQ -- Pass --> BC["2. 15-Class EfficientNet Category Classifier"]
+    BC -- OOD --> BR2["UNSUPPORTED (rejection_stage: category_recognition)"]
+    BC -- Recognized --> BRoi["3. Adaptive ROI Extraction"]
+    BRoi --> BPC["4. Benchmark PatchCore Inference (15 MVTec Banks)"]
+    BPC --> BD["5. 4-State Guard-Band Decision"]
+
+    %% Production Flow
+    Mode -- "production" --> PR["1. Profile Resolution (profile_id)"]
+    PR -- Invalid --> PR1["REVIEW REQUIRED (rejection_stage: profile_resolution)"]
+    PR -- Valid --> PRoi["2. Profile-Configured ROI Extraction"]
+    PRoi --> PQ["3. ROI-Localized Quality Validation"]
+    PQ -- Fail --> PR2["REVIEW REQUIRED (rejection_stage: quality_gate)"]
+    PQ -- Pass --> PPre["4. Target-Domain Preprocessing"]
+    PPre --> PPC["5. Target-Domain PatchCore (Isolated Bank & FAISS)"]
+    PPC --> PD["6. Calibrated Threshold Decision (threshold.json)"]
+```
+
+### 6.2 Profile Directory Specification
+Each target-domain inspection profile is completely self-contained in its own directory:
+- `profile.json`: Profile metadata, product ID, SKU, camera mounting parameters, relative bounding-box ROI coordinates, quality gate thresholds, preprocessing parameters, and default decision threshold.
+- `memory_bank.npy`: Subsampled PatchCore feature memory bank ($N_{\text{coreset}} \times 384$) extracted from target-domain nominal images using frozen ResNet18 mid-level representations.
+- `index.faiss`: Pre-built FAISS `IndexFlatL2` serialized to disk for instant zero-latency loading.
+- `threshold.json`: Full empirical calibration report including normal score quantiles ($p_{50}, p_{90}, p_{95}, p_{99}$), maximum normal validation score, safety margin, and defect validation recall.
+- `manifest.json`: Cryptographic SHA-256 digests of all profile artifacts ensuring runtime integrity.
+
+### 6.3 Reference Profile: `bottle_001_station_01`
+- **Product ID:** `PROD-BTL-001` (Transparent Container Station 01)
+- **Station ID:** `STATION-01-CONVEYOR-B`
+- **Calibrated Threshold:** $\tau = 0.8333$
+- **Validation Defect Recall:** $100.0\%$ (8/8 detected; min defect score $3.2425 \gg \tau$)
+- **Empirical False Alarm Rate:** $0.0\%$ (0/15 false alarms; p99 normal score $0.8223 < \tau$)
+
+### 6.4 Truth-in-Telemetry Contract
+In compliance with industrial safety standards, when an inspection acquisition is rejected prior to computational inference (e.g. optical quality failure, profile resolution failure):
+- `inference_executed: false`
+- `heatmap_generated: false`
+- `anomaly_score: null` (no placeholder or fabricated 0.0 values)
+- `calibrated_threshold: null`
+- `heatmap_base64: ""` (no misleading baseline or fabricated heatmaps)
+- `rejection_stage: str` (exact stage where execution halted)
+- `rejection_reason: str` (human-readable diagnostic explanation)

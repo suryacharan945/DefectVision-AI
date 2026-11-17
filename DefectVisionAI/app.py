@@ -12,6 +12,7 @@ import json
 import base64
 import shutil
 import tempfile
+from typing import Optional, List, Dict, Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -692,6 +693,8 @@ def get_system_health():
     total_supported = len(known_categories)
     categories_status = {}
     engine_error = None
+    prod_profiles_count = 0
+    prod_profile_ids = []
 
     try:
         engine = get_optical_engine()
@@ -717,6 +720,15 @@ def get_system_health():
                 # 3. Calibrated thresholds
                 thresh_dict = getattr(engine.registry, "thresholds", {})
                 thresholds_ready = bool(isinstance(thresh_dict, dict) and len(thresh_dict) >= total_supported)
+
+            # 4. Production Profiles status
+            if hasattr(engine, "list_production_profiles"):
+                try:
+                    loaded_profiles = engine.list_production_profiles()
+                    prod_profiles_count = len(loaded_profiles)
+                    prod_profile_ids = [p["profile_id"] for p in loaded_profiles]
+                except Exception:
+                    pass
     except Exception as e:
         engine_init = False
         engine_error = str(e)
@@ -748,6 +760,8 @@ def get_system_health():
         "thresholds_ready": thresholds_ready,
         "categories": known_categories,
         "categories_status": categories_status,
+        "production_profiles_count": prod_profiles_count,
+        "production_profiles": prod_profile_ids,
         "llm_loaded": bool(llm_loaded),
         "engine_error": engine_error,
         "timestamp": datetime.now(timezone.utc).isoformat()
@@ -761,15 +775,44 @@ def get_system_health():
 def read_root():
     return get_system_health()
 
+@app.get("/api/production-profiles")
+def list_production_profiles_endpoint():
+    """
+    Returns list of all registered production inspection profiles.
+    Each profile includes product SKU, station hardware, camera, ROI, and calibrated threshold.
+    """
+    engine = get_optical_engine()
+    profiles = engine.list_production_profiles()
+    return {
+        "profiles": profiles,
+        "total_profiles": len(profiles)
+    }
+
+@app.get("/api/production-profiles/{profile_id}")
+def get_production_profile_endpoint(profile_id: str):
+    """
+    Returns full configuration specification for a given production profile.
+    """
+    engine = get_optical_engine()
+    profile = engine.get_production_profile(profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail=f"Production profile '{profile_id}' not found.")
+    return profile
+
 @app.post("/predict")
-async def predict_endpoint(file: UploadFile = File(...), category: str = Form("auto")):
+async def predict_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form("auto"),
+    profile_id: Optional[str] = Form(None),
+    routing_mode: Optional[str] = Form(None)
+):
     """
     Unified Image Upload Optical Inspection Endpoint.
-    Automatically recognizes category (default: "auto") or accepts operator category override,
-    evaluates optical image quality gate, executes category-specific PatchCore memory bank,
-    runs auditable decision fusion, and returns unified inspection schema.
+    Supports:
+    - Benchmark Mode: Category recognition (or category override) on 15 MVTec AD models.
+    - Production Mode: Domain-adapted product inspection profile (profile_id) with fixed ROI and targeted thresholds.
     """
-    if category != "auto" and category != "" and category not in known_categories:
+    if category != "auto" and category != "" and category is not None and category not in known_categories and not profile_id:
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories} or 'auto'")
 
     contents = await file.read()
@@ -780,7 +823,13 @@ async def predict_endpoint(file: UploadFile = File(...), category: str = Form("a
 
     engine = get_optical_engine()
     operator_override = None if (category == "auto" or not category) else category
-    result = engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="upload")
+    result = engine.inspect_frame(
+        image_bgr,
+        operator_category_override=operator_override,
+        mode="upload",
+        profile_id=profile_id,
+        routing_mode=routing_mode
+    )
     return result
 
 @app.post("/api/inspect-frame")
@@ -788,7 +837,9 @@ async def predict_endpoint(file: UploadFile = File(...), category: str = Form("a
 async def inspect_frame_endpoint(
     frame: UploadFile = File(None),
     file: UploadFile = File(None),
-    category: str = Form("auto")
+    category: str = Form("auto"),
+    profile_id: Optional[str] = Form(None),
+    routing_mode: Optional[str] = Form(None)
 ):
     """
     Accepts raw frame bytes from browser webcam or edge sensor.
@@ -807,14 +858,22 @@ async def inspect_frame_endpoint(
 
     engine = get_optical_engine()
     operator_override = None if (category == "auto" or not category) else category
-    return engine.inspect_frame(image_bgr, operator_category_override=operator_override, mode="live")
+    return engine.inspect_frame(
+        image_bgr,
+        operator_category_override=operator_override,
+        mode="live",
+        profile_id=profile_id,
+        routing_mode=routing_mode
+    )
 
 @app.post("/api/optical-inspection/inspect-frame")
 @app.post("/optical-inspection/inspect-frame")
 async def optical_inspect_frame_endpoint(
     frame: UploadFile = File(None),
     file: UploadFile = File(None),
-    operator_override: str = Form("auto")
+    operator_override: str = Form("auto"),
+    profile_id: Optional[str] = Form(None),
+    routing_mode: Optional[str] = Form(None)
 ):
     """
     Accepts raw camera frame, executes automatic category recognition,
@@ -832,7 +891,13 @@ async def optical_inspect_frame_endpoint(
 
     engine = get_optical_engine()
     override = None if (operator_override == "auto" or not operator_override) else operator_override
-    result = engine.inspect_frame(image_bgr, operator_category_override=override, mode="live")
+    result = engine.inspect_frame(
+        image_bgr,
+        operator_category_override=override,
+        mode="live",
+        profile_id=profile_id,
+        routing_mode=routing_mode
+    )
     return result
 
 @app.get("/api/optical-inspection/model-status")
