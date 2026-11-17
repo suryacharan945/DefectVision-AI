@@ -175,3 +175,43 @@ Client                             FastAPI Backend                      Worker T
 - **Inference Latency:** $\approx 35 - 50\text{ ms}$ per specimen on modern multi-core x86-64 CPUs.
 - **Memory Scaling:** Each loaded category FAISS index requires $\approx 25 - 45\text{ MB}$ of RAM. All 15 MVTec categories loaded simultaneously consume $<600\text{ MB}$ of system memory.
 - **Threading Model:** FastAPI asynchronous event loop handles network I/O; CPU-bound PyTorch and FAISS operations execute in threadpool workers with PyTorch thread affinity (`torch.set_num_threads(4)`).
+
+---
+
+## 5. Real-Time Category-Aware Optical Engine & Deployment Topologies
+
+### 5.1 Real-Time Category Recognition and OOD Rejection
+The real-time optical engine incorporates an EfficientNet-B0 visual classifier with four simultaneous open-set rejection gates:
+1. **Calibrated Softmax Probability:** $P(y \mid X) \ge 0.70$ (Temperature $T = 1.3696$).
+2. **Normalized Shannon Entropy:** $H_{norm}(P) = -\frac{\sum p_i \ln p_i}{\ln 15} \le 0.60$.
+3. **Free Energy Score:** $E(X) = -T \cdot \ln \sum \exp(z_i / T) \le -6.50$.
+4. **Category Prototype Cosine Similarity:** $\frac{\mathbf{f}(X) \cdot \mathbf{p}_c}{\|\mathbf{f}(X)\| \|\mathbf{p}_c\|} \ge 0.65$.
+
+Specimens failing any of these criteria are safely rejected as `UNSUPPORTED` (`UNSUPPORTED OR UNKNOWN CATEGORY`) without invoking PatchCore memory banks or generating false alarms.
+
+### 5.2 Deployment Topologies
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                     DUAL DEPLOYMENT TOPOLOGIES                                    |
++---------------------------------------------------------------------------------------------------+
+
+  [ TOPOLOGY 1: LOCAL FULL-STACK LAUNCH ]
+  - Native PowerShell Scripts:
+      .\start.ps1   -> Launches FastAPI (Port 8000), waits for /health "ready", boots Vite (Port 5173)
+      .\stop.ps1    -> Cleanly terminates PIDs and listeners on Ports 8000 and 5173
+  - Docker Compose:
+      docker compose up --build  -> Multi-container setup (FastAPI backend + Vite frontend)
+
+  [ TOPOLOGY 2: DECOUPLED CLOUD NATIVE PRODUCTION ]
+  - Frontend Hosting:
+      Vercel Edge Network (https://defectvision-ai.vercel.app/)
+      Build Command: npm run build (Outputs to dist/)
+      Environment Variable: VITE_API_URL=https://<your-backend-service>
+  - Backend Hosting:
+      Optimized Linux container (Debian 12 Slim + PyTorch CPU + OpenMP)
+      Cloud Providers: Render (plan: 2c-4g base price US$85/mo; plan: 1c-2g base price US$25/mo),
+                       Railway (railway.json + Dockerfile), Fly.io, or AWS ECS / GCP Cloud Run.
+      Truthful Health Gate: GET /health returns HTTP 200 with status: "ready" only after all 15
+                            PatchCore memory banks and EfficientNet-B0 classifiers are resident.
+```
