@@ -1,0 +1,21 @@
+{
+  "profile_id": "bottle_001_station_01",
+  "created_at": "2026-11-17T20:42:06.339211Z",
+  "training_samples_count": 25,
+  "raw_patches_count": 19600,
+  "coreset_vectors_count": 1960,
+  "feature_dim": 384,
+  "grid_size": 28,
+  "coreset_ratio": 0.1,
+  "build_duration_sec": 92.83,
+  "artifacts": {
+    "memory_bank.npy": {
+      "sha256": "7c585d7244eea7e7be0f14027198581e2eb1e8ee660dc68605b5774de9076e96",
+      "size_bytes": 3010688
+    },
+    "index.faiss": {
+      "sha256": "60b30b7cbd7f9f1d43b737e746f2fd19611afea8dd55b824063f04b58dd98667",
+      "size_bytes": 3010605
+    }
+  }
+}

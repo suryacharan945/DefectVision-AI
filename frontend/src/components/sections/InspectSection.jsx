@@ -32,6 +32,9 @@ export default function InspectSection({
 }) {
   const isBackendReady = backendHealth?.status === 'ready';
   const [category, setCategory] = useState('auto');
+  const [routingMode, setRoutingMode] = useState('benchmark'); // 'benchmark' | 'production'
+  const [productionProfiles, setProductionProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('bottle_001_station_01');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [presets, setPresets] = useState([]);
@@ -50,19 +53,28 @@ export default function InspectSection({
 
   const fileInputRef = useRef(null);
 
-  // Load curated sample presets
+  // Load curated sample presets & production profiles
   useEffect(() => {
-    async function loadPresets() {
+    async function loadInitialData() {
       try {
-        const data = await api.getSamplePresets();
-        setPresets(data);
+        const [presetsData, profilesData] = await Promise.allSettled([
+          api.getSamplePresets(),
+          api.getProductionProfiles()
+        ]);
+        if (presetsData.status === 'fulfilled') {
+          setPresets(presetsData.value);
+        }
+        if (profilesData.status === 'fulfilled' && profilesData.value?.profiles?.length > 0) {
+          setProductionProfiles(profilesData.value.profiles);
+          setSelectedProfileId(profilesData.value.profiles[0].profile_id);
+        }
       } catch (err) {
-        console.warn('Could not load presets:', err);
+        console.warn('Could not load initial presets or profiles:', err);
       } finally {
         setLoadingPresets(false);
       }
     }
-    loadPresets();
+    loadInitialData();
   }, []);
 
   // Handle file selection
@@ -146,7 +158,7 @@ export default function InspectSection({
       setErrorMessage('Please upload an image or choose a preset specimen first.');
       return;
     }
-    if (!category) {
+    if (routingMode === 'benchmark' && !category) {
       setErrorMessage('Please select a valid product category.');
       return;
     }
@@ -159,14 +171,20 @@ export default function InspectSection({
     const stepTimer2 = setTimeout(() => setAnalysisStep(3), 1200);
 
     try {
-      const inferenceResult = await api.predict(selectedFile, category);
+      const options = routingMode === 'production'
+        ? { profile_id: selectedProfileId, routing_mode: 'production' }
+        : { routing_mode: 'benchmark' };
+
+      const inferenceResult = await api.predict(selectedFile, category, options);
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
       setResult(inferenceResult);
       setStatus('completed');
 
-      // Call /explain
-      fetchExplanation(inferenceResult, category);
+      // Call /explain only when inference was actually executed
+      if (inferenceResult.inference_executed !== false) {
+        fetchExplanation(inferenceResult, category);
+      }
     } catch (err) {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -240,53 +258,144 @@ export default function InspectSection({
           </button>
         </div>
 
-        {/* Category Selection: Auto Recognition by Default with Manual Override */}
-        <div className="flex flex-col gap-1.5 min-w-[290px]">
-          <label htmlFor="category-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
-            <span className="flex items-center gap-1">
-              <span>Product Category Routing</span>
-              <span className="text-cyan-400 font-bold">*</span>
-            </span>
-            <Tooltip text="Default: Automatic Category Recognition via EfficientNet-B0. Select a specific category only to force a manual override." />
-          </label>
-          <div className="relative">
-            <select
-              id="category-select"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
+        {/* Routing Mode & Profile / Category Routing */}
+        <div className="flex flex-col gap-2 min-w-[320px]">
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center rounded-xl bg-slate-950 p-1 border border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setRoutingMode('benchmark');
                 setResult(null);
                 setExplanation(null);
               }}
-              className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-medium text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer font-sans"
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                routingMode === 'benchmark'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              <option value="auto">⭐ Auto Recognize Category (Default)</option>
-              <optgroup label="Manual Overrides — Objects (10 Categories)">
-                {CATEGORIES.filter((c) => c.type === 'Object').map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label} ({c.type})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Manual Overrides — Textures (5 Categories)">
-                {CATEGORIES.filter((c) => c.type === 'Texture').map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label} ({c.type})
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-              ▼
-            </div>
+              Benchmark (15 MVTec AD)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRoutingMode('production');
+                setResult(null);
+                setExplanation(null);
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                routingMode === 'production'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🏭 Production Profile
+            </button>
           </div>
-          <span className="text-[11px] text-slate-400">
-            {category === 'auto' ? (
-              <span>Active: <strong className="text-cyan-300">Automatic Category Recognition</strong> (EfficientNet-B0)</span>
-            ) : (
-              <span>Override: <strong className="text-amber-300">{currentCatMeta.label}</strong> ({currentCatMeta.desc})</span>
-            )}
-          </span>
+
+          {routingMode === 'benchmark' ? (
+            /* Benchmark Category Selection */
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="category-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="flex items-center gap-1">
+                  <span>Product Category Routing</span>
+                  <span className="text-cyan-400 font-bold">*</span>
+                </span>
+                <Tooltip text="Default: Automatic Category Recognition via EfficientNet-B0. Select a specific category only to force a manual override." />
+              </label>
+              <div className="relative">
+                <select
+                  id="category-select"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setResult(null);
+                    setExplanation(null);
+                  }}
+                  className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-medium text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer font-sans"
+                >
+                  <option value="auto">⭐ Auto Recognize Category (Default)</option>
+                  <optgroup label="Manual Overrides — Objects (10 Categories)">
+                    {CATEGORIES.filter((c) => c.type === 'Object').map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} ({c.type})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Manual Overrides — Textures (5 Categories)">
+                    {CATEGORIES.filter((c) => c.type === 'Texture').map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} ({c.type})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                  ▼
+                </div>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                {category === 'auto' ? (
+                  <span>Active: <strong className="text-cyan-300">Automatic Category Recognition</strong> (EfficientNet-B0)</span>
+                ) : (
+                  <span>Override: <strong className="text-amber-300">{currentCatMeta.label}</strong> ({currentCatMeta.desc})</span>
+                )}
+              </span>
+            </div>
+          ) : (
+            /* Target Domain Production Profile Selection */
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="profile-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="flex items-center gap-1">
+                  <span>Target Inspection Profile</span>
+                  <span className="text-cyan-400 font-bold">*</span>
+                </span>
+                <Tooltip text="Station & product specific inspection profile with tuned fixed ROI, custom illumination tolerance, and calibrated threshold." />
+              </label>
+              <div className="relative">
+                <select
+                  id="profile-select"
+                  value={selectedProfileId}
+                  onChange={(e) => {
+                    setSelectedProfileId(e.target.value);
+                    setResult(null);
+                    setExplanation(null);
+                  }}
+                  className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-500/40 text-sm font-medium text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer font-sans"
+                >
+                  {productionProfiles.map((p) => (
+                    <option key={p.profile_id} value={p.profile_id}>
+                      {p.product_name} ({p.profile_id})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-400 text-xs">
+                  ▼
+                </div>
+              </div>
+              {(() => {
+                const activeProf = productionProfiles.find((p) => p.profile_id === selectedProfileId);
+                return activeProf ? (
+                  <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-300 flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Station:</span>
+                      <strong className="text-cyan-300 truncate max-w-[180px]">{activeProf.inspection_station}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Threshold:</span>
+                      <span className="text-emerald-400 font-bold">{activeProf.calibrated_threshold} (FAR: {(activeProf.target_far * 100).toFixed(1)}%)</span>
+                    </div>
+                    {(activeProf.validation_status || activeProf.profile_id === 'bottle_001_station_01') && (
+                      <div className="mt-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold text-center uppercase tracking-wider">
+                        {activeProf.validation_status || 'SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED'}
+                      </div>
+                    )}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          )}
         </div>
       </div>
 
@@ -660,7 +769,8 @@ export default function InspectSection({
                   <span>
                     Quality:{' '}
                     <strong className={
-                      (result.image_quality?.status || result.image_quality_status) === 'PASSED'
+                      (result.image_quality?.status || result.image_quality_status) === 'PASSED' ||
+                      (result.image_quality?.status || result.image_quality_status) === 'OPTICAL_QUALITY_VERIFIED'
                         ? 'text-emerald-400'
                         : 'text-amber-400'
                     }>
@@ -671,18 +781,22 @@ export default function InspectSection({
                   <span>
                     Score:{' '}
                     <strong className="text-cyan-300">
-                      {Number(result.anomaly_score || 0).toFixed(4)}
+                      {result.inference_executed === false
+                        ? 'N/A'
+                        : Number(result.anomaly_score ?? 0).toFixed(4)}
                     </strong>{' '}
                     / Thresh:{' '}
                     <span className="text-slate-300">
-                      {Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)}
+                      {result.inference_executed === false
+                        ? 'N/A'
+                        : Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)}
                     </span>
                   </span>
                 </div>
               </div>
 
-              {/* Actionable Callout Banner for Review Required or Unsupported */}
-              {(result.verdict === 'REVIEW REQUIRED' || result.verdict === 'UNSUPPORTED') && (
+              {/* Actionable Callout Banner for Quality/Profile Rejection, Review Required or Unsupported */}
+              {(result.inference_executed === false || result.verdict === 'REVIEW REQUIRED' || result.verdict === 'UNSUPPORTED') && (
                 <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
                   result.verdict === 'UNSUPPORTED'
                     ? 'bg-purple-950/40 border-purple-500/40 text-purple-200'
@@ -695,77 +809,92 @@ export default function InspectSection({
                       <AlertTriangle className="w-5 h-5 text-amber-400" />
                     )}
                   </div>
-                  <div className="space-y-1 text-xs">
+                  <div className="space-y-1 text-xs flex-1">
                     <div className="flex items-center justify-between">
                       <h4 className="font-heading font-bold text-sm tracking-wide uppercase">
                         {result.conclusion || result.verdict}: Attention Required
                       </h4>
                       <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 border border-white/10">
-                        Gate: {result.recognition_status || result.category_status || result.image_quality_status || 'GATE_TRIGGERED'}
+                        Stage: {result.rejection_stage || result.recognition_status || result.image_quality_status || 'QUALITY_GATE'}
                       </span>
                     </div>
                     <p className="leading-relaxed opacity-90">
-                      {result.review_reason || 'Specimen requires secondary inspection review.'}
+                      {result.rejection_reason || result.review_reason || 'Specimen requires secondary inspection review.'}
                     </p>
+                    {result.inference_executed === false && (
+                      <p className="text-[11px] text-amber-300/80 font-sans italic pt-1">
+                        * Deep anomaly inference and heatmaps were safely suppressed to avoid displaying misleading artifacts on unverified frames.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Heatmap Slider: Before vs After Localization */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 backdrop-blur-md">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-violet-400" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-                      PatchCore Anomaly Localization Map
+              {/* Heatmap Slider: Only render overlay when heatmap was actually generated */}
+              {result.heatmap_generated ? (
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-violet-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+                        PatchCore Anomaly Localization Map
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-cyan-400">
+                      Mode: {result.routing_mode === 'production' ? `Profile (${result.profile_id})` : 'MVTec AD Benchmark'}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono text-cyan-400">
-                    PatchCore AUROC: 0.9651
-                  </span>
-                </div>
 
-                <HeatmapSlider
-                  originalImage={result.original_image || previewUrl}
-                  heatmapOverlay={result.heatmap}
-                  rawHeatmap={result.raw_heatmap}
-                />
-              </div>
+                  <HeatmapSlider
+                    originalImage={result.original_image || previewUrl}
+                    heatmapOverlay={result.heatmap}
+                    rawHeatmap={result.raw_heatmap}
+                  />
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 backdrop-blur-md flex flex-col items-center justify-center text-center py-8">
+                  <Layers className="w-8 h-8 text-slate-600 mb-2" />
+                  <div className="text-sm font-semibold text-slate-300">Heatmap Suppressed</div>
+                  <p className="text-xs text-slate-500 max-w-sm mt-1">
+                    No anomaly heatmap generated because inference was not executed on this specimen.
+                  </p>
+                </div>
+              )}
 
               {/* 4 Quantitative Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <MetricCard
                   title="Severity"
-                  value={result.severity_score}
-                  unit="/100"
+                  value={result.inference_executed === false ? 'N/A' : result.severity_score}
+                  unit={result.inference_executed === false ? '' : '/100'}
                   accentColor="#ef4444"
                   tooltip="Severity: Composite index (0-100) combining anomaly distance, affected surface area, and classifier certainty."
-                  badge={<SeverityBadge level={result.severity_level} showScore={false} size="sm" />}
+                  badge={result.inference_executed !== false && <SeverityBadge level={result.severity_level} showScore={false} size="sm" />}
                 />
 
                 <MetricCard
                   title="Confidence"
-                  value={result.confidence_pct}
-                  unit="%"
-                  isPercent={true}
+                  value={result.inference_executed === false ? 'N/A' : result.confidence_pct}
+                  unit={result.inference_executed === false ? '' : '%'}
+                  isPercent={result.inference_executed !== false}
                   accentColor="#8b5cf6"
-                  tooltip="Confidence: How sure the EfficientNet-B0 v3 model is that this sample is defective."
+                  tooltip="Confidence: Defect classification certainty."
                 />
 
                 <MetricCard
                   title="Defect Area"
-                  value={result.defect_area_pct}
-                  unit="%"
-                  isPercent={true}
+                  value={result.inference_executed === false ? 'N/A' : result.defect_area_pct}
+                  unit={result.inference_executed === false ? '' : '%'}
+                  isPercent={result.inference_executed !== false}
                   accentColor="#06b6d4"
-                  tooltip="Defect Area: Percentage of total specimen surface pixels showing anomaly score exceeding baseline threshold."
+                  tooltip="Defect Area: Percentage of specimen surface pixels exceeding calibrated decision threshold."
                 />
 
                 <MetricCard
-                  title="PatchCore"
-                  value={result.raw_patchcore_score}
+                  title="Anomaly Score"
+                  value={result.inference_executed === false ? 'N/A' : (result.anomaly_score ?? 'N/A')}
                   accentColor="#38bdf8"
-                  tooltip="Raw PatchCore Score: Peak nearest-neighbor L2 distance from patch embedding to normal memory bank."
+                  tooltip="Peak nearest-neighbor distance from patch embeddings to target memory bank."
                 />
               </div>
 

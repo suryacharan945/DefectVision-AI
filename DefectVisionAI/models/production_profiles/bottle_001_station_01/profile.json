@@ -1,0 +1,80 @@
+{
+  "profile_id": "bottle_001_station_01",
+  "product_id": "PROD-BTL-001",
+  "product_name": "Clear Glass Bottle 500ml",
+  "sku": "SKU-BTL-001",
+  "inspection_station": "Station 01 - Optical Quality Inspection",
+  "category": "bottle",
+  "category_type": "object",
+  "camera_id": "CAM-01-TOP-500",
+  "lighting_profile": "diffuse_backlight_v1",
+  "acquisition_type": "stationary",
+  "validation_status": "SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED",
+  "roi_config": {
+    "type": "fixed_box",
+    "relative_bbox": [
+      0.08,
+      0.05,
+      0.84,
+      0.9
+    ],
+    "bbox": [
+      72,
+      45,
+      756,
+      810
+    ],
+    "fallback_to_contour": true
+  },
+  "quality_config": {
+    "min_sharpness": 15.0,
+    "min_brightness": 10.0,
+    "max_brightness": 245.0,
+    "min_contrast": 12.0,
+    "max_overexposed_pct": 35.0
+  },
+  "preprocessing_config": {
+    "input_size": [
+      224,
+      224
+    ],
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  },
+  "model_config": {
+    "backbone": "resnet18",
+    "feature_layers": [
+      "layer2",
+      "layer3"
+    ],
+    "target_dimension": 384,
+    "coreset_ratio": 0.1,
+    "grid_size": 28,
+    "faiss_index_type": "IndexFlatL2",
+    "model_version": "v1.0.0-prod"
+  },
+  "threshold_config": {
+    "calibrated_threshold": 0.8333,
+    "target_far": 0.01,
+    "calibration_sample_count": 15,
+    "calibration_date": "2026-11-17T20:42:33.147960Z",
+    "metrics": {
+      "mean": 0.6977,
+      "std": 0.0736,
+      "p50": 0.6814,
+      "p75": 0.767,
+      "p90": 0.8044,
+      "p95": 0.8156,
+      "p99": 0.8223,
+      "max": 0.8239
+    }
+  }
+}

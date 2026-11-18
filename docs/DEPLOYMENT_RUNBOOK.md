@@ -63,25 +63,36 @@ The backend requires sufficient resident RAM to hold the 15 category memory bank
 
 ### Option 0: Local Full-Stack Execution (Development & Offline Testing)
 
-#### 0.1 Native Windows PowerShell (Single-Command Launch & Shutdown)
-Boot the entire full stack locally with built-in readiness polling:
+#### 0.1 Native Windows PowerShell (Safe Launch & Process-Tree Shutdown)
+Boot the entire full stack locally with built-in readiness polling and safe process handling:
 ```powershell
 # 1. Start backend and frontend services:
 .\start.ps1
 
-# 2. Stop all services and release ports 8000 & 5173:
+# 2. Stop all services cleanly and release ports 8000 & 5173:
 .\stop.ps1
 ```
-The startup script automatically resolves the virtual environment, verifies port availability, polls `http://localhost:8000/health` until the optical engine reports `"ready"`, and boots the Vite development server on `http://localhost:5173`.
+**Safety & Reliability Guarantees:**
+- **No Blind Port Killing:** `start.ps1` and `stop.ps1` inspect listening PIDs via CIM/WMI. If port 8000 or 5173 is occupied, they inspect the command line. If the occupant belongs to an unrelated third-party application, the script **never terminates it**, reports the conflict (PID, Process Name, and Command Line), and safely aborts.
+- **Process-Tree Awareness:** If a listening process is verifiably owned by DefectVision AI (matching project command lines or recorded PID files), it terminates the complete process tree using `taskkill /PID <PID> /T /F` to ensure child processes (such as Node.js spawned under `cmd.exe`) do not leak.
+- **Truthful Readiness Verification:** `start.ps1` polls `http://localhost:8000/health` up to 90 seconds until `status: "ready"` and `all_required_models_ready: true` (15/15 categories). Only after backend verification does it launch the Vite frontend, verify HTTP 200 on `http://localhost:5173`, and print the success banner.
+- **Automatic Rollback:** If the frontend fails to respond within timeout, `start.ps1` automatically terminates the started backend process and cleans up PID files.
 
-#### 0.2 Docker Compose (Multi-Container Setup)
+#### 0.2 Docker Compose (Multi-Container Local Setup)
 ```bash
-# Build and run backend and frontend containers:
-docker compose up --build
+# Validate compose configuration:
+docker compose config
 
-# Shutdown containers:
-docker compose down
+# Build and run backend and frontend containers detached:
+docker compose up -d --build
+
+# Inspect container status and health:
+docker compose ps
+
+# Shutdown containers cleanly without deleting volumes or user data:
+docker compose down --remove-orphans
 ```
+*Note: Docker Compose is configured as a local development and CI validation orchestration option. Production cloud architecture uses decoupled Vercel CDN for the static frontend and a container host for the backend.*
 
 ---
 
@@ -144,7 +155,14 @@ docker compose down
 
 ## 4. Configuring Vercel Frontend Environment
 
-Once your backend is running and returns 200 OK on its `/health` endpoint, connect the Vercel frontend:
+> [!IMPORTANT]
+> **Current Vercel Deployment Reality:**
+> - The live Vercel production frontend (`https://defectvision-ai.vercel.app/`) currently serves commit `2fd48675bc7515d01cade08376e75fe607dcd112`, which was deployed via CLI.
+> - Automatic Git-based deployment is **NOT yet verified**.
+> - The Vercel project environment variables list was inspected and is currently empty (`VITE_API_URL` is empty).
+> - Do not point `VITE_API_URL` to `localhost`, the Vercel domain itself, or a fake placeholder. A real backend service URL must be deployed and validated first.
+
+Once your cloud backend is provisioned, running, and returns `HTTP 200 OK` on its `/health` endpoint, connect the Vercel frontend:
 
 1. **Open Vercel Project Dashboard:**
    - Go to [vercel.com/dashboard](https://vercel.com/dashboard).

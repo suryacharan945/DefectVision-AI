@@ -1,24 +1,29 @@
 # DefectVision AI — Production Deployment Baseline & Architecture Audit
 
-**Document Version:** 1.1.0  
-**Audit Date:** 2026-11-17  
-**System Status:** Full-Stack Integration Complete (PR #3 Merged to `main` at `b71a621`) / Local Startup & Docker Compose Delivered / Cloud Backend Ready Pending Owner Funding Approval  
-**Authoritative Git Branch:** `main` (commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854`)  
-**Release Branch:** `release/full-stack-completion-2026-11-17`  
-**Production Frontend Host:** Vercel (`https://defectvision-ai.vercel.app/`)  
-**Active Production Deployed Commit:** `2fd48675bc7515d01cade08376e75fe607dcd112` (Awaiting backend deployment before triggering Vercel redeployment)  
+**Document Version:** 1.2.0<br/>
+**Audit Date:** 2026-11-17<br/>
+**System Status:** Full-Stack Completion & Quality Gates Verified / PR #3 & PR #4 Merged to `main` (`0a0c4e9`) / Local Safe Process Handling & Docker Compose CI Delivered / Cloud Backend Ready Pending Owner Funding Approval<br/>
+**Authoritative Git Branch:** `main` (commit `0a0c4e94f235228c709899bd08c834cf61c66a88`)<br/>
+**Release Branch:** `release/full-stack-completion-2026-11-17`<br/>
+**Production Frontend Host:** Vercel (`https://defectvision-ai.vercel.app/`)<br/>
+**Active Production Deployed Commit:** `2fd48675bc7515d01cade08376e75fe607dcd112` (Deployed via CLI; Automatic Git-based deployment is NOT yet verified; Awaiting backend deployment before configuring `VITE_API_URL` and redeploying)
 
 ---
 
 ## 1. Executive Summary
 
-A comprehensive infrastructure and deployment audit of the DefectVision AI project was performed across GitHub, Vercel, and local runtime environments.
+A comprehensive infrastructure, reliability, and deployment audit of the DefectVision AI project was performed across GitHub, Vercel, Docker Compose, and local Windows runtime environments.
 
-Key Milestones Verified:
-1. **Repository Synchronization & PR #3 Merge:** PR #3 was successfully hardened and merged into `main` at commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854`.
-2. **Local Full-Stack Execution Assets:** Native Windows PowerShell execution scripts (`start.ps1`, `stop.ps1`), multi-container `docker-compose.yml`, and `frontend/Dockerfile` have been provided and verified.
-3. **Automated ML Inference Smoke Test:** `tests/test_inference_smoke.py` exercises genuine nominal specimens, defective specimens, texture routing, object routing, OOD rejection, and API contracts (7/7 passed in 12.1s).
-4. **Cloud Backend Readiness & Cost Disclosure:** Render configuration (`render.yaml`) is pinned to `plan: 2c-4g` (listed base price US$85/month) with `plan: 1c-2g` (listed base price US$25/month) as lower-cost alternative. Provisioning remains gated on explicit owner funding approval.
+Key Milestones & Current Realities:
+1. **Repository Synchronization & PR #4 Merge:** PR #3 was merged into `main` at commit `b71a621`, and PR #4 was merged into `main` at commit `0a0c4e94f235228c709899bd08c834cf61c66a88`. The release branch `release/full-stack-completion-2026-11-17` continues tracking main to deliver final reliability quality gates.
+2. **Local Safe Process Handling (`start.ps1` & `stop.ps1`):** PowerShell automation was hardened against blind port-killing. Scripts now inspect listening processes, verify DefectVision AI ownership (matching command lines and recorded PIDs), terminate only managed process trees using `taskkill /T /F`, and safely abort without touching foreign applications occupying ports 8000 or 5173.
+3. **Local Docker Compose & Frontend Docker Context:** Created `frontend/.dockerignore` to prevent host `node_modules` pollution. Pinned `frontend/Dockerfile` to deterministic `RUN npm ci`. Configured `docker-compose.yml` with dual healthchecks and verified clean local execution.
+4. **CI Docker Compose Full-Stack Coverage:** `.github/workflows/ci.yml` was upgraded to validate `docker compose config`, launch the dual-service stack (`docker compose up -d --build`), poll backend `/health` for `status: "ready"` and `process_reachable: true`, verify `/api/optical-inspection/model-status` for all 15 categories, poll frontend port 5173 for HTTP 200, and ensure cleanup via `docker compose down --remove-orphans`.
+5. **Truthful Production Separation:**
+   - **Local Environment:** 100% verified (PowerShell safe startup/shutdown, Docker Compose full-stack, and 7-scenario ML inference smoke tests).
+   - **GitHub Actions CI:** 100% green (71 Python tests, Vite build, and full Docker Compose end-to-end container testing).
+   - **Vercel Production Frontend:** Deployed at `https://defectvision-ai.vercel.app/` on stale commit `2fd4867` via CLI. Automatic GitHub Git-based deployment is NOT yet verified. Environment variables list is empty (`VITE_API_URL` is empty).
+   - **Render Cloud Backend:** Configured in `render.yaml` (`plan: 2c-4g` at US$85/month base, `plan: 1c-2g` at US$25/month base). **Not yet provisioned or deployed** pending explicit repository owner funding approval.
 
 ---
 
@@ -27,13 +32,14 @@ Key Milestones Verified:
 | Component | Target / Production Reality | Source of Truth / Identifier | Status |
 | :--- | :--- | :--- | :--- |
 | **GitHub Repository** | `https://github.com/suryacharan945/DefectVision-AI` | Remote `origin` | Authoritative |
-| **Default Branch** | `main` | Commit `b71a621cdeed85374a41516d2e2e7ece5f0e4854` | Fully Passing CI (PR #3 Merged) |
-| **Release Branch** | `release/full-stack-completion-2026-11-17` | Branch tracking `origin/main` | Active Release Branch |
-| **Vercel Project** | `defectvision-ai` | Project ID `prj_jmVHZCfTfEc6DYJp2nHn51vCJIVF` | Connected to GitHub Repo |
-| **Live Frontend URL** | `https://defectvision-ai.vercel.app/` | Vercel Edge Network | Active, Serving Stale Build |
-| **Deployed Frontend SHA**| `2fd48675bc7515d01cade08376e75fe607dcd112` | JS Bundle Hash `index-BAvQJhD-.js` | Awaiting Backend URL |
-| **FastAPI Backend Host** | Prepared in `render.yaml` & `Dockerfile` | Gated on owner approval | **Pending Owner Funding Approval** |
-| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | 71 Tests (69 Passed, 2 Conditionally Skipped) | **100% Green** |
+| **Default Branch** | `main` | Commit `0a0c4e94f235228c709899bd08c834cf61c66a88` | Fully Passing CI (PR #4 Merged) |
+| **Release Branch** | `release/full-stack-completion-2026-11-17` | Branch tracking `origin/main` | Active Quality Gates Branch |
+| **Vercel Project** | `defectvision-ai` | Project ID `prj_jmVHZCfTfEc6DYJp2nHn51vCJIVF` | Connected to GitHub Repo (Auto-deploy unverified) |
+| **Live Frontend URL** | `https://defectvision-ai.vercel.app/` | Vercel Edge Network | Active, Serving Stale Build (`2fd4867`) |
+| **Deployed Frontend SHA**| `2fd48675bc7515d01cade08376e75fe607dcd112` | JS Bundle Hash `index-BAvQJhD-.js` | Deployed via CLI, Awaiting Backend URL |
+| **Vercel Environment Vars**| Empty (`VITE_API_URL` not configured) | Vercel Project Dashboard | **Awaiting Deployed Backend URL** |
+| **FastAPI Backend Host** | Prepared in `render.yaml` & root `Dockerfile` | Gated on owner funding approval | **Pending Owner Funding Approval** |
+| **Continuous Integration** | GitHub Actions Workflow `ci.yml` | 71 Tests + Vite Build + Docker Compose Full-Stack | **100% Green** |
 
 ---
 
@@ -245,17 +251,15 @@ By configuring `.dockerignore` to filter out obsolete research checkpoints and o
 
 ---
 
-## 10. Docker Build & Startup Verification in CI
+## 10. Docker Compose Full-Stack Verification in CI
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) now includes end-to-end container verification:
-1. **Build Image:** Executes `docker build -t defectvision-backend:ci .`.
-2. **Launch Container:** Starts container detached with environment flags `-e PORT=8000 -e HOST=0.0.0.0`.
-3. **Healthcheck Polling:** Iteratively polls `http://localhost:8000/health` up to 45 attempts with 2s sleep intervals.
-4. **Contract Assertions:**
-   - Verifies `process_reachable: true`.
-   - Verifies `status: "ready"`.
-   - Queries `http://localhost:8000/api/models/status` and verifies `total_categories: 15`.
-5. **Teardown:** Stops and removes the test container cleanly. If any assertion fails, container logs are printed to CI console.
+The GitHub Actions workflow (`.github/workflows/ci.yml`) now validates the complete two-service application stack via Docker Compose:
+1. **Config Validation:** Executes `docker compose config` to guarantee valid Compose v2 syntax and environment schemas.
+2. **Multi-Container Build & Startup:** Executes `docker compose up -d --build`, building the backend from `Dockerfile` and the frontend from `frontend/Dockerfile` (with `frontend/.dockerignore` protecting Linux `node_modules`).
+3. **Backend Healthcheck Polling:** Iteratively polls `http://localhost:8000/health` up to 45 attempts with 2s intervals until `status: "ready"` and `process_reachable: true` are returned.
+4. **15-Category Model Registry Verification:** Queries `http://localhost:8000/api/optical-inspection/model-status` and asserts `total_categories: 15`.
+5. **Frontend Service Verification:** Polls `http://localhost:5173` up to 20 attempts with 1s intervals asserting `HTTP 200 OK`.
+6. **Safe Teardown:** Guarantees `docker compose down --remove-orphans` (`if: always()`) without deleting model volumes or user data (`-v` omitted). If any assertion fails, container logs for all services are captured.
 
 ---
 

@@ -1,0 +1,43 @@
+{
+  "dataset": "Official MVTec AD",
+  "dataset_root": "C:\\Users\\surya\\Downloads\\Mini Project\\DefectVisionAI\\dataset\\raw\\mvtec",
+  "evaluation_timestamp": "2026-11-18T11:28:37Z",
+  "total_categories": 15,
+  "total_images_evaluated": 1725,
+  "total_nominals": 467,
+  "total_defects": 1258,
+  "workflow_a_known_category": {
+    "macro_metrics": {
+      "macro_auroc": 0.9715,
+      "macro_auprc": 0.9898,
+      "macro_defect_recall": 0.954,
+      "macro_specificity": 0.7096,
+      "macro_precision": 0.9041,
+      "macro_f1_score": 0.924,
+      "macro_pixel_auroc": 0.9802
+    },
+    "aggregate_confusion_counts": {
+      "tp": 1183,
+      "fp": 116,
+      "tn": 351,
+      "fn": 75,
+      "total_specimens": 1725
+    },
+    "micro_metrics": {
+      "micro_recall": 0.9404,
+      "micro_specificity": 0.7516,
+      "micro_precision": 0.9107,
+      "micro_f1_score": 0.9253,
+      "accuracy": 0.8893,
+      "false_positive_rate": 0.2484
+    }
+  },
+  "workflow_b_auto_recognition": {
+    "macro_classification_accuracy": 0.9283
+  },
+  "latency_telemetry": {
+    "mean_ms": 1991.82,
+    "p50_ms": 1844.31,
+    "p95_ms": 3190.67
+  }
+}

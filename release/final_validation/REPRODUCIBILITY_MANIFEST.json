@@ -1,0 +1,162 @@
+{
+  "project": "DefectVision AI",
+  "repository": "https://github.com/suryacharan945/DefectVision-AI",
+  "release_branch": "release/full-stack-completion-2026-11-17",
+  "pull_request": "https://github.com/suryacharan945/DefectVision-AI/pull/5",
+  "timestamp_utc": "2026-11-18T15:27:25.980988+00:00",
+  "runtime_environment": {
+    "os_name": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26300",
+    "architecture": "AMD64",
+    "python_version": "3.12.4",
+    "torch_version": "2.15.0+cpu",
+    "torchvision_version": "0.29.2+cpu",
+    "faiss_version": "1.15.1",
+    "opencv_version": "5.0.0",
+    "sklearn_version": "1.9.1",
+    "numpy_version": "2.5.4",
+    "cuda_available": false
+  },
+  "dataset_manifests": {
+    "official_test_split_csv": {
+      "path": "release/dataset_manifests/official_test_split.csv",
+      "sha256": "bd6cc9653ad0d7aecce5e14deb8aef85cb9b21d885448e6894079eac58d9c6c1",
+      "total_specimens": 1725,
+      "nominal_specimens": 467,
+      "defective_specimens": 1258
+    },
+    "patchcore_calibration_split_csv": {
+      "path": "release/dataset_manifests/patchcore_calibration_split.csv",
+      "sha256": "b57a0dd7ba5ba24a7b82fea4813b8885c87c02f2c7514fb164240ea585e660dc",
+      "total_specimens": 726,
+      "nominal_specimens": 726
+    }
+  },
+  "threshold_configuration": {
+    "path": "DefectVisionAI/models/patchcore/category_thresholds.json",
+    "sha256": "34004049e21dcc9ae02433a1a8ba86ba557db007a41786745dddce26759d925b"
+  },
+  "neural_models_and_memory_banks": {
+    "patchcore_bottle_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/bottle/memory_bank.npy",
+      "sha256": "71a68f4e54109c74fec922c02252218d5abfab31256c2bce170e05014db52200"
+    },
+    "patchcore_cable_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/cable/memory_bank.npy",
+      "sha256": "44a7684c64f05a8230bc7532a84ff00075a76038da8bcd30b012d1fe7adaaa6c"
+    },
+    "patchcore_capsule_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/capsule/memory_bank.npy",
+      "sha256": "e55cd942af6a08ca9771746c0989420011a15fa72e16e2810764cb00113d3245"
+    },
+    "patchcore_carpet_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/carpet/memory_bank.npy",
+      "sha256": "7399618ee3cb47f11ff83688e896de1ddfdde1f8480e044a3b91a3bef9f58f52"
+    },
+    "patchcore_grid_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/grid/memory_bank.npy",
+      "sha256": "bc2a0dc345bb741dca35259d1e7bd6f3d75dfbcd8a66dafdc1701a3b5a72b18d"
+    },
+    "patchcore_hazelnut_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/hazelnut/memory_bank.npy",
+      "sha256": "2aa517a5fa7f09e32806a02f6d5776e74aeb82ca2f7bce2a780700ec87dd1f53"
+    },
+    "patchcore_leather_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/leather/memory_bank.npy",
+      "sha256": "b82273198a7ba0c0f5d4d97bd0bbbf8e717806f60ab96224ed470992dcc642df"
+    },
+    "patchcore_metal_nut_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/metal_nut/memory_bank.npy",
+      "sha256": "4be00e7c8546fb9d90a68c5a89e07cf1b11e8b5ef65088aae69ab804d490893b"
+    },
+    "patchcore_pill_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/pill/memory_bank.npy",
+      "sha256": "f10d8b3b339fccf4ac2062cd1cc1364a2d27027841fc09e9dbf82b0e208d4dfe"
+    },
+    "patchcore_screw_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/screw/memory_bank.npy",
+      "sha256": "42c227ad70729292da3ee2ee4cdcf3a4b6b60c73df184d442069ef6d29395224"
+    },
+    "patchcore_tile_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/tile/memory_bank.npy",
+      "sha256": "5c294772501c48f9d4a9da6aaf238aa1545f27afbae181f21c6f1d07ae0b5f68"
+    },
+    "patchcore_toothbrush_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/toothbrush/memory_bank.npy",
+      "sha256": "e22831034bd8dd670d8ecaff44b348f9d10aaeea2652822fb8e22897fbce6cc4"
+    },
+    "patchcore_transistor_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/transistor/memory_bank.npy",
+      "sha256": "3aa3f92996ce2e660572ef3e8b1525ad1e66d8cf57fc44b412cef28f1a1de7b2"
+    },
+    "patchcore_wood_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/wood/memory_bank.npy",
+      "sha256": "dbbc6871942a4653573cd9ee4fda7d0eff528e5eb76e156d33d6001aff678975"
+    },
+    "patchcore_zipper_memory_bank": {
+      "path": "DefectVisionAI/models/patchcore/zipper/memory_bank.npy",
+      "sha256": "21208ba08af12e03d4cdfbb789afb1888d9544f9380c03343e980eacba5c18a0"
+    }
+  },
+  "production_profiles": {
+    "bottle_001_station_01": {
+      "path": "DefectVisionAI/models/production_profiles/bottle_001_station_01/profile.json",
+      "sha256": "17e15cd61408d239a63148a3061e82f8ed7c57b7f38502679d8eb25ab19217ad"
+    }
+  },
+  "core_verification_scripts": {
+    "compute_all_mvtec_localization_py": {
+      "path": "scripts/compute_all_mvtec_localization.py",
+      "sha256": "ad05d4d4ea458f7d5d7066fbbb1818e333bfadc6d551232a5771134c4ba3bb3a"
+    },
+    "run_workflow_b_stratified_py": {
+      "path": "scripts/run_workflow_b_stratified.py",
+      "sha256": "7c7e1276913c444b7bcd0a6f3f8d7e95dc7885c7ccc7f96e0de0fef8c7fe38fc"
+    },
+    "test_robust_feature_matrix_py": {
+      "path": "scripts/test_robust_feature_matrix.py",
+      "sha256": "8c58fa56e9d839a694b620e4b852fccca08735fbc9a834bd8f90a63e857691b0"
+    },
+    "audit_threshold_sensitivity_py": {
+      "path": "scripts/audit_threshold_sensitivity.py",
+      "sha256": "66d0313a1edf3b0640ec1a8515f4033a9f8714d0cee071968946eaf73a8b323a"
+    },
+    "reconcile_reports_py": {
+      "path": "scripts/reconcile_reports.py",
+      "sha256": "edb8c6475fdd4a920df288695a6efce58e4e8f15d1e29453745f9c7e739d5485"
+    }
+  },
+  "authoritative_validation_artifacts": {
+    "mvtec_all_predictions_csv": {
+      "path": "release/final_validation/mvtec_all_predictions.csv",
+      "sha256": "a44db713c81721cc61754c07079419e21937851d5ebe06e84bf8c487620318b6",
+      "role": "Single canonical source of truth for all 1,725 official test specimens"
+    },
+    "mvtec_per_category_metrics_csv": {
+      "path": "release/final_validation/mvtec_per_category_metrics.csv",
+      "sha256": "4649bb29fc64a80eb15b3ade56f3d24ca51d11d4fa2511c7f4f70016f1428ad9",
+      "role": "Per-category performance metrics computed from canonical predictions"
+    },
+    "category_threshold_provenance_csv": {
+      "path": "release/final_validation/category_threshold_provenance.csv",
+      "sha256": "33fa2ad59ac9a1bfdd70c5316ab8cbb41754f90dd57e13d979e62111be30b3b3",
+      "role": "Operating characteristic curve thresholds (p95 through p99.9) and high-FPR diagnostics"
+    },
+    "feature_acceptance_matrix_csv": {
+      "path": "release/final_validation/FEATURE_ACCEPTANCE_MATRIX.csv",
+      "sha256": "66239b14f8d4457e3e7836d877fdb09b3250238d5318c0692f3ff1acd0ee78e9",
+      "role": "23-point verified feature acceptance matrix across all endpoints"
+    },
+    "workflow_b_stratified_results_csv": {
+      "path": "release/final_validation/WORKFLOW_B_STRATIFIED_RESULTS.csv",
+      "sha256": "162e953b5c9e7f9fbc919e470f05f73020eb1f6a2e3c3486dea33587fa635570",
+      "role": "90-specimen autonomous routing and defect decisioning verification"
+    },
+    "mvtec_localization_audit_csv": {
+      "path": "release/final_validation/MVTEC_LOCALIZATION_AUDIT.csv",
+      "sha256": "7da4d6a096d8ac4c3890872e258f6d515ff1a47148867179c9233dad7f4a9cf8",
+      "role": "Raw-map pooled and per-defect pixel AUROC, IoU, and Dice across 15 categories"
+    }
+  }
+}

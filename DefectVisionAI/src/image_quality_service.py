@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 class ImageQualityService:
-    def __init__(self, blur_threshold=25.0, min_brightness=30.0, max_brightness=240.0, min_contrast=15.0, **kwargs):
+    def __init__(self, blur_threshold=4.0, min_brightness=20.0, max_brightness=245.0, min_contrast=8.0, **kwargs):
         self.blur_threshold = kwargs.get("min_sharpness", blur_threshold)
         self.min_brightness = kwargs.get("min_luminance", min_brightness)
         self.max_brightness = kwargs.get("max_luminance", max_brightness)
@@ -59,9 +59,9 @@ class ImageQualityService:
             return False, "REJECT_INSUFFICIENT_ILLUMINATION", metrics
         if is_too_bright or overexposed_ratio > 0.40:
             return False, "REJECT_OVEREXPOSED_OR_GLARE", metrics
-        if is_low_contrast:
-            return False, "REJECT_LOW_CONTRAST", metrics
         if is_blurred:
             return False, "REJECT_MOTION_OR_OPTICAL_BLUR", metrics
+        if is_low_contrast:
+            return False, "REJECT_LOW_CONTRAST", metrics
 
         return True, "OPTICAL_QUALITY_VERIFIED", metrics

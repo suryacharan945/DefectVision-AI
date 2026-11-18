@@ -30,8 +30,12 @@ class InspectionHistoryService:
     def save_history(self):
         os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
         try:
+            import numpy as np
+            cleaned = []
+            for r in self.records[:self.max_records]:
+                cleaned.append({k: v for k, v in r.items() if not isinstance(v, (np.ndarray, np.generic))})
             with open(self.history_file, "w", encoding="utf-8") as f:
-                json.dump(self.records[:self.max_records], f, indent=2)
+                json.dump(cleaned, f, indent=2)
         except Exception as e:
             print(f"Warning: Failed to save inspection history: {e}")
 

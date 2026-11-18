@@ -9,6 +9,7 @@ INTENT_PATTERNS = [
     ("drift_summary", [r"drift", r"distribution shift", r"production.*(shift|change)"]),
     ("active_learning_efficiency", [r"active learning", r"review budget", r"labeling effort", r"uncertain"]),
     ("worst_performing_category", [r"worst.*(categor|perform)", r"weakest categor"]),
+    ("total_inspections", [r"how many (total )?inspections", r"total inspections", r"inspection count", r"number of inspections"]),
 ]
 
 def route_intent(question):

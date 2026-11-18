@@ -248,12 +248,21 @@ export const api = {
    * Defaults to automatic category recognition (category = 'auto').
    * @param {File|Blob} file Image file to inspect
    * @param {string} category 'auto' (default) or one of the 15 MVTec AD categories
+   * @param {object} options Optional routing parameters { profile_id, routing_mode }
    */
-  async predict(file, category = 'auto') {
+  async predict(file, category = 'auto', options = {}) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('category', category || 'auto');
+      if (options.profile_id) {
+        formData.append('profile_id', options.profile_id);
+        formData.append('routing_mode', options.routing_mode || 'production');
+      } else {
+        formData.append('category', category || 'auto');
+        if (options.routing_mode) {
+          formData.append('routing_mode', options.routing_mode);
+        }
+      }
 
       const res = await request('/predict', {
         method: 'POST',
@@ -263,7 +272,9 @@ export const api = {
       return {
         ...res,
         is_demo: false,
-        inference_mode: 'LIVE (Unified Optical Engine)'
+        inference_mode: res.routing_mode === 'production'
+          ? `PRODUCTION (${res.profile_id || 'Profile'})`
+          : 'LIVE (Unified Optical Engine)'
       };
     } catch (err) {
       if (!_demoModeEnabled) {
@@ -344,9 +355,21 @@ export const api = {
    */
   async getModelsComparison() {
     try {
-      return await request('/models/comparison');
+      const data = await request('/models/comparison');
+      if (Array.isArray(data)) {
+        return data.map(item => ({
+          ...item,
+          data_source: 'LIVE_API',
+          source_reference: 'Live Backend Evaluation API'
+        }));
+      }
+      return data;
     } catch (err) {
-      return fallbackModels;
+      return fallbackModels.map(item => ({
+        ...item,
+        data_source: 'BENCHMARK_ARTIFACT',
+        source_reference: 'Official MVTec AD 15-Category Benchmark Evaluation'
+      }));
     }
   },
 
@@ -355,9 +378,21 @@ export const api = {
    */
   async getAurocMatrix() {
     try {
-      return await request('/reports/auroc-matrix');
+      const data = await request('/reports/auroc-matrix');
+      if (Array.isArray(data)) {
+        return data.map(item => ({
+          ...item,
+          data_source: 'LIVE_API',
+          source_reference: 'Live Backend Evaluation API'
+        }));
+      }
+      return data;
     } catch (err) {
-      return fallbackAuroc;
+      return fallbackAuroc.map(item => ({
+        ...item,
+        data_source: 'BENCHMARK_ARTIFACT',
+        source_reference: 'Official MVTec AD 15-Category Evaluation Matrix'
+      }));
     }
   },
 
@@ -366,9 +401,18 @@ export const api = {
    */
   async getResearchSummary() {
     try {
-      return await request('/reports/summary');
+      const data = await request('/reports/summary');
+      return {
+        ...data,
+        data_source: 'LIVE_API',
+        source_reference: 'Live Backend Evaluation API'
+      };
     } catch (err) {
-      return fallbackSummary;
+      return {
+        ...fallbackSummary,
+        data_source: 'BENCHMARK_ARTIFACT',
+        source_reference: 'DefectVision AI Research Freeze Summary v3.0'
+      };
     }
   },
 
@@ -383,7 +427,12 @@ export const api = {
     params.append('page_size', page_size);
 
     try {
-      return await request(`/severity/logs?${params.toString()}`);
+      const res = await request(`/severity/logs?${params.toString()}`);
+      return {
+        ...res,
+        data_source: 'LIVE_API',
+        source_reference: 'Live Backend Severity Database'
+      };
     } catch (err) {
       let records = fallbackSeverityLogs.records || [];
 
@@ -400,11 +449,17 @@ export const api = {
       const pagedRecords = records.slice(start, start + page_size);
 
       return {
-        records: pagedRecords,
+        records: pagedRecords.map(r => ({
+          ...r,
+          data_source: 'BENCHMARK_ARTIFACT',
+          source_reference: 'Benchmark 1,725-Specimen Severity Database'
+        })),
         page,
         page_size,
         total_records,
-        total_pages
+        total_pages,
+        data_source: 'BENCHMARK_ARTIFACT',
+        source_reference: 'Benchmark 1,725-Specimen Severity Database'
       };
     }
   },
@@ -420,11 +475,22 @@ export const api = {
       }
       formData.append('category', category);
 
-      return await request('/batch', {
+      const res = await request('/batch', {
         method: 'POST',
         body: formData,
       });
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Batch Inspection Unavailable',
+          503,
+          'Real multi-image batch inspection requires an active FastAPI backend server (uvicorn app:app --port 8000). To test UI without backend, enable Demo Mode in settings.'
+        );
+      }
       const batchId = `demo_batch_${Date.now()}`;
       simulatedBatches[batchId] = {
         batch_id: batchId,
@@ -432,9 +498,11 @@ export const api = {
         total: files.length,
         progress: files.length,
         status: 'completed',
+        data_source: 'DEMO_FIXTURE',
+        is_demo: true,
         timestamp: new Date().toISOString()
       };
-      return { batch_id: batchId, status: 'completed' };
+      return { batch_id: batchId, status: 'completed', data_source: 'DEMO_FIXTURE', is_demo: true };
     }
   },
 
@@ -443,10 +511,26 @@ export const api = {
    */
   async getBatchStatus(batchId) {
     try {
-      return await request(`/batch/${batchId}/status`);
+      const res = await request(`/batch/${batchId}/status`);
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
+      if (!_demoModeEnabled) {
+        return {
+          batch_id: batchId,
+          status: 'unavailable',
+          data_source: 'UNAVAILABLE',
+          error: 'Backend offline: unable to retrieve live batch status.'
+        };
+      }
       if (batchId === 'demo_150img_batch') {
-        return fallbackDemoBatch;
+        return {
+          ...fallbackDemoBatch,
+          data_source: 'DEMO_FIXTURE',
+          is_demo: true
+        };
       }
       if (simulatedBatches[batchId]) {
         const b = simulatedBatches[batchId];
@@ -455,6 +539,8 @@ export const api = {
           status: 'completed',
           progress: b.total,
           total: b.total,
+          data_source: 'DEMO_FIXTURE',
+          is_demo: true,
           report: {
             batch_id: batchId,
             timestamp: b.timestamp,
@@ -462,11 +548,16 @@ export const api = {
             defective_count: Math.round(b.total * 0.65),
             normal_count: Math.round(b.total * 0.35),
             defect_rate_pct: 65.0,
-            severity_distribution: { Critical: Math.round(b.total * 0.4), Moderate: Math.round(b.total * 0.2), Minor: Math.round(b.total * 0.05) }
+            severity_distribution: { Critical: Math.round(b.total * 0.4), Moderate: Math.round(b.total * 0.2), Minor: Math.round(b.total * 0.05) },
+            data_source: 'DEMO_FIXTURE'
           }
         };
       }
-      return fallbackDemoBatch;
+      return {
+        ...fallbackDemoBatch,
+        data_source: 'DEMO_FIXTURE',
+        is_demo: true
+      };
     }
   },
 
@@ -475,9 +566,12 @@ export const api = {
    */
   async getBatchList() {
     try {
-      return await request('/batch/list');
+      const res = await request('/batch/list');
+      return Array.isArray(res) ? res.map(b => ({ ...b, data_source: 'LIVE_API' })) : res;
     } catch (err) {
-      return fallbackBatches;
+      return Array.isArray(fallbackBatches)
+        ? fallbackBatches.map(b => ({ ...b, data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT' }))
+        : fallbackBatches;
     }
   },
 
@@ -490,11 +584,22 @@ export const api = {
       formData.append('file', file);
       formData.append('category', category);
 
-      return await request('/similarity', {
+      const res = await request('/similarity', {
         method: 'POST',
         body: formData,
       });
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
+      if (!_demoModeEnabled) {
+        throw new ApiError(
+          'Similarity Search Unavailable',
+          503,
+          'FAISS nearest-neighbor similarity search requires an active backend server. Enable Demo Mode to preview visual similarity interface.'
+        );
+      }
       const cat = String(category || 'bottle').toLowerCase();
       const demoUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
       const matches = [
@@ -504,7 +609,7 @@ export const api = {
         { filepath: `dataset/${cat}/test/defect_04.png`, filename: `${cat}_defect_04.png`, distance: 0.205, defect_type: 'edge chip', sample_url: demoUrl, similarity_score: 79.5 },
         { filepath: `dataset/${cat}/test/defect_05.png`, filename: `${cat}_defect_05.png`, distance: 0.241, defect_type: 'foreign contamination', sample_url: demoUrl, similarity_score: 75.9 }
       ];
-      return { matches };
+      return { matches, data_source: 'DEMO_FIXTURE', is_demo: true };
     }
   },
 
@@ -513,19 +618,23 @@ export const api = {
    */
   async getCategoryGallery(category) {
     try {
-      return await request(`/similarity/category/${category}`);
+      const res = await request(`/similarity/category/${category}`);
+      return Array.isArray(res) ? res.map(g => ({ ...g, data_source: 'LIVE_API' })) : res;
     } catch (err) {
+      if (!_demoModeEnabled) {
+        return [];
+      }
       const cat = String(category || 'bottle').toLowerCase();
       const demoUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
       return [
-        { filename: `${cat}_ref_01.png`, filepath: `ref/${cat}/01.png`, defect_type: defaultDefectTypes[cat] || 'Primary Defect', sample_url: demoUrl },
-        { filename: `${cat}_ref_02.png`, filepath: `ref/${cat}/02.png`, defect_type: 'Surface Scratch', sample_url: demoUrl },
-        { filename: `${cat}_ref_03.png`, filepath: `ref/${cat}/03.png`, defect_type: 'Edge Indentation', sample_url: demoUrl },
-        { filename: `${cat}_ref_04.png`, filepath: `ref/${cat}/04.png`, defect_type: 'Puncture', sample_url: demoUrl },
-        { filename: `${cat}_ref_05.png`, filepath: `ref/${cat}/05.png`, defect_type: 'Micro Crack', sample_url: demoUrl },
-        { filename: `${cat}_ref_06.png`, filepath: `ref/${cat}/06.png`, defect_type: 'Contamination', sample_url: demoUrl },
-        { filename: `${cat}_ref_07.png`, filepath: `ref/${cat}/07.png`, defect_type: 'Deformation', sample_url: demoUrl },
-        { filename: `${cat}_ref_08.png`, filepath: `ref/${cat}/08.png`, defect_type: 'Fold / Crease', sample_url: demoUrl }
+        { filename: `${cat}_ref_01.png`, filepath: `ref/${cat}/01.png`, defect_type: defaultDefectTypes[cat] || 'Primary Defect', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_02.png`, filepath: `ref/${cat}/02.png`, defect_type: 'Surface Scratch', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_03.png`, filepath: `ref/${cat}/03.png`, defect_type: 'Edge Indentation', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_04.png`, filepath: `ref/${cat}/04.png`, defect_type: 'Puncture', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_05.png`, filepath: `ref/${cat}/05.png`, defect_type: 'Micro Crack', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_06.png`, filepath: `ref/${cat}/06.png`, defect_type: 'Contamination', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_07.png`, filepath: `ref/${cat}/07.png`, defect_type: 'Deformation', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' },
+        { filename: `${cat}_ref_08.png`, filepath: `ref/${cat}/08.png`, defect_type: 'Fold / Crease', sample_url: demoUrl, data_source: 'DEMO_FIXTURE' }
       ];
     }
   },
@@ -546,11 +655,15 @@ export const api = {
    */
   async askRAG(question) {
     try {
-      return await request('/rag/ask', {
+      const res = await request('/rag/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
       const q = String(question || '').toLowerCase().trim();
       const entries = Array.isArray(fallbackRag) ? fallbackRag : [];
@@ -597,15 +710,17 @@ export const api = {
 
       return {
         answer: matched
-          ? `Regarding ${defectName}${categoryTag}:\n\n` +
+          ? `[OFFLINE KNOWLEDGE BASE] Regarding ${defectName}${categoryTag}:\n\n` +
             `• Root Cause: ${matched.cause || 'Mechanical fatigue, abrasive friction, or thermal shock during production.'}\n\n` +
             `• Operational Impact: ${matched.impact || 'Cosmetic degradation and functional risk if unmitigated.'}\n\n` +
             `• Recommended Solution: ${matched.solution || 'Isolate affected units and audit assembly guide rails.'}\n\n` +
             `• Prevention Protocol: ${matched.prevention || 'Implement automated optical gating, periodic fixture maintenance, and supplier material inspections.'}`
-          : `Industrial defect analysis indicates that surface anomalies typically stem from mechanical friction, toolhead wear, or contamination. Review active inspection logs for category-specific tolerances.`,
+          : `[OFFLINE KNOWLEDGE BASE] Industrial defect analysis indicates that surface anomalies typically stem from mechanical friction, toolhead wear, or contamination. Review active inspection logs for category-specific tolerances.`,
         retrieved_defect_types: matched && matched.defect_type
           ? [matched.defect_type.replace(/_/g, ' ')]
-          : ['crack', 'scratch', 'contamination']
+          : ['crack', 'scratch', 'contamination'],
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT',
+        source_reference: 'Curated MVTec AD Domain Knowledge Base'
       };
     }
   },
@@ -615,11 +730,15 @@ export const api = {
    */
   async askDashboard(question) {
     try {
-      return await request('/dashboard/ask', {
+      const res = await request('/dashboard/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
       const q = String(question || '').toLowerCase();
       let ans = '';
@@ -648,9 +767,11 @@ export const api = {
       }
 
       return {
-        answer: ans,
-        source: 'Edge Analytics Engine',
-        intent
+        answer: `[OFFLINE BENCHMARK ANALYTICS] ${ans}`,
+        source: 'Edge Analytics Engine (Offline Benchmark Artifact)',
+        intent,
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT',
+        source_reference: 'MVTec AD 1,725-Image Benchmark Evaluation Dataset'
       };
     }
   },
@@ -660,9 +781,17 @@ export const api = {
    */
   async getDrift() {
     try {
-      return await request('/drift');
+      const res = await request('/drift');
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
-      return fallbackDrift;
+      return {
+        ...fallbackDrift,
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT',
+        source_reference: '3-Stream Production Sensor Baseline'
+      };
     }
   },
 
@@ -671,11 +800,15 @@ export const api = {
    */
   async askRCA(question) {
     try {
-      return await request('/rca/ask', {
+      const res = await request('/rca/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
       const q = String(question || '').toLowerCase();
       let ans = '';
@@ -693,9 +826,11 @@ export const api = {
       }
 
       return {
-        answer: ans,
-        source: 'Edge RCA Engine',
-        analysis_type: 'rca'
+        answer: `[OFFLINE ROOT CAUSE ANALYSIS] ${ans}`,
+        source: 'Edge RCA Engine (Offline Benchmark Artifact)',
+        analysis_type: 'rca',
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT',
+        source_reference: 'Root Cause Statistical Correlation Analysis'
       };
     }
   },
@@ -705,9 +840,16 @@ export const api = {
    */
   async getActiveLearningSensitivity() {
     try {
-      return await request('/active-learning/sensitivity');
+      const res = await request('/active-learning/sensitivity');
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
     } catch (err) {
-      return fallbackSensitivity;
+      return {
+        ...fallbackSensitivity,
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT'
+      };
     }
   },
 
@@ -763,16 +905,24 @@ export const api = {
 
   /**
    * Run real-time category-aware optical inspection pipeline
-   * Automatically recognizes MVTec AD category, routes to category model,
-   * validates optical image quality, and localizes defects.
+   * Automatically recognizes MVTec AD category or routes to production profile.
    * @param {Blob|File} frameBlob
    * @param {string} operatorOverride 'auto' or specific category name
+   * @param {object} options Optional routing parameters { profile_id, routing_mode }
    */
-  async inspectOpticalFrame(frameBlob, operatorOverride = 'auto') {
+  async inspectOpticalFrame(frameBlob, operatorOverride = 'auto', options = {}) {
     try {
       const formData = new FormData();
       formData.append('frame', frameBlob, 'frame.jpg');
-      formData.append('operator_override', operatorOverride);
+      if (options.profile_id) {
+        formData.append('profile_id', options.profile_id);
+        formData.append('routing_mode', options.routing_mode || 'production');
+      } else {
+        formData.append('operator_override', operatorOverride);
+        if (options.routing_mode) {
+          formData.append('routing_mode', options.routing_mode);
+        }
+      }
 
       return await request('/api/optical-inspection/inspect-frame', {
         method: 'POST',
@@ -785,6 +935,56 @@ export const api = {
       }
       // Only in explicit demo mode, fallback to synthetic demo frame
       return await this.inspectFrame(frameBlob, operatorOverride);
+    }
+  },
+
+  /**
+   * Fetch all registered production inspection profiles
+   */
+  async getProductionProfiles() {
+    try {
+      const res = await request('/api/production-profiles');
+      return {
+        ...res,
+        data_source: 'LIVE_API'
+      };
+    } catch (err) {
+      return {
+        profiles: [
+          {
+            profile_id: 'bottle_001_station_01',
+            product_id: 'PROD-BTL-001',
+            product_name: 'Clear Glass Bottle 500ml',
+            sku: 'SKU-BTL-001',
+            inspection_station: 'Station 01 - Optical Quality Inspection',
+            category: 'bottle',
+            category_type: 'object',
+            camera_id: 'CAM-01-TOP-500',
+            lighting_profile: 'diffuse_backlight_v1',
+            acquisition_type: 'stationary',
+            calibrated_threshold: 0.8333,
+            target_far: 0.01,
+            model_version: 'v1.0.0-prod',
+            is_ready: true,
+            validation_status: 'SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED',
+            production_notes: 'SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED',
+            data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT'
+          }
+        ],
+        total_profiles: 1,
+        data_source: _demoModeEnabled ? 'DEMO_FIXTURE' : 'BENCHMARK_ARTIFACT'
+      };
+    }
+  },
+
+  /**
+   * Fetch a single production inspection profile specification
+   */
+  async getProductionProfile(profileId) {
+    try {
+      return await request(`/api/production-profiles/${profileId}`);
+    } catch (err) {
+      return null;
     }
   },
 

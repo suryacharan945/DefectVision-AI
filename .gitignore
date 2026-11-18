@@ -58,8 +58,11 @@ Mini project paper 1st pages/
 .env*
 
 # Datasets & Large Archives
+data/
 DefectVisionAI/dataset/raw/
 DefectVisionAI/dataset/raw/mvtec_partial_backup/
 DefectVisionAI_IEEE_Submission.zip
 DefectVisionAI/models/category_classifier/cache/
 DefectVisionAI/reports/inspection_history.json
+scratch/
+.agents/
