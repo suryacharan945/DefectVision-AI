@@ -1,0 +1,6 @@
+config_id,config_name,tp,fp,tn,fn,precision,recall,specificity,f1_score,accuracy_pct,fpr_pct,pixel_auroc,median_prep_lat_ms,median_feat_lat_ms,median_nn_lat_ms,median_total_lat_ms,p95_total_lat_ms
+CFG_1,1. Raw Baseline PatchCore,6,2,4,0,0.75,1.0,0.6667,0.8571,83.33,33.33,0.9938,4.4,54.2,117.6,176.1,243.8
+CFG_2,2. Baseline + Optical CLAHE,6,6,0,0,0.5,1.0,0.0,0.6667,50.0,100.0,0.9942,16.7,52.5,124.5,196.1,332.4
+CFG_3,3. Baseline + Hull Crop,6,2,4,0,0.75,1.0,0.6667,0.8571,83.33,33.33,0.9938,83.1,41.3,111.9,235.4,290.9
+CFG_4,4. Adapted PatchCore Standalone,6,1,5,0,0.8571,1.0,0.8333,0.9231,91.67,16.67,0.9909,4.5,45.0,6.9,55.5,90.5
+CFG_5,5. Adapted PatchCore + Hull Crop,6,1,5,0,0.8571,1.0,0.8333,0.9231,91.67,16.67,0.9909,86.5,47.3,6.6,136.7,157.9

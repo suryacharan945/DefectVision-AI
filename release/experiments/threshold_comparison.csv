@@ -1,0 +1,7 @@
+threshold_policy,threshold_value,total_normal_evaluated,true_negatives,false_positives,empirical_fpr,empirical_fpr_pct,wilson_95ci_low_pct,wilson_95ci_high_pct,statistical_status,description
+Current Provisional (N=2 Calib),1.641,30,11,19,0.6333,63.33,45.51,78.13,PROVISIONAL HEURISTIC,Derived from max of 2 calibration frames (1.5610) * 1.15 fallback
+Empirical P90 (30 cross-domain),1.9388,30,27,3,0.1,10.0,3.46,25.62,EMPIRICAL ESTIMATE (UNGUARANTEED),90th percentile of 30 cross-domain nominals
+Empirical P95 (30 cross-domain),2.0794,30,28,2,0.0667,6.67,1.85,21.32,EMPIRICAL ESTIMATE (UNGUARANTEED),95th percentile of 30 cross-domain nominals
+Empirical P99 (30 cross-domain),2.7941,30,29,1,0.0333,3.33,0.59,16.67,EMPIRICAL ESTIMATE (UNGUARANTEED),99th percentile of 30 cross-domain nominals
+Parametric Mean + 3*Std,2.7041,30,29,1,0.0333,3.33,0.59,16.67,EMPIRICAL ESTIMATE (UNGUARANTEED),Normal approximation at 99.73% containment
+Max Observed + Margin,3.1528,30,30,0,0.0,0.0,0.0,11.35,EMPIRICAL ESTIMATE (UNGUARANTEED),Max observed cross-domain score + 0.10 buffer
