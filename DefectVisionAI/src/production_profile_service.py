@@ -203,7 +203,8 @@ class ProductionProfileService:
 
     def validate_quality(self, roi_bgr: np.ndarray, profile: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Validates optical quality on the extracted ROI using profile-specific criteria.
+        Validates optical quality on the extracted ROI using background-aware foreground criteria.
+        Distinguishes benign studio lightbox/backlight illumination from genuine product surface glare.
         Returns: (is_valid: bool, status: str, metrics: dict)
         """
         if roi_bgr is None or roi_bgr.size == 0:
@@ -211,6 +212,7 @@ class ProductionProfileService:
 
         gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
         h, w = gray.shape
+        total_pixels = h * w
 
         q_cfg = profile.get("quality_config", {})
         min_sharpness = float(q_cfg.get("min_sharpness", 15.0))
@@ -218,37 +220,133 @@ class ProductionProfileService:
         max_brightness = float(q_cfg.get("max_brightness", 245.0))
         min_contrast = float(q_cfg.get("min_contrast", 12.0))
         max_overexposed_pct = float(q_cfg.get("max_overexposed_pct", 35.0))
+        min_fg_coverage_pct = float(q_cfg.get("min_fg_coverage_pct", 5.0))
 
-        # 1. Blur / Sharpness via Laplacian Variance
+        full_brightness = float(gray.mean())
+        full_overexposed_pct = float(((gray >= 250).sum() / total_pixels) * 100.0)
+
+        # Immediate illumination checks on full ROI
+        if full_brightness < min_brightness:
+            metrics = {
+                "roi_resolution": f"{w}x{h}",
+                "sharpness": 0.0,
+                "sharpness_threshold": min_sharpness,
+                "brightness": round(full_brightness, 2),
+                "brightness_range": [min_brightness, max_brightness],
+                "contrast": round(float(gray.std()), 2),
+                "contrast_threshold": min_contrast,
+                "overexposed_pct": round(full_overexposed_pct, 2),
+                "max_overexposed_pct": max_overexposed_pct,
+                "segmentation_status": "FULL_FRAME"
+            }
+            return False, "REJECT_INSUFFICIENT_ILLUMINATION", metrics
+
+        if full_brightness > max_brightness or full_overexposed_pct >= 95.0:
+            metrics = {
+                "roi_resolution": f"{w}x{h}",
+                "sharpness": 0.0,
+                "sharpness_threshold": min_sharpness,
+                "brightness": round(full_brightness, 2),
+                "brightness_range": [min_brightness, max_brightness],
+                "contrast": round(float(gray.std()), 2),
+                "contrast_threshold": min_contrast,
+                "overexposed_pct": round(full_overexposed_pct, 2),
+                "max_overexposed_pct": max_overexposed_pct,
+                "segmentation_status": "FULL_FRAME"
+            }
+            return False, "REJECT_OVEREXPOSED_OR_GLARE", metrics
+
+        # 1. Border sampling to detect uniform studio illumination background
+        border_pixels = np.concatenate([
+            gray[:5, :].ravel(),
+            gray[-5:, :].ravel(),
+            gray[:, :5].ravel(),
+            gray[:, -5:].ravel()
+        ])
+        border_mean = float(np.mean(border_pixels))
+        border_std = float(np.std(border_pixels))
+
+        is_uniform_light_bg = (border_mean >= 195.0 and border_std <= 40.0)
+        is_uniform_dark_bg = (border_mean <= 50.0 and border_std <= 25.0)
+        is_uniform_bg = is_uniform_light_bg or is_uniform_dark_bg
+
+        # 2. Determine foreground region
+        fg_mask = None
+        segmentation_status = "FULL_FRAME"
+
+        if is_uniform_bg:
+            edges = cv2.Canny(gray, 20, 80)
+            pts = np.argwhere(edges > 0)
+            if len(pts) >= 40:
+                pts_xy = np.column_stack((pts[:, 1], pts[:, 0]))  # [x, y]
+                hull = cv2.convexHull(pts_xy)
+                hull_mask = np.zeros((h, w), dtype=np.uint8)
+                cv2.drawContours(hull_mask, [hull], -1, 255, -1)
+                fg_mask = (hull_mask > 0)
+                segmentation_status = "CONVEX_HULL_SEGMENTED"
+            else:
+                segmentation_status = "INSUFFICIENT_EDGES"
+                fg_mask = np.zeros((h, w), dtype=bool)
+        else:
+            fg_mask = np.ones((h, w), dtype=bool)
+            segmentation_status = "TEXTURE_OR_NONUNIFORM_BG"
+
+        fg_pixel_count = int(fg_mask.sum())
+        fg_coverage_pct = float((fg_pixel_count / total_pixels) * 100.0)
+
+        # 3. Check for insufficient foreground visibility
+        if is_uniform_bg and fg_coverage_pct < min_fg_coverage_pct:
+            metrics = {
+                "roi_resolution": f"{w}x{h}",
+                "segmentation_status": segmentation_status,
+                "foreground_coverage_pct": round(fg_coverage_pct, 2),
+                "min_fg_coverage_pct": min_fg_coverage_pct,
+                "border_mean": round(border_mean, 2),
+                "border_std": round(border_std, 2)
+            }
+            return False, "REJECT_INSUFFICIENT_FOREGROUND", metrics
+
+        # 4. Compute optical quality metrics on the segmented foreground
+        fg_gray = gray[fg_mask]
         laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-        sharpness_score = float(laplacian.var())
-        is_blurred = sharpness_score < min_sharpness
+        fg_laplacian = laplacian[fg_mask]
 
-        # 2. Brightness
-        mean_brightness = float(gray.mean())
-        is_too_dark = mean_brightness < min_brightness
-        is_too_bright = mean_brightness > max_brightness
+        fg_brightness = float(fg_gray.mean())
+        fg_contrast = float(fg_gray.std())
+        fg_sharpness = float(np.var(fg_laplacian))
 
-        # 3. Contrast
-        contrast_score = float(gray.std())
-        is_low_contrast = contrast_score < min_contrast
+        fg_clipped_count = int((fg_gray >= 250).sum())
+        fg_overexposed_pct = float((fg_clipped_count / fg_pixel_count) * 100.0)
 
-        # 4. Specular glare / Overexposed pixels in ROI
-        overexposed_ratio = float((gray >= 250).sum() / gray.size)
-        overexposed_pct = overexposed_ratio * 100.0
-        is_excessive_glare = overexposed_pct > max_overexposed_pct
+        full_frame_overexposed_pct = float(((gray >= 250).sum() / total_pixels) * 100.0)
+        full_frame_brightness = float(gray.mean())
 
         metrics = {
             "roi_resolution": f"{w}x{h}",
-            "sharpness": round(sharpness_score, 2),
+            "segmentation_status": segmentation_status,
+            "foreground_coverage_pct": round(fg_coverage_pct, 2),
+            "foreground_brightness": round(fg_brightness, 2),
+            "foreground_contrast": round(fg_contrast, 2),
+            "foreground_sharpness": round(fg_sharpness, 2),
+            "foreground_overexposed_pct": round(fg_overexposed_pct, 2),
+            "full_frame_overexposed_pct": round(full_frame_overexposed_pct, 2),
+            "full_frame_brightness": round(full_frame_brightness, 2),
+            "sharpness": round(fg_sharpness, 2),
             "sharpness_threshold": min_sharpness,
-            "brightness": round(mean_brightness, 2),
+            "brightness": round(fg_brightness, 2),
             "brightness_range": [min_brightness, max_brightness],
-            "contrast": round(contrast_score, 2),
+            "contrast": round(fg_contrast, 2),
             "contrast_threshold": min_contrast,
-            "overexposed_pct": round(overexposed_pct, 2),
+            "overexposed_pct": round(fg_overexposed_pct, 2),
             "max_overexposed_pct": max_overexposed_pct
         }
+
+        # 5. Evaluate Rejection Criteria
+        is_too_dark = fg_brightness < min_brightness
+        is_too_bright = fg_brightness > max_brightness
+        is_excessive_glare = fg_overexposed_pct > max_overexposed_pct
+        is_low_contrast = fg_contrast < min_contrast
+        is_blurred = fg_sharpness < min_sharpness
 
         if is_too_dark:
             return False, "REJECT_INSUFFICIENT_ILLUMINATION", metrics

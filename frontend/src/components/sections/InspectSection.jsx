@@ -293,6 +293,9 @@ export default function InspectSection({
               🏭 Production Profile
             </button>
           </div>
+          <div className="px-1 text-[11px] text-slate-400 font-sans">
+            Use <strong>Benchmark Mode</strong> for the 15 MVTec AD dataset. Use <strong>Production Profile</strong> only for matching target-product specimens.
+          </div>
 
           {routingMode === 'benchmark' ? (
             /* Benchmark Category Selection */
@@ -678,10 +681,11 @@ export default function InspectSection({
               
               {/* Provenance & Inference Mode Indicator */}
               {result.is_demo ? (
+                /* State C: Demo fixture */
                 <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-mono font-bold text-[10px] shrink-0">
-                      DEMO MODE
+                      DEMO SIMULATION — SYNTHETIC DATA
                     </span>
                     <span className="font-medium">
                       Synthetic client-side simulation. NOT genuine neural network predictions.
@@ -691,18 +695,46 @@ export default function InspectSection({
                     Backend Server Offline
                   </span>
                 </div>
-              ) : (
+              ) : !isBackendReady ? (
+                /* State D: Backend unavailable */
+                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-mono font-bold text-[10px] shrink-0">
+                      BACKEND UNAVAILABLE
+                    </span>
+                    <span className="font-medium">
+                      Backend daemon is unreachable. Real live inference could not be performed.
+                    </span>
+                  </div>
+                </div>
+              ) : result.inference_executed ? (
+                /* State A: Actual live inference */
                 <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold text-[10px] shrink-0">
-                      LIVE INFERENCE
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold text-[10px] shrink-0">
+                      LIVE PATCHCORE INFERENCE
                     </span>
                     <span className="font-mono text-[11px] text-slate-300">
-                      {result.model_id || result.model_selected || `PatchCore-${result.category || result.detected_category || 'Model'}`} (Score: {Number(result.anomaly_score || 0).toFixed(4)} | Threshold: {Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)})
+                      {result.model_id || result.model_selected || `PatchCore-${result.category || result.detected_category || 'Model'}`} (Score: {result.anomaly_score != null ? Number(result.anomaly_score).toFixed(4) : 'N/A'} | Threshold: {result.calibrated_threshold != null ? Number(result.calibrated_threshold).toFixed(4) : (result.anomaly_threshold != null ? Number(result.anomaly_threshold).toFixed(4) : 'N/A')})
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-cyan-400 shrink-0">
                     {(result.inference_latency_ms || result.processing_time_ms || 0).toFixed(1)}ms
+                  </span>
+                </div>
+              ) : (
+                /* State B: Live API response, inference not executed */
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40 text-slate-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px] shrink-0">
+                      LIVE API RESPONSE — INFERENCE NOT EXECUTED
+                    </span>
+                    <span className="font-mono text-[11px] text-amber-200/90">
+                      Stage: {result.rejection_stage || 'QUALITY_GATE'} • {result.rejection_reason || 'Inference halted before PatchCore execution.'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                    Score: N/A | Threshold: N/A
                   </span>
                 </div>
               )}
@@ -747,21 +779,43 @@ export default function InspectSection({
               <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-slate-400">Category:</span>
-                  <strong className="text-white uppercase font-bold">
-                    {result.detected_category || result.category || 'UNKNOWN'}
-                  </strong>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                    {result.category_type || 'Object'}
-                  </span>
-                  <span className="text-violet-300 font-semibold">
-                    {result.category_confidence
-                      ? `${(result.category_confidence * 100).toFixed(1)}%`
-                      : (result.confidence_pct ? `${result.confidence_pct}%` : '')}
-                  </span>
-                  {result.category_status === 'OPERATOR_OVERRIDE' && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                      Override
-                    </span>
+                  {result.routing_mode === 'production' ? (
+                    <>
+                      <strong className="text-white uppercase font-bold">
+                        PROFILE CATEGORY: {(result.expected_profile_category || result.category || 'UNKNOWN').toUpperCase()}
+                      </strong>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                        result.category_status === 'CLASSIFIER_VERIFIED'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {result.category_status === 'CLASSIFIER_VERIFIED' ? 'CLASSIFIER VERIFIED' : 'MISMATCH'}
+                      </span>
+                      {result.category_confidence != null && (
+                        <span className="text-violet-300 font-semibold text-[11px]">
+                          (Classifier: {(result.category_confidence * 100).toFixed(1)}%)
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-white uppercase font-bold">
+                        {result.detected_category || result.category || 'UNKNOWN'}
+                      </strong>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        {result.category_type || 'Object'}
+                      </span>
+                      {result.category_confidence != null && (
+                        <span className="text-violet-300 font-semibold">
+                          {(result.category_confidence * 100).toFixed(1)}%
+                        </span>
+                      )}
+                      {result.category_status === 'OPERATOR_OVERRIDE' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          Override
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -772,24 +826,26 @@ export default function InspectSection({
                       (result.image_quality?.status || result.image_quality_status) === 'PASSED' ||
                       (result.image_quality?.status || result.image_quality_status) === 'OPTICAL_QUALITY_VERIFIED'
                         ? 'text-emerald-400'
+                        : (result.image_quality?.status || result.image_quality_status) === 'SKIPPED_CATEGORY_MISMATCH'
+                        ? 'text-slate-400'
                         : 'text-amber-400'
                     }>
-                      {result.image_quality?.status || result.image_quality_status || 'PASSED'}
+                      {result.image_quality?.status || result.image_quality_status || (result.inference_executed ? 'OPTICAL_QUALITY_VERIFIED' : 'N/A')}
                     </strong>
                   </span>
                   <span>•</span>
                   <span>
                     Score:{' '}
                     <strong className="text-cyan-300">
-                      {result.inference_executed === false
-                        ? 'N/A'
-                        : Number(result.anomaly_score ?? 0).toFixed(4)}
+                      {result.inference_executed && result.anomaly_score != null
+                        ? Number(result.anomaly_score).toFixed(4)
+                        : 'N/A'}
                     </strong>{' '}
                     / Thresh:{' '}
                     <span className="text-slate-300">
-                      {result.inference_executed === false
-                        ? 'N/A'
-                        : Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)}
+                      {result.inference_executed && (result.calibrated_threshold != null || result.anomaly_threshold != null)
+                        ? Number(result.calibrated_threshold || result.anomaly_threshold).toFixed(4)
+                        : 'N/A'}
                     </span>
                   </span>
                 </div>

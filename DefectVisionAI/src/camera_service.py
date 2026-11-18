@@ -227,6 +227,7 @@ class OpticalInspectionEngine:
                     "rejection_reason": review_reason,
                     "category": "unknown",
                     "detected_category": "unknown",
+                    "expected_profile_category": "unknown",
                     "category_type": "unknown",
                     "category_confidence": 0.0,
                     "category_status": "PROFILE_NOT_FOUND",
@@ -262,6 +263,8 @@ class OpticalInspectionEngine:
                 }
                 return self.history_service.add_inspection(record)
 
+            expected_profile_category = profile.get("category", "unknown")
+
             # Step 1: ROI Extraction from Profile Config
             roi_img, bbox = self.profile_service.extract_roi(image_bgr, profile)
             if roi_img is None or roi_img.size == 0:
@@ -291,12 +294,13 @@ class OpticalInspectionEngine:
                     "heatmap_generated": False,
                     "rejection_stage": "quality_gate",
                     "rejection_reason": review_reason,
-                    "category": profile.get("category", "unknown"),
-                    "detected_category": profile.get("category", "unknown"),
+                    "expected_profile_category": expected_profile_category,
+                    "category": expected_profile_category,
+                    "detected_category": "unverified",
                     "category_type": profile.get("category_type", "object"),
-                    "category_confidence": 1.0,
-                    "category_status": "PROFILE_LOCKED",
-                    "recognition_status": "PROFILE_LOCKED",
+                    "category_confidence": 0.0,
+                    "category_status": "SKIPPED_QUALITY_FAILURE",
+                    "recognition_status": "SKIPPED_QUALITY_FAILURE",
                     "image_quality": {"status": quality_status, "metrics": quality_metrics},
                     "image_quality_status": quality_status,
                     "image_quality_metrics": quality_metrics,
@@ -324,12 +328,88 @@ class OpticalInspectionEngine:
                     "severity_level": "review",
                     "severity_score": 0.0,
                     "defect_area_pct": 0.0,
-                    "confidence_pct": 100.0,
+                    "confidence_pct": 0.0,
                     "predicted_label": "review",
                 }
                 return self.history_service.add_inspection(record)
 
-            # Step 3: Load Profile PatchCore Model
+            # Step 3: Category-Consistency Gate: Verify specimen's broad category using classifier
+            category_result = self.category_service.predict(image_bgr)
+            detected_category = category_result.get("category", "unknown")
+            category_conf = float(category_result.get("confidence", 0.0))
+            is_supported = category_result.get("is_supported", False)
+            recognition_status = category_result.get("status", "UNKNOWN")
+
+            if not is_supported or detected_category != expected_profile_category:
+                # Rejection at Category Validation Stage
+                _, buf_orig = cv2.imencode(".jpg", image_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                orig_b64 = "data:image/jpeg;base64," + base64.b64encode(buf_orig).decode("utf-8")
+                elapsed = float(round((time.perf_counter() - t_start) * 1000, 2))
+
+                if detected_category == "unsupported":
+                    verdict = "UNSUPPORTED"
+                else:
+                    verdict = "REVIEW REQUIRED"
+                conclusion = CONCLUSION_MAP[verdict]
+
+                review_reason = (
+                    f"Production profile category mismatch: target profile requires '{expected_profile_category}', "
+                    f"but specimen was classified as '{detected_category}' (confidence: {category_conf * 100:.1f}%, status: {recognition_status})."
+                )
+                diagnosis = (
+                    f"Inspection halted. {review_reason} Profile '{active_profile_id}' is configured strictly for "
+                    f"'{expected_profile_category}' items. Please ensure correct specimen placement. {DISCLAIMER}"
+                )
+
+                record = {
+                    "inspection_id": insp_id,
+                    "mode": mode,
+                    "routing_mode": "production",
+                    "profile_id": active_profile_id,
+                    "inference_executed": False,
+                    "heatmap_generated": False,
+                    "rejection_stage": "profile_category_validation",
+                    "rejection_reason": review_reason,
+                    "expected_profile_category": expected_profile_category,
+                    "category": expected_profile_category,
+                    "detected_category": detected_category,
+                    "category_type": profile.get("category_type", "object"),
+                    "category_confidence": category_conf,
+                    "category_status": f"MISMATCH_EXPECTED_{expected_profile_category.upper()}",
+                    "recognition_status": recognition_status,
+                    "image_quality": {"status": quality_status, "metrics": quality_metrics},
+                    "image_quality_status": quality_status,
+                    "image_quality_metrics": quality_metrics,
+                    "model_id": f"ProductionProfile-{active_profile_id}",
+                    "model_selected": "None",
+                    "model_version": profile.get("model_config", {}).get("model_version", "v1.0.0-prod"),
+                    "anomaly_score": None,
+                    "anomaly_threshold": None,
+                    "calibrated_threshold": None,
+                    "optimal_threshold": None,
+                    "verdict": verdict,
+                    "conclusion": conclusion,
+                    "original_image": orig_b64,
+                    "heatmap_url": "",
+                    "heatmap_base64": "",
+                    "heatmap": "",
+                    "annotated_image_url": "",
+                    "raw_heatmap": "",
+                    "roi_bbox": list(bbox) if bbox else None,
+                    "inference_latency_ms": elapsed,
+                    "processing_time_ms": elapsed,
+                    "review_reason": review_reason,
+                    "diagnosis": diagnosis,
+                    "defect_type": "category_mismatch",
+                    "severity_level": "review" if verdict == "REVIEW REQUIRED" else "unsupported",
+                    "severity_score": 0.0,
+                    "defect_area_pct": 0.0,
+                    "confidence_pct": round(category_conf * 100.0, 1),
+                    "predicted_label": verdict.lower().replace(" ", "_"),
+                }
+                return self.history_service.add_inspection(record)
+
+            # Step 4: Load Profile PatchCore Model (Optics and Category Verified)
             profile_model = self.profile_service.get_profile_model(active_profile_id)
             if profile_model is None:
                 elapsed = float(round((time.perf_counter() - t_start) * 1000, 2))
@@ -346,12 +426,13 @@ class OpticalInspectionEngine:
                     "heatmap_generated": False,
                     "rejection_stage": "model_loading",
                     "rejection_reason": review_reason,
-                    "category": profile.get("category", "unknown"),
-                    "detected_category": profile.get("category", "unknown"),
+                    "expected_profile_category": expected_profile_category,
+                    "category": expected_profile_category,
+                    "detected_category": detected_category,
                     "category_type": profile.get("category_type", "object"),
-                    "category_confidence": 1.0,
-                    "category_status": "PROFILE_LOCKED",
-                    "recognition_status": "PROFILE_LOCKED",
+                    "category_confidence": category_conf,
+                    "category_status": "CLASSIFIER_VERIFIED",
+                    "recognition_status": "CLASSIFIER_VERIFIED",
                     "image_quality": {"status": quality_status, "metrics": quality_metrics},
                     "image_quality_status": quality_status,
                     "image_quality_metrics": quality_metrics,
@@ -476,12 +557,13 @@ class OpticalInspectionEngine:
                 "heatmap_generated": True,
                 "rejection_stage": None,
                 "rejection_reason": None,
-                "category": profile.get("category", "unknown"),
-                "detected_category": profile.get("category", "unknown"),
+                "expected_profile_category": expected_profile_category,
+                "category": expected_profile_category,
+                "detected_category": detected_category,
                 "category_type": profile.get("category_type", "object"),
-                "category_confidence": 1.0,
-                "category_status": "PROFILE_LOCKED",
-                "recognition_status": "PROFILE_LOCKED",
+                "category_confidence": category_conf,
+                "category_status": "CLASSIFIER_VERIFIED",
+                "recognition_status": "CLASSIFIER_VERIFIED",
                 "model_id": f"ProductionProfile-{active_profile_id}",
                 "model_selected": f"ProductionProfile-{active_profile_id}",
                 "model_version": profile.get("model_config", {}).get("model_version", "v1.0.0-prod"),
@@ -496,7 +578,7 @@ class OpticalInspectionEngine:
                 "optimal_threshold": float(round(calibrated_thresh, 4)),
                 "anomaly_norm": float(round(anomaly_norm, 2)),
                 "defect_area_pct": float(round(defect_area_pct, 2)),
-                "confidence_pct": 100.0,
+                "confidence_pct": round(category_conf * 100.0, 1),
                 "verdict": verdict,
                 "conclusion": conclusion,
                 "predicted_label": verdict.lower().replace(" ", "_"),
