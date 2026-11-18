@@ -19,11 +19,16 @@ const rawBaseUrl = import.meta.env.VITE_API_URL || '';
 const BASE_URL = rawBaseUrl.trim().replace(/\/+$/, '');
 
 // Explicit Demo Mode State Management
+// Fresh local development sessions default to LIVE mode (false)
 let _demoModeEnabled = false;
 if (typeof window !== 'undefined') {
   try {
     const saved = localStorage.getItem('defectvision_demo_mode');
-    if (saved === 'true') _demoModeEnabled = true;
+    if (saved === 'true') {
+      _demoModeEnabled = true;
+    } else {
+      _demoModeEnabled = false;
+    }
   } catch (e) {
     // ignore localStorage errors
   }
@@ -170,9 +175,10 @@ export const api = {
         all_required_models_ready: false,
         classifier_ready: false,
         optical_engine_ready: false,
+        thresholds_ready: false,
         llm_loaded: false,
-        api_url: BASE_URL || 'http://127.0.0.1:8000',
-        error: fetchError || 'Backend offline or unreachable'
+        api_url: BASE_URL || 'http://127.0.0.1:8001',
+        error: fetchError || 'Backend offline or unreachable on port 8001'
       };
     }
 
@@ -183,7 +189,7 @@ export const api = {
         mode: 'degraded',
         is_live: false,
         device: 'Unknown',
-        api_url: BASE_URL || 'Local Host (Port 8000)',
+        api_url: BASE_URL || 'Local Host (Port 8001)',
         error: 'Malformed backend health response: payload is not a valid object.'
       };
     }
@@ -191,19 +197,21 @@ export const api = {
     const opticalEngineReady = Boolean(rawHealth.optical_engine_ready || rawHealth.optical_engine_initialized);
     const classifierReady = Boolean(rawHealth.classifier_ready);
     const allModelsReady = Boolean(rawHealth.all_required_models_ready);
+    const thresholdsReady = Boolean(rawHealth.thresholds_ready);
     const readyModelsCount = Number(rawHealth.ready_category_models_count ?? (allModelsReady ? 15 : 0));
     const totalCategories = Number(rawHealth.total_supported_categories ?? rawHealth.total_categories ?? 15);
     const backendReportedStatus = String(rawHealth.status || '').toLowerCase();
 
-    // Truthful operational readiness evaluation:
+    // Truthful operational readiness evaluation (Phase 5):
     // Only 'ready' when backend explicitly reports ready, optical engine is ready,
-    // classifier is loaded, and ALL 15 category memory banks are confirmed ready.
+    // classifier is loaded, calibrated thresholds are available, and ALL 15 category memory banks are confirmed ready.
     const isTrulyReady = (
       backendReportedStatus === 'ready' &&
       opticalEngineReady &&
       classifierReady &&
       allModelsReady &&
-      readyModelsCount >= totalCategories &&
+      thresholdsReady &&
+      readyModelsCount === 15 &&
       totalCategories === 15
     );
 
@@ -225,10 +233,11 @@ export const api = {
       optical_engine_ready: opticalEngineReady,
       classifier_ready: classifierReady,
       all_required_models_ready: allModelsReady,
+      thresholds_ready: thresholdsReady,
       ready_category_models_count: readyModelsCount,
       total_supported_categories: totalCategories,
       device: rawHealth.device || 'CPU',
-      api_url: BASE_URL || 'Local Host (Port 8000)'
+      api_url: BASE_URL || 'Local Host (Port 8001)'
     };
   },
 
@@ -251,6 +260,43 @@ export const api = {
    * @param {object} options Optional routing parameters { profile_id, routing_mode }
    */
   async predict(file, category = 'auto', options = {}) {
+    if (_demoModeEnabled) {
+      // Explicit DEMO Mode: Return synthetic demonstration fixtures with visible disclosure
+      const cat = String(category || 'bottle').toLowerCase();
+      console.warn(`[DefectVision Demo] Serving client-side demonstration result for category: ${cat}`);
+
+      const sampleImgUrl = file ? URL.createObjectURL(file) : `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
+
+      return {
+        verdict: 'NORMAL',
+        predicted_label: 'normal',
+        conclusion: 'DEMONSTRATION SIMULATION ONLY',
+        severity_level: 'normal',
+        severity_score: 0.0,
+        anomaly_score: 0.215,
+        raw_patchcore_score: 1.120,
+        calibrated_threshold: 1.467,
+        anomaly_threshold: 1.467,
+        confidence_pct: 95.0,
+        defect_area_pct: 0.0,
+        defect_type: 'normal',
+        optimal_threshold: 1.467,
+        processing_time_ms: 12.0,
+        inference_latency_ms: 12.0,
+        heatmap: sampleImgUrl,
+        original_image: sampleImgUrl,
+        raw_heatmap: sampleImgUrl,
+        edge_inference: true,
+        is_demo: true,
+        source: 'DEMO_FIXTURE',
+        data_source: 'DEMO_FIXTURE',
+        inference_mode: 'DEMO MODE (Client Simulation — Backend Offline)',
+        diagnosis: `Demonstration mode: backend model is offline. Simulating nominal baseline for ${cat}. The result reflects client-side demonstration only.`,
+        warning: 'DEMONSTRATION ONLY: Synthetic simulation generated client-side. Real ML inference disabled.'
+      };
+    }
+
+    // LIVE Mode: Send to FastAPI backend on port 8001
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -272,46 +318,18 @@ export const api = {
       return {
         ...res,
         is_demo: false,
+        source: 'LIVE_API',
+        data_source: 'LIVE_API',
         inference_mode: res.routing_mode === 'production'
           ? `PRODUCTION (${res.profile_id || 'Profile'})`
           : 'LIVE (Unified Optical Engine)'
       };
     } catch (err) {
-      if (!_demoModeEnabled) {
-        throw new ApiError(
-          'Backend Unavailable',
-          503,
-          'Real inference cannot be performed because the backend server is unreachable. Please start the local backend (uvicorn app:app --port 8000) or toggle Demo Mode.'
-        );
-      }
-
-      const cat = String(category || 'bottle').toLowerCase();
-      console.warn(`[DefectVision Demo] Serving client-side demonstration result for category: ${cat}`);
-      
-      const sampleImgUrl = file ? URL.createObjectURL(file) : `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
-
-      return {
-        verdict: 'NORMAL',
-        predicted_label: 'normal',
-        severity_level: 'normal',
-        severity_score: 0.0,
-        anomaly_score: 0.215,
-        raw_patchcore_score: 1.120,
-        calibrated_threshold: 1.467,
-        confidence_pct: 95.0,
-        defect_area_pct: 0.0,
-        defect_type: 'normal',
-        optimal_threshold: 1.467,
-        processing_time_ms: 38.4,
-        heatmap: sampleImgUrl,
-        original_image: sampleImgUrl,
-        raw_heatmap: sampleImgUrl,
-        edge_inference: true,
-        is_demo: true,
-        inference_mode: 'DEMO MODE (Client Simulation — Backend Offline)',
-        diagnosis: `Demonstration mode: backend model is offline. Simulating nominal baseline for ${cat}. The result reflects client-side demonstration only.`,
-        warning: 'DEMONSTRATION ONLY: Synthetic simulation generated client-side. Backend model offline.'
-      };
+      throw new ApiError(
+        'Backend Unavailable',
+        err.status || 503,
+        `Real inference failed: ${err.detail || err.message || 'FastAPI backend on port 8001 is unreachable.'} Start the local backend (.\\start.ps1) or toggle Demo Mode.`
+      );
     }
   },
 
@@ -468,6 +486,21 @@ export const api = {
    * Submit multi-image batch inspection
    */
   async submitBatch(files, category) {
+    if (_demoModeEnabled) {
+      const batchId = `demo_batch_${Date.now()}`;
+      simulatedBatches[batchId] = {
+        batch_id: batchId,
+        category: category || 'bottle',
+        total: files.length,
+        progress: files.length,
+        status: 'completed',
+        data_source: 'DEMO_FIXTURE',
+        is_demo: true,
+        timestamp: new Date().toISOString()
+      };
+      return { batch_id: batchId, status: 'completed', data_source: 'DEMO_FIXTURE', is_demo: true };
+    }
+
     try {
       const formData = new FormData();
       for (const f of files) {
@@ -481,28 +514,15 @@ export const api = {
       });
       return {
         ...res,
-        data_source: 'LIVE_API'
+        data_source: 'LIVE_API',
+        source: 'LIVE_API'
       };
     } catch (err) {
-      if (!_demoModeEnabled) {
-        throw new ApiError(
-          'Batch Inspection Unavailable',
-          503,
-          'Real multi-image batch inspection requires an active FastAPI backend server (uvicorn app:app --port 8000). To test UI without backend, enable Demo Mode in settings.'
-        );
-      }
-      const batchId = `demo_batch_${Date.now()}`;
-      simulatedBatches[batchId] = {
-        batch_id: batchId,
-        category: category || 'bottle',
-        total: files.length,
-        progress: files.length,
-        status: 'completed',
-        data_source: 'DEMO_FIXTURE',
-        is_demo: true,
-        timestamp: new Date().toISOString()
-      };
-      return { batch_id: batchId, status: 'completed', data_source: 'DEMO_FIXTURE', is_demo: true };
+      throw new ApiError(
+        'Batch Inspection Unavailable',
+        err.status || 503,
+        `Real multi-image batch inspection failed: ${err.detail || err.message || 'FastAPI backend on port 8001 is unreachable.'} Start the local backend (.\\start.ps1) or toggle Demo Mode.`
+      );
     }
   },
 
@@ -579,6 +599,19 @@ export const api = {
    * Similarity search using image embedding against FAISS category gallery
    */
   async searchSimilarity(file, category) {
+    if (_demoModeEnabled) {
+      const cat = String(category || 'bottle').toLowerCase();
+      const demoUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
+      const matches = [
+        { filepath: `dataset/${cat}/test/defect_01.png`, filename: `${cat}_defect_01.png`, distance: 0.082, defect_type: defaultDefectTypes[cat] || 'surface crack', sample_url: demoUrl, similarity_score: 91.8 },
+        { filepath: `dataset/${cat}/test/defect_02.png`, filename: `${cat}_defect_02.png`, distance: 0.124, defect_type: 'structural deformation', sample_url: demoUrl, similarity_score: 87.6 },
+        { filepath: `dataset/${cat}/test/defect_03.png`, filename: `${cat}_defect_03.png`, distance: 0.168, defect_type: 'scratch anomaly', sample_url: demoUrl, similarity_score: 83.2 },
+        { filepath: `dataset/${cat}/test/defect_04.png`, filename: `${cat}_defect_04.png`, distance: 0.205, defect_type: 'edge chip', sample_url: demoUrl, similarity_score: 79.5 },
+        { filepath: `dataset/${cat}/test/defect_05.png`, filename: `${cat}_defect_05.png`, distance: 0.241, defect_type: 'foreign contamination', sample_url: demoUrl, similarity_score: 75.9 }
+      ];
+      return { matches, data_source: 'DEMO_FIXTURE', is_demo: true };
+    }
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -590,26 +623,15 @@ export const api = {
       });
       return {
         ...res,
-        data_source: 'LIVE_API'
+        data_source: 'LIVE_API',
+        source: 'LIVE_API'
       };
     } catch (err) {
-      if (!_demoModeEnabled) {
-        throw new ApiError(
-          'Similarity Search Unavailable',
-          503,
-          'FAISS nearest-neighbor similarity search requires an active backend server. Enable Demo Mode to preview visual similarity interface.'
-        );
-      }
-      const cat = String(category || 'bottle').toLowerCase();
-      const demoUrl = `/outputs/similarity_search_samples/${cat}_similarity_demo.png`;
-      const matches = [
-        { filepath: `dataset/${cat}/test/defect_01.png`, filename: `${cat}_defect_01.png`, distance: 0.082, defect_type: defaultDefectTypes[cat] || 'surface crack', sample_url: demoUrl, similarity_score: 91.8 },
-        { filepath: `dataset/${cat}/test/defect_02.png`, filename: `${cat}_defect_02.png`, distance: 0.124, defect_type: 'structural deformation', sample_url: demoUrl, similarity_score: 87.6 },
-        { filepath: `dataset/${cat}/test/defect_03.png`, filename: `${cat}_defect_03.png`, distance: 0.168, defect_type: 'scratch anomaly', sample_url: demoUrl, similarity_score: 83.2 },
-        { filepath: `dataset/${cat}/test/defect_04.png`, filename: `${cat}_defect_04.png`, distance: 0.205, defect_type: 'edge chip', sample_url: demoUrl, similarity_score: 79.5 },
-        { filepath: `dataset/${cat}/test/defect_05.png`, filename: `${cat}_defect_05.png`, distance: 0.241, defect_type: 'foreign contamination', sample_url: demoUrl, similarity_score: 75.9 }
-      ];
-      return { matches, data_source: 'DEMO_FIXTURE', is_demo: true };
+      throw new ApiError(
+        'Similarity Search Unavailable',
+        err.status || 503,
+        `FAISS nearest-neighbor similarity search failed: ${err.detail || err.message || 'FastAPI backend on port 8001 is unreachable.'}`
+      );
     }
   },
 

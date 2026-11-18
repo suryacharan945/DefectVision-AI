@@ -33,8 +33,8 @@ function Test-IsDefectVisionProcess {
     $cmd = $p.CommandLine
     if (-not $cmd) { return $false }
 
-    # Must specifically match DefectVision AI backend (uvicorn app:app) or frontend (vite / npm dev)
-    $isBackend = ($cmd -match "uvicorn" -and $cmd -match "app:app")
+    # Must specifically match DefectVision AI backend (uvicorn app:app or python DefectVisionAI) or frontend (vite / npm dev)
+    $isBackend = ($cmd -match "uvicorn" -and ($cmd -match "app:app" -or $cmd -match "DefectVisionAI")) -or ($cmd -match "python" -and $cmd -match "DefectVisionAI")
     $isFrontend = ($cmd -match "vite" -or ($cmd -match "npm" -and $cmd -match "dev"))
 
     if ($isBackend -or $isFrontend) {
@@ -107,7 +107,7 @@ if (Test-Path $FrontendPidFile) {
     Remove-Item $FrontendPidFile -Force -ErrorAction SilentlyContinue
 }
 
-# 3. Check Ports 8000 and 5173 without blind killing
+# 3. Check Ports 8001 and 5174 without blind killing
 function Check-PortReleased {
     param([int]$Port)
     try {
@@ -142,11 +142,11 @@ function Check-PortReleased {
     }
 }
 
-$port8000Clean = Check-PortReleased -Port 8000
-$port5173Clean = Check-PortReleased -Port 5173
+$port8001Clean = Check-PortReleased -Port 8001
+$port5174Clean = Check-PortReleased -Port 5174
 
 Write-Host "==========================================================" -ForegroundColor Green
-if ($port8000Clean -and $port5173Clean) {
+if ($port8001Clean -and $port5174Clean) {
     Write-Host "     All DefectVision AI Services Successfully Stopped   " -ForegroundColor Green
 } else {
     Write-Host "   Shutdown complete. Note: Some ports are held by other apps." -ForegroundColor Yellow

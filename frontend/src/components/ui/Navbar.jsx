@@ -77,7 +77,7 @@ export default function Navbar({ activeTab, onTabChange, backendHealth }) {
               title={
                 isOnline
                   ? `FastAPI Server: Ready on ${backendHealth?.device || 'cpu'} | 15 PatchCore Models Loaded`
-                  : 'Backend Disconnected: Ensure uvicorn is running on port 8000'
+                  : 'Backend Disconnected: Ensure uvicorn is running on port 8001'
               }
             >
               <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />

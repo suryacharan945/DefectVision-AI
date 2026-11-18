@@ -573,7 +573,7 @@ export default function InspectSection({
                 <span>Real Model Execution Offline</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                The local Python backend daemon (FastAPI on port 8000) is unreachable. Genuine neural network inference cannot be performed.
+                The local Python backend daemon (FastAPI on port 8001) is unreachable. Genuine neural network inference cannot be performed.
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <button

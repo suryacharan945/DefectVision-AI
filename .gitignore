@@ -20,8 +20,9 @@ ENV/
 .coverage
 htmlcov/
 
-# Logs
+# Logs and process IDs
 *.log
+*.pid
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -44,6 +44,12 @@ export default function App() {
     checkServer();
   };
 
+  const handleSwitchToLive = async () => {
+    api.setDemoMode(false);
+    setDemoMode(false);
+    await checkServer();
+  };
+
   // Contextual transitions from Inspect flow
   const handleNavigateToSimilarity = (category) => {
     setSimilarityCategory(category || 'bottle');
@@ -80,22 +86,25 @@ export default function App() {
               <div className="flex items-center gap-2 text-amber-300">
                 <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                 <span className="font-semibold tracking-wide">DEMO MODE ACTIVE</span>
-                <span className="text-amber-200/70 font-normal hidden sm:inline">| Synthetic simulation only. Real ML inference disabled.</span>
+                <span className="text-amber-200/70 font-normal hidden sm:inline">
+                  | Synthetic simulation only. Real ML inference disabled.
+                  {backendHealth?.is_live ? ' (Backend Verified Ready: 15/15 Models)' : ''}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => checkServer()}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                  className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium"
                 >
-                  Retry Connection
+                  Check Backend
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleToggleDemoMode(false)}
-                  className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px]"
+                  onClick={handleSwitchToLive}
+                  className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 text-[11px] font-semibold shadow-sm transition-all"
                 >
-                  Exit Demo
+                  Switch to Live
                 </button>
               </div>
             </div>
@@ -104,7 +113,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
                 <span className="font-semibold tracking-wide">LIVE INFERENCE ACTIVE</span>
-                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + 15 FAISS Memory Banks ({backendHealth?.api_url || 'Port 8000'})</span>
+                <span className="text-slate-400 font-normal">| Resident PyTorch CPU + 15 FAISS Memory Banks ({backendHealth?.api_url || 'Port 8001'})</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">15 Categories Ready</span>
             </div>
@@ -121,14 +130,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => checkServer()}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                  className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px]"
                 >
                   Retry Connection
                 </button>
                 <button
                   type="button"
                   onClick={() => handleToggleDemoMode(true)}
-                  className="px-2 py-0.5 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[10px] font-semibold"
+                  className="px-2.5 py-1 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[11px] font-semibold"
                 >
                   Enter Demo Mode
                 </button>
@@ -139,20 +148,20 @@ export default function App() {
               <div className="flex items-center gap-2 text-rose-300">
                 <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                 <span className="font-semibold tracking-wide">BACKEND UNAVAILABLE</span>
-                <span className="text-rose-200/70 font-normal hidden sm:inline">| {backendHealth?.api_url ? `Unreachable at ${backendHealth.api_url}` : 'FastAPI daemon offline'}. Real model execution blocked.</span>
+                <span className="text-rose-200/70 font-normal hidden sm:inline">| {backendHealth?.api_url ? `Unreachable at ${backendHealth.api_url}` : 'FastAPI daemon offline on port 8001'}. Real model execution blocked.</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => checkServer()}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[10px]"
+                  className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px]"
                 >
                   Retry Connection
                 </button>
                 <button
                   type="button"
                   onClick={() => handleToggleDemoMode(true)}
-                  className="px-2 py-0.5 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[10px] font-semibold"
+                  className="px-2.5 py-1 rounded bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-500/50 text-[11px] font-semibold"
                 >
                   Enter Demo Mode
                 </button>

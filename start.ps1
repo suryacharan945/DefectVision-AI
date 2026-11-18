@@ -37,8 +37,8 @@ function Test-IsDefectVisionProcess {
     $cmd = $p.CommandLine
     if (-not $cmd) { return $false }
 
-    # Must specifically match DefectVision AI backend (uvicorn app:app) or frontend (vite / npm dev)
-    $isBackend = ($cmd -match "uvicorn" -and $cmd -match "app:app")
+    # Must specifically match DefectVision AI backend (uvicorn app:app or python DefectVisionAI) or frontend (vite / npm dev)
+    $isBackend = ($cmd -match "uvicorn" -and ($cmd -match "app:app" -or $cmd -match "DefectVisionAI")) -or ($cmd -match "python" -and $cmd -match "DefectVisionAI")
     $isFrontend = ($cmd -match "vite" -or ($cmd -match "npm" -and $cmd -match "dev"))
 
     if ($isBackend -or $isFrontend) {
@@ -105,8 +105,8 @@ function Assert-PortAvailable {
 # 1. Inspect Port Availability (Never terminate foreign apps)
 # -------------------------------------------------------------
 Write-Host "[INFO] Checking port availability..." -ForegroundColor Gray
-Assert-PortAvailable -Port 8000 -ServiceName "FastAPI Backend"
-Assert-PortAvailable -Port 5173 -ServiceName "Vite React Frontend"
+Assert-PortAvailable -Port 8001 -ServiceName "FastAPI Backend"
+Assert-PortAvailable -Port 5174 -ServiceName "Vite React Frontend"
 
 # -------------------------------------------------------------
 # 2. Resolve & Verify Python Environment
@@ -151,14 +151,14 @@ try {
 # -------------------------------------------------------------
 # 4. Launch Backend (FastAPI + PyTorch CPU + FAISS)
 # -------------------------------------------------------------
-Write-Host "[INFO] Launching FastAPI Backend on http://127.0.0.1:8000..." -ForegroundColor Cyan
+Write-Host "[INFO] Launching FastAPI Backend on http://127.0.0.1:8001..." -ForegroundColor Cyan
 $BackendDir = Join-Path $ScriptRoot "DefectVisionAI"
 $BackendOutLog = Join-Path $ScriptRoot ".backend.stdout.log"
 $BackendErrLog = Join-Path $ScriptRoot ".backend.stderr.log"
 
 $BackendProc = Start-Process `
     -FilePath $PythonExe `
-    -ArgumentList "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", "8000" `
+    -ArgumentList "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", "8001" `
     -WorkingDirectory $BackendDir `
     -RedirectStandardOutput $BackendOutLog `
     -RedirectStandardError $BackendErrLog `
@@ -192,16 +192,18 @@ while ($Elapsed -lt $BackendTimeoutSec) {
     }
 
     try {
-        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method Get -TimeoutSec 3 -ErrorAction Stop
+        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:8001/health" -Method Get -TimeoutSec 3 -ErrorAction Stop
         $allReady = ($resp.all_required_models_ready -eq $true) -or ($resp.all_models_ready -eq $true)
         $mCount = if ($resp.ready_category_models_count) { $resp.ready_category_models_count } elseif ($resp.models_ready_count) { $resp.models_ready_count } else { 0 }
+        $clsReady = ($resp.classifier_ready -eq $true)
+        $optReady = ($resp.optical_engine_ready -eq $true) -or ($resp.optical_engine_initialized -eq $true)
 
-        if ($resp.status -eq "ready" -and $allReady) {
+        if ($resp.status -eq "ready" -and $allReady -and $clsReady -and $optReady -and ($mCount -ge 15)) {
             $BackendReady = $true
-            Write-Host "[OK] Backend ready in ${Elapsed}s! Status: $($resp.status), Models Ready: $mCount/15" -ForegroundColor Green
+            Write-Host "[OK] Backend ready in ${Elapsed}s! Status: $($resp.status), Models: $mCount/15, Classifier: OK, OpticalEngine: OK" -ForegroundColor Green
             break
         } else {
-            Write-Host "[INFO] Initializing memory banks: status=$($resp.status), models=$mCount/15 (${Elapsed}s)..." -ForegroundColor Gray
+            Write-Host "[INFO] Initializing memory banks: status=$($resp.status), models=$mCount/15, classifier=$clsReady (${Elapsed}s)..." -ForegroundColor Gray
         }
     } catch {
         Write-Host "[INFO] Waiting for backend socket (${Elapsed}s)..." -ForegroundColor Gray
@@ -221,7 +223,7 @@ if (-not $BackendReady) {
 # -------------------------------------------------------------
 # 6. Launch Frontend (Vite React)
 # -------------------------------------------------------------
-Write-Host "[INFO] Launching Vite Frontend on http://127.0.0.1:5173..." -ForegroundColor Cyan
+Write-Host "[INFO] Launching Vite Frontend on http://127.0.0.1:5174..." -ForegroundColor Cyan
 $FrontendDir = Join-Path $ScriptRoot "frontend"
 $FrontendOutLog = Join-Path $ScriptRoot ".frontend.stdout.log"
 $FrontendErrLog = Join-Path $ScriptRoot ".frontend.stderr.log"
@@ -260,10 +262,10 @@ while ($FeElapsed -lt $FrontendTimeoutSec) {
     }
 
     try {
-        $feResp = Invoke-WebRequest -Uri "http://127.0.0.1:5173" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        $feResp = Invoke-WebRequest -Uri "http://127.0.0.1:5174" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
         if ($feResp.StatusCode -eq 200) {
             $FrontendReady = $true
-            Write-Host "[OK] Frontend responding on http://127.0.0.1:5173 (HTTP 200)!" -ForegroundColor Green
+            Write-Host "[OK] Frontend responding on http://127.0.0.1:5174 (HTTP 200)!" -ForegroundColor Green
             break
         }
     } catch {
@@ -290,10 +292,10 @@ Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "          DefectVision AI is Live & Ready!                " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
-Write-Host "  * Frontend Application: http://localhost:5173" -ForegroundColor White
-Write-Host "  * Backend API Health:   http://localhost:8000/health" -ForegroundColor White
-Write-Host "  * Swagger API Docs:     http://localhost:8000/docs" -ForegroundColor White
-Write-Host "  * Models Status:        http://localhost:8000/api/models/status" -ForegroundColor White
+Write-Host "  * Frontend Application: http://localhost:5174" -ForegroundColor White
+Write-Host "  * Backend API Health:   http://localhost:8001/health" -ForegroundColor White
+Write-Host "  * Swagger API Docs:     http://localhost:8001/docs" -ForegroundColor White
+Write-Host "  * Models Status:        http://localhost:8001/api/models/status" -ForegroundColor White
 Write-Host "----------------------------------------------------------" -ForegroundColor Gray
 Write-Host "  To stop the application cleanly, run: .\stop.ps1" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Green
