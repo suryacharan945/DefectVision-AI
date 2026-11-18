@@ -386,6 +386,11 @@ export default function InspectSection({
                       <span className="text-slate-400">Threshold:</span>
                       <span className="text-emerald-400 font-bold">{activeProf.calibrated_threshold} (FAR: {(activeProf.target_far * 100).toFixed(1)}%)</span>
                     </div>
+                    {(activeProf.validation_status || activeProf.profile_id === 'bottle_001_station_01') && (
+                      <div className="mt-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold text-center uppercase tracking-wider">
+                        {activeProf.validation_status || 'SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED'}
+                      </div>
+                    )}
                   </div>
                 ) : null;
               })()}

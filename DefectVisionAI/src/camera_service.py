@@ -126,7 +126,8 @@ class OpticalInspectionEngine:
         multi_frame_candidates=None,
         mode="live",
         profile_id=None,
-        routing_mode=None
+        routing_mode=None,
+        return_dist_map=False
     ):
         """
         Executes end-to-end optical inspection on single frame.
@@ -661,10 +662,11 @@ class OpticalInspectionEngine:
             return self.history_service.add_inspection(record)
 
         # Step 3: Region of Interest (ROI) Extraction
+        # In Benchmark Mode, memory banks were trained and calibrated on full-frame uncropped images.
+        # Bounding box ROI cropping is strictly reserved for Target-Domain Production Mode profiles.
         cat_type = category_result.get("category_type", "object")
-        roi_img, bbox = self.roi_service.extract_roi(image_bgr, category_type=cat_type)
-        if roi_img is None:
-            roi_img = image_bgr
+        roi_img = image_bgr
+        bbox = None
 
         # Step 4: Category-Specific PatchCore Anomaly Inference
         cat_cfg = self.registry.get_category_config(detected_category)
@@ -853,4 +855,9 @@ class OpticalInspectionEngine:
             "processing_time_ms": elapsed_ms
         }
 
-        return self.history_service.add_inspection(record)
+        saved_record = self.history_service.add_inspection(record)
+        if return_dist_map:
+            res_record = dict(saved_record)
+            res_record["dist_map"] = dist_map
+            return res_record
+        return saved_record
