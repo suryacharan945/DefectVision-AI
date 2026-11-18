@@ -1,0 +1,23 @@
+{
+  "profile_id": "bottle_sku_btl_adapt_002",
+  "calibrated_threshold": 1.641,
+  "target_far": 0.01,
+  "calibration_date": "2026-11-18T19:07:16.644424+00:00",
+  "is_provisional": true,
+  "disclaimer": "Provisional threshold (1.6410) derived from 2 held-out normal calibration samples. Target false alarm rate not certified without larger sample size.",
+  "sample_counts": {
+    "normal_training_samples": 5,
+    "normal_calibration_samples": 2,
+    "rejected_samples": 0
+  },
+  "score_distribution": {
+    "mean": 1.4917,
+    "std": 0.0693,
+    "p50": 1.4917,
+    "p75": 1.5263,
+    "p90": 1.5471,
+    "p95": 1.5541,
+    "p99": 1.5596,
+    "max": 1.561
+  }
+}

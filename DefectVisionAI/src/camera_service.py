@@ -24,6 +24,7 @@ from src.category_model_registry import CategoryModelRegistry
 from src.decision_fusion_service import DecisionFusionService
 from src.inspection_history_service import InspectionHistoryService
 from src.production_profile_service import ProductionProfileService
+from src.universal_intake_service import UniversalImageIntakeService
 from src.patchcore import PatchCoreExtractor, PatchCoreModel, normalize_map, overlay_heatmap, calibrate_score_map
 from src.severity import normalize_anomaly_score, compute_severity_score, bucket_severity
 
@@ -42,7 +43,7 @@ CONCLUSION_MAP = {
     "NORMAL": "NO DEFECT DETECTED",
     "DEFECTIVE": "POSSIBLE DEFECT DETECTED",
     "REVIEW REQUIRED": "MANUAL INSPECTION REQUIRED",
-    "UNSUPPORTED": "UNSUPPORTED OR UNKNOWN CATEGORY",
+    "UNSUPPORTED": "REFERENCE PROFILE REQUIRED",
 }
 
 DISCLAIMER = "The result reflects the model's learned visual patterns and does not guarantee the absence of all possible defects."
@@ -94,6 +95,7 @@ class OpticalInspectionEngine:
             device=device,
             confidence_threshold=confidence_threshold
         )
+        self.intake_service = UniversalImageIntakeService(category_service=self.category_service)
 
         # Feature Extractor for PatchCore
         print("Initializing Resident PatchCore Extractor...", flush=True)
@@ -139,11 +141,15 @@ class OpticalInspectionEngine:
         insp_id = f"insp_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}"
 
         # Resolve routing mode
-        is_production = bool(
-            routing_mode == "production" or
-            (profile_id is not None and profile_id != "" and profile_id != "auto")
-        )
-        resolved_routing_mode = "production" if is_production else "benchmark"
+        if routing_mode == "universal":
+            resolved_routing_mode = "universal"
+            is_production = False
+        else:
+            is_production = bool(
+                routing_mode == "production" or
+                (profile_id is not None and profile_id != "" and profile_id != "auto")
+            )
+            resolved_routing_mode = "production" if is_production else "benchmark"
         active_profile_id = profile_id if is_production else None
 
         # -----------------------------------------------------------------
@@ -201,6 +207,254 @@ class OpticalInspectionEngine:
             return record
 
         h, w = image_bgr.shape[:2]
+
+        # =================================================================
+        # BRANCH C: UNIVERSAL IMAGE INTAKE & BEST-EFFORT TRIAGE PIPELINE
+        # =================================================================
+        if resolved_routing_mode == "universal":
+            intake_res = self.intake_service.process_image(
+                image_bgr,
+                inspection_mode="universal",
+                operator_category=operator_category_override
+            )
+            elapsed = float(round((time.perf_counter() - t_start) * 1000, 2))
+            orig_b64 = intake_res.get("original_image_b64", "")
+            preprocessed_bgr = intake_res.get("preprocessed_bgr")
+            if preprocessed_bgr is None:
+                preprocessed_bgr = image_bgr
+
+            # 1. Optical Quality & Suitability Check
+            if intake_res["suitability_status"] not in ["SUITABLE", "SUITABLE_WITH_PREPROCESSING"]:
+                verdict = "REVIEW REQUIRED"
+                conclusion = CONCLUSION_MAP[verdict]
+                review_reason = intake_res.get("rejection_reason") or f"Quality gate failure: {intake_res['image_quality_status']}"
+                diagnosis = f"Manual inspection required. {review_reason} {DISCLAIMER}"
+                record = {
+                    "inspection_id": insp_id,
+                    "mode": mode,
+                    "routing_mode": "universal",
+                    "profile_id": None,
+                    "inference_executed": False,
+                    "heatmap_generated": False,
+                    "rejection_stage": "quality_gate",
+                    "rejection_reason": review_reason,
+                    "category": intake_res.get("detected_category", "unknown"),
+                    "detected_category": intake_res.get("detected_category", "unknown"),
+                    "category_type": "object",
+                    "category_confidence": intake_res.get("category_confidence", 0.0),
+                    "category_status": intake_res.get("category_status", "UNKNOWN"),
+                    "recognition_status": intake_res.get("category_status", "UNKNOWN"),
+                    "image_quality": {"status": intake_res["image_quality_status"], "metrics": intake_res.get("metrics", {})},
+                    "image_quality_status": intake_res["image_quality_status"],
+                    "image_quality_metrics": intake_res.get("metrics", {}),
+                    "image_domain": intake_res.get("image_domain", "unknown"),
+                    "foreground_detected": intake_res.get("foreground_detected", False),
+                    "foreground_coverage_pct": intake_res.get("foreground_coverage_pct", 0.0),
+                    "preprocessing_applied": intake_res.get("preprocessing_applied", []),
+                    "suitability_status": intake_res.get("suitability_status", "UNSUITABLE"),
+                    "model_id": "None",
+                    "model_selected": "None",
+                    "model_version": "v2.0.0-universal",
+                    "anomaly_score": None,
+                    "anomaly_threshold": None,
+                    "calibrated_threshold": None,
+                    "optimal_threshold": None,
+                    "verdict": verdict,
+                    "conclusion": conclusion,
+                    "original_image": orig_b64,
+                    "heatmap_url": "",
+                    "heatmap_base64": "",
+                    "heatmap": "",
+                    "annotated_image_url": "",
+                    "raw_heatmap": "",
+                    "inference_latency_ms": elapsed,
+                    "processing_time_ms": elapsed,
+                    "review_reason": review_reason,
+                    "diagnosis": diagnosis,
+                    "defect_type": "quality_failure",
+                    "severity_level": "review",
+                    "severity_score": 0.0,
+                    "defect_area_pct": 0.0,
+                    "confidence_pct": round(intake_res.get("category_confidence", 0.0) * 100, 1),
+                    "predicted_label": "review",
+                }
+                return self.history_service.add_inspection(record)
+
+            # 2. Check Reference Availability
+            det_cat = intake_res.get("detected_category", "unknown")
+            det_conf = intake_res.get("category_confidence", 0.0)
+            matching_profiles = [p for p in self.profile_service.list_profiles() if p.get("category") == det_cat]
+            has_benchmark = det_cat in self.registry.get_all_categories() and intake_res.get("category_status") in ["RECOGNIZED", "OPERATOR_OVERRIDE"]
+
+            if not matching_profiles and not has_benchmark:
+                verdict = "UNSUPPORTED"
+                conclusion = "REFERENCE PROFILE REQUIRED"
+                review_reason = (
+                    f"No calibrated reference profile or supported benchmark model exists for category '{det_cat}' "
+                    f"(Confidence: {det_conf*100:.1f}%). Safe anomaly inspection requires reference samples."
+                )
+                diagnosis = (
+                    f"Reference profile required. The specimen was identified as '{det_cat}' ({det_conf*100:.1f}%), "
+                    f"but no adapted reference memory bank exists for this target product. Use the 'Adapt New Product' "
+                    f"workflow to train a target profile. {DISCLAIMER}"
+                )
+                record = {
+                    "inspection_id": insp_id,
+                    "mode": mode,
+                    "routing_mode": "universal",
+                    "profile_id": None,
+                    "inference_executed": False,
+                    "heatmap_generated": False,
+                    "rejection_stage": "reference_profile_required",
+                    "rejection_reason": review_reason,
+                    "category": det_cat,
+                    "detected_category": det_cat,
+                    "category_type": "object",
+                    "category_confidence": det_conf,
+                    "category_status": intake_res.get("category_status", "UNKNOWN"),
+                    "recognition_status": intake_res.get("category_status", "UNKNOWN"),
+                    "image_quality": {"status": intake_res["image_quality_status"], "metrics": intake_res.get("metrics", {})},
+                    "image_quality_status": intake_res["image_quality_status"],
+                    "image_quality_metrics": intake_res.get("metrics", {}),
+                    "image_domain": intake_res.get("image_domain", "unknown"),
+                    "foreground_detected": intake_res.get("foreground_detected", False),
+                    "foreground_coverage_pct": intake_res.get("foreground_coverage_pct", 0.0),
+                    "preprocessing_applied": intake_res.get("preprocessing_applied", []),
+                    "suitability_status": intake_res.get("suitability_status", "SUITABLE"),
+                    "model_id": "None",
+                    "model_selected": "None",
+                    "model_version": "v2.0.0-universal",
+                    "anomaly_score": None,
+                    "anomaly_threshold": None,
+                    "calibrated_threshold": None,
+                    "optimal_threshold": None,
+                    "verdict": verdict,
+                    "conclusion": conclusion,
+                    "original_image": orig_b64,
+                    "heatmap_url": "",
+                    "heatmap_base64": "",
+                    "heatmap": "",
+                    "annotated_image_url": "",
+                    "raw_heatmap": "",
+                    "inference_latency_ms": elapsed,
+                    "processing_time_ms": elapsed,
+                    "review_reason": review_reason,
+                    "diagnosis": diagnosis,
+                    "defect_type": "reference_required",
+                    "severity_level": "review",
+                    "severity_score": 0.0,
+                    "defect_area_pct": 0.0,
+                    "confidence_pct": round(det_conf * 100, 1),
+                    "predicted_label": "unsupported",
+                }
+                return self.history_service.add_inspection(record)
+
+            # 3. Reference is available: execute triage PatchCore inference using preprocessed foreground
+            if matching_profiles:
+                active_prof = matching_profiles[0]
+                prof_id = active_prof["profile_id"]
+                model = self.profile_service.get_profile_model(prof_id)
+                threshold = float(active_prof.get("calibrated_threshold", 1.50))
+                model_name = f"AdaptedProfile-{prof_id}"
+            else:
+                model = self.get_patchcore_model(det_cat)
+                cfg = self.registry.get_category_config(det_cat)
+                threshold = float(cfg.get("calibrated_threshold", 1.50))
+                model_name = f"Benchmark-{det_cat}"
+
+            rgb = cv2.cvtColor(preprocessed_bgr, cv2.COLOR_BGR2RGB)
+            resized = cv2.resize(rgb, (PC_IMG_SIZE, PC_IMG_SIZE)).astype(np.float32) / 255.0
+            norm = (resized - PC_MEAN) / PC_STD
+            tensor = torch.from_numpy(norm).permute(2, 0, 1).unsqueeze(0).float().to(self.device)
+
+            t_infer_start = time.perf_counter()
+            with torch.no_grad():
+                fused = self.extractor(tensor)[0].cpu().numpy()
+            dist_map, raw_score = model.score(fused)
+            infer_ms = float(round((time.perf_counter() - t_infer_start) * 1000, 2))
+
+            is_defective = bool(raw_score >= threshold)
+            verdict = "DEFECTIVE" if is_defective else "NORMAL"
+            conclusion = CONCLUSION_MAP[verdict]
+
+            dist_map_norm = normalize_map(dist_map)
+            h_prep, w_prep = preprocessed_bgr.shape[:2]
+            hm_resized = cv2.resize(dist_map_norm, (w_prep, h_prep))
+            hm_color = cv2.applyColorMap(np.uint8(255 * hm_resized), cv2.COLORMAP_JET)
+            overlay = cv2.addWeighted(preprocessed_bgr, 0.55, hm_color, 0.45, 0)
+
+            full_overlay = image_bgr.copy()
+            if intake_res.get("foreground_bbox"):
+                bx, by, bw, bh = intake_res["foreground_bbox"]
+                ov_fit = cv2.resize(overlay, (bw, bh))
+                full_overlay[by:by+bh, bx:bx+bw] = ov_fit
+                box_color = (0, 200, 0) if verdict == "NORMAL" else (0, 0, 220)
+                cv2.rectangle(full_overlay, (bx, by), (bx+bw, by+bh), box_color, 2)
+            else:
+                full_overlay = cv2.resize(overlay, (w, h))
+
+            _, buf_ov = cv2.imencode(".jpg", full_overlay, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+            hm_b64 = "data:image/jpeg;base64," + base64.b64encode(buf_ov).decode("utf-8")
+
+            total_elapsed = float(round((time.perf_counter() - t_start) * 1000, 2))
+            diagnosis = (
+                f"Universal Best-Effort Triage for {det_cat}. Peak anomaly distance is {raw_score:.4f} "
+                f"vs threshold {threshold:.4f} ({verdict}). "
+                f"Notice: Triage inference operates across image domain '{intake_res['image_domain']}'. "
+                f"For strict industrial acceptance, train a dedicated product profile. {DISCLAIMER}"
+            )
+
+            record = {
+                "inspection_id": insp_id,
+                "mode": mode,
+                "routing_mode": "universal",
+                "profile_id": None,
+                "inference_executed": True,
+                "heatmap_generated": True,
+                "rejection_stage": None,
+                "rejection_reason": None,
+                "category": det_cat,
+                "detected_category": det_cat,
+                "category_type": "object",
+                "category_confidence": det_conf,
+                "category_status": intake_res.get("category_status", "UNKNOWN"),
+                "recognition_status": intake_res.get("category_status", "UNKNOWN"),
+                "image_quality": {"status": intake_res["image_quality_status"], "metrics": intake_res.get("metrics", {})},
+                "image_quality_status": intake_res["image_quality_status"],
+                "image_quality_metrics": intake_res.get("metrics", {}),
+                "image_domain": intake_res.get("image_domain", "unknown"),
+                "foreground_detected": intake_res.get("foreground_detected", False),
+                "foreground_coverage_pct": intake_res.get("foreground_coverage_pct", 0.0),
+                "preprocessing_applied": intake_res.get("preprocessing_applied", []),
+                "suitability_status": intake_res.get("suitability_status", "SUITABLE"),
+                "model_id": model_name,
+                "model_selected": model_name,
+                "model_version": "v2.0.0-universal",
+                "anomaly_score": float(round(raw_score, 4)),
+                "anomaly_threshold": float(round(threshold, 4)),
+                "calibrated_threshold": float(round(threshold, 4)),
+                "optimal_threshold": float(round(threshold, 4)),
+                "verdict": verdict,
+                "conclusion": conclusion,
+                "severity_level": "warning" if is_defective else "normal",
+                "severity_score": 65.0 if is_defective else 0.0,
+                "defect_area_pct": 15.0 if is_defective else 0.0,
+                "confidence_pct": round(det_conf * 100, 1),
+                "predicted_label": verdict.lower(),
+                "defect_type": "anomaly" if is_defective else "normal",
+                "review_reason": None,
+                "diagnosis": diagnosis,
+                "disclaimer": "Universal Best-Effort Triage: Anomaly score reflects distance from reference memory bank. Real-world uncalibrated domain shift may affect accuracy. Not a certified defect probability.",
+                "original_image": orig_b64,
+                "heatmap_url": hm_b64,
+                "heatmap_base64": hm_b64,
+                "heatmap": hm_b64,
+                "annotated_image_url": hm_b64,
+                "raw_heatmap": hm_b64,
+                "inference_latency_ms": infer_ms,
+                "processing_time_ms": total_elapsed
+            }
+            return self.history_service.add_inspection(record)
 
         # =================================================================
         # BRANCH B: PRODUCTION PROFILE PIPELINE

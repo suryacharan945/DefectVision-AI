@@ -803,6 +803,97 @@ def get_production_profile_endpoint(profile_id: str):
         raise HTTPException(status_code=404, detail=f"Production profile '{profile_id}' not found.")
     return profile
 
+@app.post("/api/production-profiles/adapt")
+async def adapt_product_profile_endpoint(
+    product_name: str = Form(...),
+    sku: str = Form(...),
+    category: str = Form("bottle"),
+    acquisition_type: str = Form("controlled_photography"),
+    camera_id: str = Form("CAM-EXT-01"),
+    lighting_profile: str = Form("ambient_or_diffuse"),
+    calibration_split_ratio: float = Form(0.30),
+    coreset_ratio: float = Form(0.10),
+    files: List[UploadFile] = File(...)
+):
+    """
+    Creates and registers a new product-specific PatchCore inspection profile
+    from user-provided defect-free normal reference images.
+    Enforces strict calibration split between memory bank and threshold calibration.
+    """
+    if not files or len(files) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail=f"At least 2 normal reference images are required for few-shot adaptation (received {len(files)})."
+        )
+
+    decoded_images = []
+    filenames = []
+
+    for f in files:
+        contents = await f.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None and img.size > 0:
+            decoded_images.append(img)
+            filenames.append(f.filename or "sample.png")
+
+    if len(decoded_images) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only {len(decoded_images)} of the uploaded files could be decoded as valid image frames."
+        )
+
+    engine = get_optical_engine()
+    try:
+        adaptation_result = engine.profile_service.create_adapted_profile(
+            product_name=product_name,
+            sku=sku,
+            category=category,
+            acquisition_type=acquisition_type,
+            camera_id=camera_id,
+            lighting_profile=lighting_profile,
+            normal_images=decoded_images,
+            image_filenames=filenames,
+            calibration_split_ratio=calibration_split_ratio,
+            extractor=engine.extractor,
+            device=engine.device,
+            coreset_ratio=coreset_ratio
+        )
+        return adaptation_result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/intake")
+async def universal_intake_endpoint(
+    file: UploadFile = File(...),
+    inspection_mode: str = Form("universal"),
+    category: Optional[str] = Form(None),
+    profile_id: Optional[str] = Form(None)
+):
+    """
+    Universal Image Intake and Preprocessing Diagnostics Endpoint.
+    Analyzes resolution, format, foreground boundaries, optical quality, and domain.
+    """
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise HTTPException(status_code=400, detail="Failed to decode image payload.")
+
+    engine = get_optical_engine()
+    target_profile = engine.get_production_profile(profile_id) if profile_id else None
+    op_cat = None if (category == "auto" or not category) else category
+
+    intake_res = engine.intake_service.process_image(
+        image_bgr,
+        inspection_mode=inspection_mode,
+        target_profile=target_profile,
+        operator_category=op_cat
+    )
+    # Strip numpy arrays for JSON response
+    intake_res_clean = {k: v for k, v in intake_res.items() if k != "preprocessed_bgr"}
+    return intake_res_clean
+
 @app.post("/predict")
 async def predict_endpoint(
     file: UploadFile = File(...),
@@ -815,8 +906,9 @@ async def predict_endpoint(
     Supports:
     - Benchmark Mode: Category recognition (or category override) on 15 MVTec AD models.
     - Production Mode: Domain-adapted product inspection profile (profile_id) with fixed ROI and targeted thresholds.
+    - Universal Mode: Universal image intake, foreground extraction, and triage routing.
     """
-    if category != "auto" and category != "" and category is not None and category not in known_categories and not profile_id:
+    if category != "auto" and category != "" and category is not None and category not in known_categories and not profile_id and routing_mode != "universal":
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}. Choose from {known_categories} or 'auto'")
 
     contents = await file.read()

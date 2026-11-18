@@ -1,0 +1,35 @@
+{
+  "profile_id": "bottle_sku_btl_adapt_002",
+  "created_at": "2026-11-18T19:07:16.644424+00:00",
+  "product_name": "Clear Glass Bottle 500ml (Adapted Multi-Domain)",
+  "sku": "SKU-BTL-ADAPT-002",
+  "category": "bottle",
+  "acquisition_type": "controlled_photography",
+  "camera_id": "CAM-EXT-01",
+  "lighting_profile": "ambient_or_diffuse",
+  "training_samples_count": 5,
+  "calibration_samples_count": 2,
+  "rejected_samples_count": 0,
+  "raw_patches_count": 3920,
+  "coreset_vectors_count": 392,
+  "feature_dim": 384,
+  "grid_size": 28,
+  "coreset_ratio": 0.1,
+  "calibrated_threshold": 1.641,
+  "is_provisional": true,
+  "build_duration_sec": 5.52,
+  "artifacts": {
+    "memory_bank.npy": {
+      "sha256": "bae34d34eb8069da65d870c0ba64a5b5068f6c8479915c9460a3f077cfd11fa5",
+      "size_bytes": 602240
+    },
+    "index.faiss": {
+      "sha256": "560427117497d635c580f0d888b75caee28e2bd78f8a708220f3ff5c2d22e95e",
+      "size_bytes": 602157
+    },
+    "profile.json": {
+      "sha256": "192ab9bd49021e31e03a94ff8570702a5dba8b57b47744cfa54e9525b3b3c88f",
+      "size_bytes": 2097
+    }
+  }
+}

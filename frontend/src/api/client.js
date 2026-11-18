@@ -1011,6 +1011,26 @@ export const api = {
   },
 
   /**
+   * Adapt and register a new product-specific PatchCore profile from normal reference samples
+   */
+  async adaptProductProfile(formData) {
+    return await request('/api/production-profiles/adapt', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  /**
+   * Run universal intake and preprocessing diagnostics on an uploaded image
+   */
+  async runIntakeDiagnostics(formData) {
+    return await request('/api/intake', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  /**
    * Fetch category model registry status for all 15 MVTec AD categories
    */
   async getOpticalModelStatus() {
