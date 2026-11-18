@@ -1,5 +1,5 @@
 """
-DefectVision AI — Production Inspection Profile Service
+DefectVision AI â€” Production Inspection Profile Service
 Manages domain-adapted, product-specific optical inspection profiles.
 Each profile encapsulates:
 - Station & camera hardware configuration
@@ -107,6 +107,7 @@ class ProductionProfileService:
                 "calibrated_threshold": thresh_cfg.get("calibrated_threshold", 1.50),
                 "target_far": thresh_cfg.get("target_far", 0.01),
                 "model_version": model_cfg.get("model_version", "v1.0.0-prod"),
+                "validation_status": p.get("validation_status", "SIMULATED REFERENCE PROFILE â€” NOT PRODUCTION VALIDATED"),
                 "is_ready": True
             })
         return summaries

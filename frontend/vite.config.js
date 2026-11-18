@@ -11,6 +11,7 @@ export default defineConfig({
     port: 5174,
     host: '127.0.0.1',
     proxy: {
+      '/health': 'http://127.0.0.1:8001',
       '/predict': 'http://127.0.0.1:8001',
       '/explain': 'http://127.0.0.1:8001',
       '/models': 'http://127.0.0.1:8001',

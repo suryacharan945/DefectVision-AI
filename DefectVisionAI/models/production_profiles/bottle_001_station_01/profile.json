@@ -9,6 +9,7 @@
   "camera_id": "CAM-01-TOP-500",
   "lighting_profile": "diffuse_backlight_v1",
   "acquisition_type": "stationary",
+  "validation_status": "SIMULATED REFERENCE PROFILE — NOT PRODUCTION VALIDATED",
   "roi_config": {
     "type": "fixed_box",
     "relative_bbox": [

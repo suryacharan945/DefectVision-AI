@@ -32,7 +32,7 @@ PC_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 def run_localization_audit():
     print("=" * 70, flush=True)
-    print("DefectVision AI — Comprehensive 15-Category MVTec Localization Audit", flush=True)
+    print("DefectVision AI â€” Comprehensive 15-Category MVTec Localization Audit", flush=True)
     print("Computing Raw-Map Pooled Category Pixel AUROC, Per-Defect AUROC, IoU, and Dice", flush=True)
     print("=" * 70, flush=True)
 
@@ -95,11 +95,12 @@ def run_localization_audit():
 
             if is_def == 1:
                 n_defects += 1
-                if pd.notna(mask_path) and os.path.exists(str(mask_path)):
-                    gt_mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-                    gt_bin = (cv2.resize(gt_mask, (224, 224), interpolation=cv2.INTER_NEAREST) > 0).astype(np.uint8)
-                else:
-                    gt_bin = np.ones((224, 224), dtype=np.uint8)
+                if pd.isna(mask_path) or not os.path.exists(str(mask_path)):
+                    raise FileNotFoundError(f"[AUDIT FAILED] Defect specimen missing ground-truth mask: {fp} (mask: {mask_path})")
+                gt_mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+                if gt_mask is None:
+                    raise ValueError(f"[AUDIT FAILED] Ground-truth mask unreadable/corrupted: {mask_path}")
+                gt_bin = (cv2.resize(gt_mask, (224, 224), interpolation=cv2.INTER_NEAREST) > 0).astype(np.uint8)
 
                 if len(np.unique(gt_bin)) > 1:
                     try:
@@ -108,7 +109,7 @@ def run_localization_audit():
                     except Exception:
                         pass
 
-                # IoU and Dice using calibrated threshold
+                # IoU and Dice using calibrated threshold (Policy: sample-level calibrated threshold applied to raw map)
                 pred_bin = (smooth_map >= cat_thresh).astype(np.uint8)
                 inter = np.logical_and(pred_bin, gt_bin).sum()
                 union = np.logical_or(pred_bin, gt_bin).sum()
@@ -135,6 +136,8 @@ def run_localization_audit():
         mean_iou = float(np.mean(defect_ious)) if defect_ious else 0.0
         mean_dice = float(np.mean(defect_dices)) if defect_dices else 0.0
 
+        # Note: Grade specifically reflects pixel-level continuous distance map ranking quality (AUROC),
+        # not binary segmentation mask overlap (which has moderate IoU/Dice due to diffuse boundary profiles).
         grade = "EXCELLENT" if pooled_auc >= 0.95 else ("GOOD" if pooled_auc >= 0.90 else "ACCEPTABLE")
 
         elapsed = time.time() - t0
@@ -144,14 +147,15 @@ def run_localization_audit():
             "category": cat,
             "category_type": cat_type,
             "total_test_specimens": len(cat_df),
+            "total_test_pixels": len(cat_df) * 50176,
             "defect_specimens": n_defects,
-            "total_pixels_evaluated": total_pixels,
+            "defect_pixels_evaluated": n_defects * 50176,
             "calibrated_threshold": round(cat_thresh, 4),
-            "per_defect_mean_pixel_auroc": round(mean_per_defect_auc, 4),
             "pooled_category_pixel_auroc": round(pooled_auc, 4),
+            "per_defect_mean_pixel_auroc": round(mean_per_defect_auc, 4),
             "mean_defect_iou": round(mean_iou, 4),
             "mean_defect_dice": round(mean_dice, 4),
-            "localization_quality_grade": grade
+            "ranking_quality_grade": grade
         })
 
     out_df = pd.DataFrame(results)

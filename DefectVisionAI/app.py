@@ -252,7 +252,7 @@ def inspect_single_image(filepath, category):
         prob_defective = 1.0 if patchcore_defective else 0.0
     confidence_pct = prob_defective * 100
     effnet_defective = bool(prob_defective >= 0.5)
-    
+
     # Joint decision: flag as defective if either unsupervised PatchCore or supervised EfficientNet triggers
     predicted_label = "defective" if (patchcore_defective or effnet_defective) else "normal"
 
@@ -606,11 +606,11 @@ def fallback_explain(category, defect_type, severity_level, severity_score, defe
         f"Industrial inspection of the {category} identified a {defect_type} defect. "
         f"The defect covers approximately {defect_area_pct}% of the surface area. "
         f"Based on these measurements, the anomaly has been classified as {severity_level} (severity score: {severity_score}/100) with a classification confidence of {confidence_pct}%.",
-        
+
         f"A {defect_type} anomaly was detected on the inspected {category}. "
         f"This issue affects {defect_area_pct}% of the product surface. "
         f"The inspection engine assigned a severity score of {severity_score}/100 ({severity_level} level) with a classifier confidence of {confidence_pct}%.",
-        
+
         f"Inspection completed for the {category} component, revealing a {defect_type} defect. "
         f"The anomalous region spans {defect_area_pct}% of the surface area. "
         f"The system has classified this as a {severity_level} issue (severity score: {severity_score}/100, confidence: {confidence_pct}%)."
@@ -621,7 +621,7 @@ def fallback_explain(category, defect_type, severity_level, severity_score, defe
 # -----------------------------
 # FastAPI App Initialization
 # -----------------------------
-app = FastAPI(title="DefectVision AI — Live Inference Server")
+app = FastAPI(title="DefectVision AI â€” Live Inference Server")
 
 cors_env = os.environ.get("CORS_ORIGINS", "")
 allowed_origins = [
@@ -747,7 +747,7 @@ def get_system_health():
     return {
         "status": operational_status,
         "process_reachable": True,
-        "service": "DefectVision AI — Live Inference Server",
+        "service": "DefectVision AI â€” Live Inference Server",
         "version": "3.0.0",
         "device": str(device),
         "optical_engine_initialized": engine_init,
@@ -976,7 +976,7 @@ def process_batch_worker(batch_id, files_data, category):
     batch_dir = os.path.join(BATCH_DIR, batch_id)
     os.makedirs(batch_dir, exist_ok=True)
     temp_dir = tempfile.mkdtemp()
-    
+
     records = []
     total = len(files_data)
     active_batches[batch_id] = {
@@ -985,30 +985,30 @@ def process_batch_worker(batch_id, files_data, category):
         "total": total,
         "report": None
     }
-    
+
     try:
         for idx, (filename, content) in enumerate(files_data):
             fp = os.path.join(temp_dir, filename)
             with open(fp, "wb") as buffer:
                 buffer.write(content)
-                
+
             res = inspect_single_image(fp, category)
             if res:
                 res.pop("dist_map_norm", None)
                 # Keep file reference friendly
                 res["filename"] = filename
                 records.append(res)
-                
+
             active_batches[batch_id]["progress"] = idx + 1
-            
+
         results_df = pd.DataFrame(records)
         results_df.to_csv(os.path.join(batch_dir, "results.csv"), index=False)
-        
+
         report = build_batch_report(results_df, batch_id)
         report["results"] = results_df.to_dict("records")
         with open(os.path.join(batch_dir, "batch_report.json"), "w") as f:
             json.dump(report, f, indent=2)
-            
+
         active_batches[batch_id]["status"] = "completed"
         active_batches[batch_id]["report"] = report
     except Exception as e:
@@ -1020,15 +1020,15 @@ def process_batch_worker(batch_id, files_data, category):
 async def batch_endpoint(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...), category: str = Form(...)):
     if category not in known_categories:
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
-        
+
     batch_id = datetime.now().strftime("batch_%Y%m%d_%H%M%S")
-    
+
     # Read files memory content to pass to thread safely
     files_data = []
     for f in files:
         content = await f.read()
         files_data.append((f.filename, content))
-        
+
     background_tasks.add_task(process_batch_worker, batch_id, files_data, category)
     return {"batch_id": batch_id, "status": "queued"}
 
@@ -1066,15 +1066,15 @@ async def similarity_endpoint(file: UploadFile = File(...), category: str = Form
         img_bgr = cv2.imread(filepath)
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         tensor = eff_transform(image=img_rgb)["image"].unsqueeze(0).to(device)
-        
+
         # Extract features
         with torch.no_grad():
             emb = embedding_extractor(tensor)[0].cpu().numpy()
-            
+
         # Query FAISS index
         faiss_index = loaded_faiss_indices[category]
         top_matches = faiss_index.search(emb, k=5)
-        
+
         return {"matches": top_matches}
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -1104,7 +1104,7 @@ def explain_endpoint(payload: ExplainPayload):
             return {"explanation": cleaned}
         except Exception as e:
             print(f"LLM explanation error: {e}")
-            
+
     # Fallback template explanation
     explanation = fallback_explain(
         category=payload.category,
@@ -1123,28 +1123,44 @@ class RagPayload(BaseModel):
 def rag_ask_endpoint(payload: RagPayload):
     # Semantic retrieval from KB
     retrieved_entries = kb_index.search(payload.question, k=3)
+    best_dist = retrieved_entries[0].get("relevance_distance", 999.0) if retrieved_entries else 999.0
+
+    # Check if direct defect keyword appears in query
+    direct_match = None
+    for entry in retrieved_entries:
+        if entry["defect_type"].lower() in payload.question.lower():
+            direct_match = entry
+            break
+
+    # Determine evidence sufficiency: direct keyword or semantic distance threshold <= 1.35
+    has_evidence = (direct_match is not None) or (best_dist <= 1.35)
+
+    if not has_evidence:
+        return {
+            "answer": "I searched the defect knowledge base, but could not find sufficient matching defect documentation for this query. Please ask an industrial defect question regarding cracks, contamination, scratches, or deformations.",
+            "has_sufficient_evidence": False,
+            "source_citation": None,
+            "relevance_distance": round(best_dist, 4),
+            "retrieved_defect_types": []
+        }
+
+    matched_entry = direct_match or (retrieved_entries[0] if retrieved_entries else None)
     defect_types = [entry["defect_type"] for entry in retrieved_entries]
-    
+
     if llm_loaded:
         prompt_msgs = build_rag_prompt(payload.question, retrieved_entries)
         try:
             answer = generate_explanation(llm_pipeline, llm_tokenizer, prompt_msgs, max_new_tokens=150)
             return {
                 "answer": answer,
+                "has_sufficient_evidence": True,
+                "source_citation": f"MVTec Domain Knowledge Base: {matched_entry['defect_type']}" if matched_entry else "MVTec Domain Knowledge Base",
+                "relevance_distance": round(best_dist, 4),
                 "retrieved_defect_types": defect_types
             }
         except Exception as e:
             print(f"RAG LLM error: {e}")
-            
-    # Fallback semantic RAG lookup
-    matched_entry = None
-    for entry in retrieved_entries:
-        if entry["defect_type"].lower() in payload.question.lower():
-            matched_entry = entry
-            break
-    if not matched_entry and retrieved_entries:
-        matched_entry = retrieved_entries[0]
-        
+
     if matched_entry:
         answer = (
             f"Regarding {matched_entry['defect_type']}: it is commonly caused by {matched_entry['cause']}. "
@@ -1153,9 +1169,12 @@ def rag_ask_endpoint(payload: RagPayload):
         )
     else:
         answer = "I searched the knowledge base, but couldn't find matching defect types. Try asking about specific defects like scratch, crack, or contamination."
-        
+
     return {
         "answer": answer,
+        "has_sufficient_evidence": True,
+        "source_citation": f"MVTec Domain Knowledge Base: {matched_entry['defect_type']}",
+        "relevance_distance": round(best_dist, 4),
         "retrieved_defect_types": defect_types
     }
 
@@ -1166,16 +1185,23 @@ class AskPayload(BaseModel):
 def ask_dashboard_endpoint(payload: AskPayload):
     question = payload.question
     intent = route_intent(question)
-    
+
     if not intent:
         return {
             "answer": "I'm sorry, I couldn't identify the dashboard analytic you are asking about. You can ask about defect rates, most common defects, best model comparison, severity distribution, or production drift.",
             "source": "template fallback",
             "intent": None
         }
-        
+
     try:
-        if intent == "most_common_defect":
+        if intent == "total_inspections":
+            engine = get_optical_engine()
+            stats = engine.history_service.get_statistics()
+            tot = stats.get("total_inspections", len(engine.history_service.records))
+            normal_cnt = stats.get("verdicts", {}).get("NORMAL", 0)
+            def_cnt = stats.get("verdicts", {}).get("DEFECTIVE", 0)
+            ans = f"A total of {tot} live inspections have been recorded in the current session ({normal_cnt} normal, {def_cnt} defective)."
+        elif intent == "most_common_defect":
             cat = extract_category(question, known_categories)
             res = analytics.most_common_defect(cat)
             if res:
@@ -1205,7 +1231,7 @@ def ask_dashboard_endpoint(payload: AskPayload):
             ans = f"The weakest category for PatchCore is '{res['category']}' with an AUROC score of {res['auroc']}."
         else:
             ans = "I routed the intent but could not compute the answer."
-            
+
         return {
             "answer": ans,
             "source": "template fallback",
@@ -1222,7 +1248,7 @@ def ask_dashboard_endpoint(payload: AskPayload):
 def ask_rca_endpoint(payload: AskPayload):
     question = payload.question
     q = question.lower()
-    
+
     try:
         if "correlation" in q or "disagreement" in q or "agree" in q:
             res = rca.confidence_severity_correlation()
@@ -1246,7 +1272,7 @@ def ask_rca_endpoint(payload: AskPayload):
                 ans = f"Here is the severity ranking of defect types{' for ' + cat if cat else ''}: {ranking_str}."
             else:
                 ans = "Could not compute root cause patterns. Try asking about confidence-severity correlation, high-severity low-confidence cases, defect area relationship, or weakest detection categories."
-                
+
         return {
             "answer": ans,
             "source": "template fallback",
@@ -1272,16 +1298,16 @@ def get_severity_logs(category: str = None, severity_level: str = None, page: in
         df = df[df["category"].str.lower() == category.lower()]
     if severity_level:
         df = df[df["severity_level"].str.lower() == severity_level.lower()]
-        
+
     total_records = len(df)
     total_pages = (total_records + page_size - 1) // page_size
-    
+
     df = df.sort_values("severity_score", ascending=False)
-    
+
     start = (page - 1) * page_size
     end = start + page_size
     records = df.iloc[start:end].to_dict("records")
-    
+
     # Pre-cache explanation lookup for benchmark
     exp_path = os.path.join(LOGS_DIR, "step15_llm_explanations.csv")
     exp_map = {}
@@ -1314,7 +1340,7 @@ def get_severity_logs(category: str = None, severity_level: str = None, page: in
                 defect_area_pct=float(r.get("defect_area_pct", 5.0)),
                 confidence_pct=float(r.get("confidence_pct", 95.0))
             )
-        
+
     return {
         "records": records,
         "page": page,

@@ -3,7 +3,7 @@
   "repository": "https://github.com/suryacharan945/DefectVision-AI",
   "release_branch": "release/full-stack-completion-2026-11-17",
   "pull_request": "https://github.com/suryacharan945/DefectVision-AI/pull/5",
-  "timestamp_utc": "2026-11-18T14:36:40.833259+00:00",
+  "timestamp_utc": "2026-11-18T15:27:25.980988+00:00",
   "runtime_environment": {
     "os_name": "Windows",
     "os_release": "11",
@@ -102,13 +102,13 @@
   "production_profiles": {
     "bottle_001_station_01": {
       "path": "DefectVisionAI/models/production_profiles/bottle_001_station_01/profile.json",
-      "sha256": "06ec22663219cb8e2c32381fc5e11544c5473d373d2c2c259a44f1ea2f0a61ef"
+      "sha256": "17e15cd61408d239a63148a3061e82f8ed7c57b7f38502679d8eb25ab19217ad"
     }
   },
   "core_verification_scripts": {
     "compute_all_mvtec_localization_py": {
       "path": "scripts/compute_all_mvtec_localization.py",
-      "sha256": "61f6aa7e6a0234430d0dda4301b0ca20a4518f774e5d5728cfb36f0009aaf286"
+      "sha256": "ad05d4d4ea458f7d5d7066fbbb1818e333bfadc6d551232a5771134c4ba3bb3a"
     },
     "run_workflow_b_stratified_py": {
       "path": "scripts/run_workflow_b_stratified.py",
@@ -116,7 +116,7 @@
     },
     "test_robust_feature_matrix_py": {
       "path": "scripts/test_robust_feature_matrix.py",
-      "sha256": "cc7ccb93098f2b794c5a48366e0b5b9c2d139891e1a2a02834859c9c3199181b"
+      "sha256": "8c58fa56e9d839a694b620e4b852fccca08735fbc9a834bd8f90a63e857691b0"
     },
     "audit_threshold_sensitivity_py": {
       "path": "scripts/audit_threshold_sensitivity.py",
@@ -145,7 +145,7 @@
     },
     "feature_acceptance_matrix_csv": {
       "path": "release/final_validation/FEATURE_ACCEPTANCE_MATRIX.csv",
-      "sha256": "3d9eda481b903fd92af338154ec47c942858f91898fa58ba629a7a85877456d6",
+      "sha256": "66239b14f8d4457e3e7836d877fdb09b3250238d5318c0692f3ff1acd0ee78e9",
       "role": "23-point verified feature acceptance matrix across all endpoints"
     },
     "workflow_b_stratified_results_csv": {
@@ -155,7 +155,7 @@
     },
     "mvtec_localization_audit_csv": {
       "path": "release/final_validation/MVTEC_LOCALIZATION_AUDIT.csv",
-      "sha256": "d9667976622cbcf1697d69ae49a91e8c12060c9abf6cb01d90ca3b16f644e9fd",
+      "sha256": "7da4d6a096d8ac4c3890872e258f6d515ff1a47148867179c9233dad7f4a9cf8",
       "role": "Raw-map pooled and per-defect pixel AUROC, IoU, and Dice across 15 categories"
     }
   }
