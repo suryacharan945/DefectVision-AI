@@ -1,0 +1,8 @@
+Confusion Matrix: Domain B: Controlled External Photos | Few-Shot Adapted Profile (adapt_002)
+Threshold: 1.6410
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            2                   0
+Actual DEFECTIVE         0                   1
+
+Recall: 100.0%, Specificity: 100.0%, Precision: 100.0%, F1: 1.0000
+AUROC: 1.0000, AUPRC: 1.0000

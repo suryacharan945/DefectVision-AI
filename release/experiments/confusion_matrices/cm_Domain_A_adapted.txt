@@ -1,0 +1,8 @@
+Confusion Matrix: Domain A: MVTec Benchmark | Few-Shot Adapted Profile (adapt_002)
+Threshold: 1.6410
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            1                   4
+Actual DEFECTIVE         0                   5
+
+Recall: 100.0%, Specificity: 20.0%, Precision: 55.6%, F1: 0.7143
+AUROC: 1.0000, AUPRC: 1.0000

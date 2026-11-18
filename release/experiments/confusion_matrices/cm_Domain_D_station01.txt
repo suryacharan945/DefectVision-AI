@@ -1,0 +1,8 @@
+Confusion Matrix: Domain D: Factory-Style Stationary | Simulated Station 01 Profile
+Threshold: 0.8333
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            0                   5
+Actual DEFECTIVE         0                   5
+
+Recall: 100.0%, Specificity: 0.0%, Precision: 50.0%, F1: 0.6667
+AUROC: 1.0000, AUPRC: 1.0000

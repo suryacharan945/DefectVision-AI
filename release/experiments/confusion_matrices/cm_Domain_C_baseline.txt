@@ -1,0 +1,8 @@
+Confusion Matrix: Domain C: Smartphone & Handheld Photos | Baseline MVTec PatchCore
+Threshold: 1.4666
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            2                   0
+Actual DEFECTIVE         0                   2
+
+Recall: 100.0%, Specificity: 100.0%, Precision: 100.0%, F1: 1.0000
+AUROC: 1.0000, AUPRC: 1.0000

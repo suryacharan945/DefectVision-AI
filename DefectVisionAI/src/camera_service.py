@@ -43,7 +43,7 @@ CONCLUSION_MAP = {
     "NORMAL": "NO DEFECT DETECTED",
     "DEFECTIVE": "POSSIBLE DEFECT DETECTED",
     "REVIEW REQUIRED": "MANUAL INSPECTION REQUIRED",
-    "UNSUPPORTED": "REFERENCE PROFILE REQUIRED",
+    "UNSUPPORTED": "UNSUPPORTED OR UNKNOWN CATEGORY",
 }
 
 DISCLAIMER = "The result reflects the model's learned visual patterns and does not guarantee the absence of all possible defects."

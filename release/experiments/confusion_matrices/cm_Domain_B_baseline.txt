@@ -1,0 +1,8 @@
+Confusion Matrix: Domain B: Controlled External Photos | Baseline MVTec PatchCore
+Threshold: 1.4666
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            0                   2
+Actual DEFECTIVE         0                   1
+
+Recall: 100.0%, Specificity: 0.0%, Precision: 33.3%, F1: 0.5000
+AUROC: 0.0000, AUPRC: 0.3333
