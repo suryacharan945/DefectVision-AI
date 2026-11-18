@@ -1,24 +1,40 @@
 # DefectVision AI — Official 15-Category MVTec AD Acceptance & Verification Report
 
-**Date:** 2026-11-18 11:28:37 UTC  
-**Dataset Location:** `C:\Users\surya\Downloads\Mini Project\DefectVisionAI\dataset\raw\mvtec`  
-**Total Specimens Evaluated:** 1725 (467 nominal, 1,258 defective)  
+**Date:** 2026-11-18 13:33:56 UTC<br>
+**Dataset Location:** `C:\Users\surya\Downloads\Mini Project\DefectVisionAI\dataset\raw\mvtec`<br>
+**Total Specimens Evaluated:** 1725 (467 nominal, 1,258 defective)<br>
+**Scientific Protocol:** Disjoint calibration split; isolated benchmark evaluation.
 
-## 1. Executive Benchmark Summary
+## 1. Macro-Averaged Benchmark Metrics (Across 15 Categories)
 
-| Evaluation Dimension | Workflow A: Known Category | Workflow B: Auto-Category Routing |
+| Evaluation Dimension | Macro Metric Value | Definition |
+|:---|:---:|:---|
+| **Macro Image AUROC** | **97.15%** | Unweighted mean of category-specific AUROC scores |
+| **Macro Image AUPRC** | **98.98%** | Unweighted mean of precision-recall curve areas |
+| **Macro Defect Recall** | **95.40%** | Unweighted mean of category defect sensitivities |
+| **Macro Specificity** | **70.96%** | Unweighted mean of category true-negative rates |
+| **Macro Precision** | **90.41%** | Unweighted mean of category precisions |
+| **Macro F1-Score** | **92.40%** | Harmonic mean of Macro Precision and Macro Recall |
+| **Reported Pixel AUROC** | **98.02%** | Mean per-defective-image localization AUROC |
+
+## 2. Aggregate Confusion Matrix & Micro Metrics (All 1,725 Specimens)
+
+| Metric | Formula / Count | Value |
 |:---|:---:|:---:|
-| **Macro Image AUROC** | **97.15%** | - |
-| **Macro Image AUPRC** | **98.98%** | - |
-| **Defect Sensitivity / Recall** | **95.40%** (1183 / 1258) | - |
-| **Nominal Specificity** | **70.96%** (351 / 467) | - |
-| **Macro F1-Score** | **92.40%** | - |
-| **Pixel AUROC (Localization)** | **98.02%** | - |
-| **Category Recognition Accuracy** | 100.0% (Operator Override) | **92.83%** |
+| **True Positives (TP)** | Correctly flagged defective specimens | **1183** / 1,258 |
+| **False Positives (FP)** | Normal specimens falsely flagged defective | **116** / 467 |
+| **True Negatives (TN)** | Normal specimens correctly classified normal | **351** / 467 |
+| **False Negatives (FN)** | Defective specimens missed | **75** / 1,258 |
+| **Micro Recall (Sensitivity)** | $\frac{TP}{TP + FN} = \frac{1183}{1258}$ | **94.04%** |
+| **Micro Specificity** | $\frac{TN}{TN + FP} = \frac{351}{467}$ | **75.16%** |
+| **Micro Precision** | $\frac{TP}{TP + FP} = \frac{1183}{1299}$ | **91.07%** |
+| **Micro F1-Score** | $2 \cdot \frac{P \cdot R}{P + R}$ | **92.53%** |
+| **Overall Accuracy** | $\frac{TP + TN}{N} = \frac{1534}{1725}$ | **88.93%** |
+| **False Alarm Rate (FPR)** | $\frac{FP}{FP + TN} = \frac{116}{467}$ | **24.84%** |
 
-## 2. Per-Category Performance Breakdown
+## 3. Per-Category Performance Breakdown
 
-| Category | Type | Test (Nom/Def) | AUROC | AUPRC | Recall | Specificity | F1 | Pix AUROC | Mean Latency | Auto-Cat Acc |
+| Category | Type | Test Split (Nom/Def) | AUROC | AUPRC | Recall | Specificity | F1-Score | Pix AUROC | Mean Latency | Auto-Cat Acc |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | `bottle` | object | 20/63 | **100.00%** | 100.00% | 100.00% | 100.00% | 100.00% | 98.6% | 1009.4 ms | 98.8% |
 | `cable` | object | 58/92 | **98.76%** | 99.18% | 90.22% | 96.55% | 93.79% | 98.1% | 1859.2 ms | 96.7% |
@@ -37,9 +53,9 @@
 | `zipper` | object | 32/119 | **95.19%** | 98.08% | 99.16% | 71.88% | 95.93% | 98.9% | 1958.0 ms | 100.0% |
 | **MACRO AVERAGE** | **15 Categories** | **467/1258** | **97.15%** | **98.98%** | **95.40%** | **70.96%** | **92.40%** | **98.02%** | **1991.8 ms** | **92.83%** |
 
-## 3. Scientific Disclosures & Integrity Protocol Compliance
+## 4. Scientific Disclosures & Integrity Protocol Compliance
 
 1. **Data Separation:** The 1,725 official test specimens were strictly quarantined during training and calibration. Zero test specimens were used for memory-bank construction or threshold calibration.
 2. **Preprocessing Consistency:** Live Benchmark Mode and offline evaluation use identical full-frame preprocessing (RGB -> 224x224 -> ImageNet normalization) without ROI cropping.
-3. **Threshold Calibration:** Decision boundaries were calibrated strictly on disjoint calibration images using the empirical p99 quantile.
+3. **Threshold Calibration:** Decision boundaries were calibrated strictly on disjoint calibration images using the empirical p99.5 quantile.
 4. **Full Artifact Integrity:** Confusion matrices, prediction logs, and visual comparison grids are published in `C:\Users\surya\Downloads\Mini Project\release\final_validation`.

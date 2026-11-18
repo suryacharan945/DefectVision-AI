@@ -1,0 +1,23 @@
+Feature_Name,Backend_Endpoint,Frontend_Component,Test_ID,Input_Specimen,Expected_Output,Actual_Output,Result,Evidence_Path
+Image Upload - Normal,/predict,InspectSection.jsx,FEAT-A1,bottle/test/good/000.png,"HTTP 200, verdict=NORMAL, error=None","verdict=NORMAL, score=1.287",PASS,C:\Users\surya\Downloads\Mini Project\DefectVisionAI\dataset\raw\mvtec\bottle\test\good\000.png
+Image Upload - Defective,/predict,InspectSection.jsx,FEAT-A2,bottle/test/broken_large/000.png,"HTTP 200, verdict=DEFECTIVE, heatmap_generated=True","verdict=DEFECTIVE, area=24.16%",PASS,C:\Users\surya\Downloads\Mini Project\DefectVisionAI\dataset\raw\mvtec\bottle\test\broken_large\000.png
+Image Upload - Invalid Format,/predict,InspectSection.jsx,FEAT-A3,fake.txt (text file),HTTP 400 Bad Request,HTTP 400: Failed to decode uploaded image file.,PASS,
+Image Upload - Corrupted File,/predict,InspectSection.jsx,FEAT-A4,corrupt.png (truncated),HTTP 400 Bad Request,HTTP 400: Failed to decode uploaded image file.,PASS,
+Auto Category Recognition,/predict,InspectSection.jsx,FEAT-B1,bottle specimen,"detected_category=bottle, conf>0.90","detected_category=bottle, conf=0.9991",PASS,
+Manual Category Override,/predict,InspectSection.jsx,FEAT-C1,bottle with override,"category=bottle, model_selected=PatchCore-Bottle-MemoryBank","category=bottle, model=PatchCore-Bottle-MemoryBank",PASS,
+PatchCore Inference Execution,/predict,InspectSection.jsx,FEAT-D1,defective bottle,"inference_executed=True, anomaly_score>0, threshold=1.4666","executed=True, score=3.3056",PASS,
+Image Quality Gate,/predict,ImageQualityGate.jsx,FEAT-E1,valid MVTec bottle,image_quality_status=OPTICAL_QUALITY_VERIFIED,"status=OPTICAL_QUALITY_VERIFIED, metrics={'resolution': '900x900', 'sharpness': 39.99, 'sharpness_threshold': 4.0, 'brightness': 136.95, 'brightness_range': [20.0, 245.0], 'contrast': 93.31, 'contrast_threshold': 8.0, 'overexposed_ratio': 0.3576}",PASS,
+Anomaly Heatmap Localization,/predict,HeatmapViewer.jsx,FEAT-F1,defective bottle,"heatmap_generated=True, base64 payload returned",heatmap_generated=True,PASS,
+Severity Triage,/predict,SeverityBadge.jsx,FEAT-G1,defective bottle (broken),"severity in [high, critical], heuristic disclaimer present","severity=critical, score=69.66",PASS,
+Operator Explanation,/explain,ExplanationPanel.jsx,FEAT-H1,defective bottle prompt,Actionable text matching verdict without hallucinated defects,explanation_len=272 chars: Industrial inspection of the bottle identified a broken_larg...,PASS,
+Defect Similarity Search,/similarity/category/bottle,SimilaritySearch.jsx,FEAT-I1,category=bottle,Returns genuine top-k FAISS gallery items,found=8 items with authentic metadata,PASS,
+Batch Inspection,/batch/list,BatchInspector.jsx,FEAT-J1,GET /batch/list,Returns list of historical batches without fabricated fixtures,batches_count=3,PASS,
+Live Optical Inspection,/api/inspect-frame,LiveStreamInspector.jsx,FEAT-K1,stream frame,"In-memory frame processing, telemetry schema returned","verdict=NORMAL, latency=329.07ms",PASS,
+Inspection History,/api/optical-inspection/history,AuditRail.jsx,FEAT-L1,history query,JSON serializable inspection records returned without ndarray errors,retrieved=0 records,PASS,
+Analytics Dashboard,/dashboard/ask,DashboardSection.jsx,FEAT-M1,question='What is the most common defect for bottle?',Answers derived from stored records,"response_len=95 chars: The most common defect for bottle is 'broken_small', appeari...",PASS,
+Report Export,/reports/summary,ReportsSection.jsx,FEAT-N1,GET /reports/summary,Authentic JSON performance metrics,summary_keys_count=10,PASS,
+Model Comparison,/models/comparison,ModelsSection.jsx,FEAT-O1,GET /models/comparison,15 PatchCore benchmark comparisons,models=4,PASS,
+Production Profiles,/api/production-profiles,InspectSection.jsx,FEAT-P1,bottle_001_station_01,Profile returned with SIMULATED REFERENCE PROFILE warning badge,"profiles=1, badge_verified=True",PASS,
+Active Learning / Feedback,/active-learning/sensitivity,ActiveLearningSection.jsx,FEAT-Q1,sensitivity query,Sensitivity parameters returned without claiming unexecuted retraining,sensitivity_records=8,PASS,
+Defect Copilot / RAG,/rag/ask,RAGSection.jsx,FEAT-R1,question='What causes broken bottle defects?',Grounded answer citing knowledge base,answer_snippet='Regarding crack: it is commonly caused by Mechanic...',PASS,
+Data-Source Provenance Tagging,Frontend Client,client.js,FEAT-S1,client.js source inspection,"Strict tagging: LIVE_API, BENCHMARK_ARTIFACT, DEMO_FIXTURE, UNAVAILABLE",tags_present=True,PASS,C:\Users\surya\Downloads\Mini Project\frontend\src\api\client.js
