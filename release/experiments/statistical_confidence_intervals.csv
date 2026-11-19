@@ -1,0 +1,8 @@
+metric_name,numerator,denominator,point_estimate_pct,ci_method,ci_lower_pct,ci_upper_pct,physical_specimens,statistical_independence_level,can_support_low_fpr_claim,sample_size_note
+Track A Bottle Few-Shot FPR (K=20 Original Frozen),4,20,20.0,Wilson Score 95%,8.1,41.6,20,High (Distinct Physical MVTec Bottles),False,Sample size N=20 has minimum non-zero resolution of 5.0%. Cannot support <1% FPR claims.
+Track A Bottle Few-Shot FPR (K=20 Multiplicative Post-Hoc),0,20,0.0,Wilson Score 95%,0.0,16.1,20,High (Distinct Physical MVTec Bottles),False,"By Rule-of-Three, 0 FP on N=20 provides 95% upper bound of 3/20 = 15.0%. Cannot claim <1% FPR."
+Track A Bottle Few-Shot Recall (K=20),63,63,100.0,Wilson Score 95%,94.2,100.0,63,High (Distinct Physical MVTec Defects),True,N=63 defects establishes lower 95% confidence bound of 94.2% recall.
+Track B External Domain Studio Bottle Accuracy,3,3,100.0,Clopper-Pearson Exact 95%,29.2,100.0,3,Low (Only 3 distinct physical units total),False,Statistically underpowered. 95% CI spans from 29.2% to 100.0%. Formally BLOCKED.
+Pill Color Defect Recall (Variant D3 lambda=0.5),6,25,24.0,Wilson Score 95%,11.5,43.4,25,High (Distinct Physical MVTec Pills),False,Fails operational target (24.0% vs >=85.0% required). CI upper bound is only 43.4%.
+Pill Structural Crack Recall (Variant D3 lambda=0.5),3,26,11.5,Wilson Score 95%,4.0,29.0,26,High (Distinct Physical MVTec Pills),False,Fails operational target (11.5% vs >=95.0% required). PatchCore threshold too tight on Pill.
+Pill Normal Test FPR (Variant D3 lambda=0.5),1,26,3.8,Wilson Score 95%,0.7,18.9,26,High (Distinct Physical MVTec Pills),False,"Meets point-target (3.8% <= 5.0%), but 95% CI upper bound is 18.9% due to N=26."

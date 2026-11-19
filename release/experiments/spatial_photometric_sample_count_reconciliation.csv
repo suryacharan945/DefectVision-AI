@@ -1,0 +1,5 @@
+subset_name,prompt_claimed_count,actual_directory_count,discrepancy,root_cause
+Test Normals (test/good),26,26,0,"Exact match across prompt, directory, and code."
+Test Color Defects (test/color),15,25,10,Prompt assumed hypothetical 15; code iterated over entire directory (25 genuine MVTec specimens).
+Test Structural Cracks (test/crack),20,26,6,Prompt assumed hypothetical 20; code iterated over entire directory (26 genuine MVTec specimens).
+Total Evaluated Test Specimens,61,77,16,All 77 are genuine MVTec AD specimens. Discrepancy is 100% accounted for by the 10 additional color and 6 additional crack specimens.
