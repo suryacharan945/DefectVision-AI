@@ -7,7 +7,7 @@
 ---
 
 ## 1. Abstract
-Industrial surface inspection requires reliable, unsupervised anomaly detection across diverse product categories without requiring thousands of defective training specimens. In this work, we present **DefectVision AI v1.0.0-rc1**, an industrial visual anomaly detection research prototype integrating ResNet-18 patch embeddings, FAISS nearest-neighbor coreset memory banks (PatchCore), and temperature-calibrated category classification (EfficientNet-B0) with an optical quality gate. Evaluated across all 15 categories of the MVTec Anomaly Detection benchmark (1,725 test images), the system achieves a mean image-level AUROC of $97.8\%$, an overall false positive rate of $2.10\%$ ($95\%$ CI: $[1.40\%, 3.12\%]$), and a defect recall of $97.40\%$ ($95\%$ CI: $[96.10\%, 98.30\%]$). We report an extensive audit of few-shot adaptation ($K \in \{5, 10, 20\}$), post-hoc threshold selection leakage, spatial-photometric feature fusion failure mechanisms, and statistical sample-size requirements. We demonstrate that single-bank feature concatenation fails due to extreme dimensional imbalance ($384$ vs $3$ channels), establish that K=10 adaptation under an a priori frozen threshold policy outperforms K=20 ($0\%$ vs $20\%$ FPR), and prove via the Rule of Three that confirming a factory false-alarm rate $<1\%$ requires at least 300 normal specimens.
+Industrial surface inspection requires reliable, unsupervised anomaly detection across diverse product categories without requiring thousands of defective training specimens. In this work, we present **DefectVision AI v1.0.0-rc1**, an industrial visual anomaly detection research prototype integrating ResNet-18 patch embeddings, FAISS nearest-neighbor coreset memory banks (PatchCore), and temperature-calibrated category classification (EfficientNet-B0) with an optical quality gate. Evaluated across all 15 categories of the MVTec Anomaly Detection benchmark (1,725 test images), the system achieves a verified macro image-level AUROC of $97.15\%$ (Macro Image AUPRC: $98.98\%$, Reported Pixel AUROC: $98.02\%$), an overall micro false positive rate of $24.84\%$ ($116/467$), and a micro defect recall of $94.04\%$ ($1,183/1,258$, Macro Recall: $95.40\%$). We report an extensive audit of few-shot adaptation ($K \in \{5, 10, 20\}$), post-hoc threshold selection leakage, spatial-photometric feature fusion failure mechanisms, and statistical sample-size requirements. We demonstrate that single-bank feature concatenation fails due to extreme dimensional imbalance ($384$ vs $3$ channels), establish that K=10 adaptation under an a priori frozen threshold policy outperforms K=20 ($0\%$ vs $20\%$ FPR), and prove via the Rule of Three that confirming a factory false-alarm rate $<1\%$ requires at least 300 normal specimens.
 
 ---
 
@@ -20,6 +20,8 @@ Unsupervised anomaly detection formulates quality inspection as out-of-distribut
 3. **Photometric Insensitivity:** High-level CNN representations encode morphological geometry while discarding subtle color shifts.
 
 DefectVision AI v1.0.0-rc1 addresses these challenges within a unified, reproducible research prototype.
+
+*Note on Specimen Terminology:* Throughout this report, evaluated units are designated as **"test images"** or **"evaluation image captures"**. While file-level SHA-256 uniqueness is verified across all samples, unique hashes confirm bit-level file distinction and must not be conflated with proof of independent physical manufacturing units.
 
 ---
 
@@ -58,18 +60,21 @@ Evaluated using the complete 15-category MVTec AD benchmark:
 
 ---
 
-## 7. EfficientNet-B0 Category Classification
-- **Architecture:** Timm EfficientNet-B0 ($1280 \to 15$).
+## 7. EfficientNet-B0 Category Classification vs. Binary Baseline
+- **Architecture:** Timm EfficientNet-B0 ($1280 \to 15$ classes) in `models/category_classifier/`.
+- **Target Task:** 15-Class Product Category Recognition (SKU identification for automated routing).
 - **Validation Accuracy (726 images):** **100.00%**.
-- **Test Set Accuracy (1,725 images):** **99.94%** (1,724 / 1,725 correct; only 1 misclassification across all classes).
-- **OOD Rejection:** Correctly rejects synthetic noise, solid textures, and non-industrial items with $100\%$ precision via entropy thresholding.
+- **Test Set Accuracy (1,725 images):** **99.94%** (1,724 / 1,725 correct; exactly 1 misclassification across all classes).
+- **Open-Set OOD Rejection:** Correctly flags synthetic noise and out-of-domain images with high entropy ($H_{\text{norm}} \ge 0.65$).
+- **Disambiguation from Historical Binary Defect Baseline:** The historical **86.92%** accuracy ($764 / 856$) evaluated supervised **binary defect classification** (Normal vs. Defective) in `models/efficientnet_baseline_v3/` which suffered 111 missed defects. The 99.94% metric measures multi-class SKU category routing.
 
 ---
 
 ## 8. PatchCore Anomaly Detection
-Evaluated across all 15 MVTec AD categories:
-- **Mean Image-Level AUROC:** **97.8%**.
-- **Mean Pixel-Level AUROC:** **96.5%**.
+Evaluated across all 15 MVTec AD categories (1,725 test images):
+- **Macro Image-Level AUROC:** **97.15%** (unweighted arithmetic mean across 15 classes).
+- **Macro Image-Level AUPRC:** **98.98%**.
+- **Reported Pixel-Level AUROC:** **98.02%** (mean localization AUROC on defective masks).
 - **Average Inference Latency:** $110 - 165 \text{ ms}$ on multi-core CPU.
 - **Memory Consumption:** $\approx 1.8 \text{ GB}$ total resident RAM for all 15 cached models and indexes.
 
@@ -97,26 +102,33 @@ Investigating SKU onboarding efficiency on the bottle benchmark ($N=83$ test spe
 
 ## 11. Quantitative Benchmark Results
 
-Comprehensive evaluation across all 15 categories under production calibrated thresholds:
+Comprehensive evaluation across all 15 categories under production calibrated thresholds from `release/final_validation/mvtec_all_predictions.csv`:
 
-| Category | Type | Test Normal ($N$) | Test Defect ($N$) | False Positives | Defect Misses | Category FPR (%) | Category Recall (%) | Image AUROC |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| **bottle** | Object | 20 | 63 | 0 | 0 | 0.00% | 100.00% | 100.0% |
-| **cable** | Object | 58 | 92 | 2 | 4 | 3.45% | 95.65% | 96.2% |
-| **capsule** | Object | 23 | 109 | 1 | 3 | 4.35% | 97.25% | 98.1% |
-| **carpet** | Texture | 28 | 89 | 1 | 2 | 3.57% | 97.75% | 98.5% |
-| **grid** | Texture | 21 | 57 | 0 | 2 | 0.00% | 96.49% | 97.8% |
-| **hazelnut** | Object | 40 | 70 | 1 | 1 | 2.50% | 98.57% | 99.1% |
-| **leather** | Texture | 32 | 92 | 0 | 1 | 0.00% | 98.91% | 99.8% |
-| **metal_nut** | Object | 22 | 93 | 1 | 2 | 4.55% | 97.85% | 97.2% |
-| **pill** | Object | 26 | 141 | 1 | 12 | 3.85% | 91.49% | 94.6% |
-| **screw** | Object | 41 | 119 | 1 | 3 | 2.44% | 97.48% | 96.8% |
-| **tile** | Texture | 33 | 84 | 1 | 2 | 3.03% | 97.62% | 98.2% |
-| **toothbrush** | Object | 12 | 30 | 0 | 1 | 0.00% | 96.67% | 98.4% |
-| **transistor** | Object | 60 | 40 | 1 | 2 | 1.67% | 95.00% | 95.1% |
-| **wood** | Texture | 19 | 60 | 0 | 2 | 0.00% | 96.67% | 97.4% |
-| **zipper** | Object | 32 | 119 | 0 | 2 | 0.00% | 98.32% | 99.0% |
-| **Total / Mean** | — | **467** | **1,258** | **10** | **37** | **2.10%** | **97.40%** | **97.8%** |
+| Category | Type | Test Normal ($N$) | Test Defect ($N$) | Total Test ($N$) | Image AUROC (%) | Image AUPRC (%) | Category FPR (%) | Defect Recall (%) | Category F1-Score |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **bottle** | Object | 20 | 63 | 83 | **100.00%** | 100.00% | 0.00% | 100.00% | 1.0000 |
+| **cable** | Object | 58 | 92 | 150 | **98.76%** | 99.18% | 3.45% | 90.22% | 0.9379 |
+| **capsule** | Object | 23 | 109 | 132 | **94.20%** | 98.48% | 21.74% | 89.91% | 0.9245 |
+| **carpet** | Texture | 28 | 89 | 117 | **96.55%** | 99.02% | 3.57% | 86.52% | 0.9222 |
+| **grid** | Texture | 21 | 57 | 78 | **95.07%** | 98.33% | 28.57% | 96.49% | 0.9322 |
+| **hazelnut** | Object | 40 | 70 | 110 | **100.00%** | 100.00% | 0.00% | 98.57% | 0.9928 |
+| **leather** | Texture | 32 | 92 | 124 | **100.00%** | 100.00% | 62.50% | 100.00% | 0.9020 |
+| **metal_nut**| Object | 22 | 93 | 115 | **99.56%** | 99.90% | 18.18% | 98.92% | 0.9735 |
+| **pill** | Object | 26 | 141 | 167 | **90.96%** | 98.13% | 23.08% | 82.98% | 0.8864 |
+| **screw** | Object | 41 | 119 | 160 | **95.80%** | 98.49% | 14.63% | 88.24% | 0.9130 |
+| **tile** | Texture | 33 | 84 | 117 | **99.75%** | 99.90% | 66.67% | 100.00% | 0.8842 |
+| **toothbrush**| Object| 12 | 30 | 42 | **92.50%** | 96.61% | 75.00% | 100.00% | 0.8696 |
+| **transistor**| Object| 60 | 40 | 100 | **99.21%** | 98.69% | 21.67% | 100.00% | 0.8602 |
+| **wood** | Texture | 19 | 60 | 79 | **99.65%** | 99.90% | 68.42% | 100.00% | 0.9023 |
+| **zipper** | Object | 32 | 119 | 151 | **95.19%** | 98.08% | 28.12% | 99.16% | 0.9593 |
+| **Macro Average**| — | **467** | **1,258** | **1,725** | **97.15%** | **98.98%** | **29.04%** | **95.40%** | **0.9240** |
+
+*Aggregate Micro Metrics (All 1,725 Images Pooled):*  
+- **True Positives (TP):** 1,183 / 1,258 | **Micro Recall:** **94.04%**
+- **False Positives (FP):** 116 / 467 | **Micro FPR:** **24.84%**
+- **True Negatives (TN):** 351 / 467 | **Micro Specificity:** **75.16%**
+- **False Negatives (FN):** 75 / 1,258 | **Micro F1-Score:** **0.9253**
+- **Overall Image Accuracy:** 1,534 / 1,725 = **88.93%**
 
 ---
 
@@ -163,11 +175,17 @@ Exhaustive failure categorization across test cohorts identified three primary f
 ---
 
 ## 16. Statistical Limitations & Sample Sizing
-1. **Wilson 95% Score Intervals:**
-   - K=10 bottle test: Observed $0/20$ false positives yields a 95% confidence interval of $[0.00\%, 16.11\%]$.
+1. **Reconciled 95% Confidence Intervals for Zero Events ($k=0, n=20$):**
+   - **Exact Clopper–Pearson Two-Sided 95% CI:** $[0.00\%, \mathbf{16.84\%}]$.
+   - **Wilson Score Two-Sided 95% CI:** $[0.00\%, \mathbf{16.11\%}]$.
+   - **One-Sided Exact Upper Bound:** $13.91\%$.
+   - Both bounds demonstrate that zero false positives on 20 test units cannot statistically certify a low false alarm rate.
 2. **The Rule of Three Constraint:**
-   - Observing 0 false alarms on 20 normal test bottles implies an upper $95\%$ bound of $3 / 20 = 15.0\%$.
+   - Observing 0 false alarms on 20 normal test bottles implies an approximate upper $95\%$ bound of $3 / 20 = 15.0\%$.
    - **Factory Validation Requirement:** Validating an industrial false-alarm rate $< 1.0\%$ requires testing at least **$N = 300$ independent normal specimens** without a single false alarm.
+3. **Specimen Independence vs. File Hash Uniqueness:**
+   - Evaluated samples are distinct **image files** with unique SHA-256 hashes.
+   - Unique file hashes guarantee byte-level separation across splits but do not establish independent physical part provenance, as datasets often include multi-angle captures or rotational variants of a shared specimen.
 
 ---
 
@@ -179,7 +197,7 @@ Exhaustive failure categorization across test cohorts identified three primary f
 ---
 
 ## 18. Conclusion
-DefectVision AI v1.0.0-rc1 successfully establishes a zero-click, multi-category industrial visual inspection prototype. It provides 99.94% category recognition accuracy, 97.8% mean anomaly AUROC, an operational quality gate, and complete transparency regarding threshold selection, few-shot adaptation limits, and photometric feature fusion pathology.
+DefectVision AI v1.0.0-rc1 successfully establishes a zero-click, multi-category industrial visual inspection prototype. It provides 99.94% 15-class category recognition accuracy for automated SKU routing, 97.15% macro image AUROC (98.02% pixel AUROC), an operational quality gate, and complete transparency regarding threshold selection, few-shot adaptation limits, and photometric feature fusion pathology.
 
 ---
 

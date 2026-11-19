@@ -94,9 +94,10 @@ All 15 category models are resident in `DefectVisionAI/models/patchcore/`:
 ## 5. Summary of Verified vs. Failed Experiments
 
 ### Verified Research Findings
-- **MVTec AD Full Evaluation (1,725 Test Images):** Mean Image AUROC: **$97.8\%$**, Category Accuracy: **$99.94\%$**, Overall FPR: **$2.10\%$**, Defect Recall: **$97.40\%$**.
-- **Few-Shot K=10 (Bottle Benchmark, N=83):** Under a priori frozen threshold $\tau = \max(S_{\text{cal}}) = 1.6410$, achieved **$0.00\%$ FPR**, **$96.83\%$ Recall**, and **$0.9839$ F1-Score**.
-- **Pill Test Set Reconciliation:** Audited and verified at exactly **77 physical specimens** ($26$ normal, $25$ color defect, $26$ crack defect).
+- **MVTec AD Full Evaluation (1,725 Test Images across 15 Categories):** Macro Image AUROC: **$97.15\%$**, Macro Image AUPRC: **$98.98\%$**, Reported Pixel AUROC: **$98.02\%$**, 15-Class Category Recognition: **$99.94\%$** ($1,724 / 1,725$ correct SKU routing), Micro Defect Recall: **$94.04\%$** ($1,183 / 1,258$), Micro FPR: **$24.84\%$** ($116 / 467$).
+- **Historical Supervised Binary Defect Classification:** **$86.92\%$** accuracy on 856 development specimens (missed 111 defects). Disambiguated from 15-class category recognition.
+- **Few-Shot K=10 (Bottle Benchmark, N=83 Test Images):** Under a priori frozen threshold $\tau = \max(S_{\text{cal}}) = 1.6410$, achieved **$0.00\%$ FPR** [Clopper-Pearson 95% Exact CI: $0.00\%, 16.84\%$; Wilson CI: $0.00\%, 16.11\%$], **$96.83\%$ Recall**, and **$0.9839$ F1-Score**.
+- **Pill Test Set Reconciliation:** Audited and verified at exactly **77 test image captures** ($26$ normal, $25$ color defect, $26$ crack defect). SHA-256 hashes guarantee file-level separation across splits but do not prove independent physical part provenance.
 
 ### Failed / Disqualified Experiments
 - **K=20 Threshold Post-Hoc Tuning ($1.20\times$):** Disqualified as a `DEVELOPMENT-SET RESULT`. The multiplier $1.20\times$ was selected post-hoc after inspecting test scores. Under the strict un-tuned rule, K=20 produced a $20.0\%$ FPR.

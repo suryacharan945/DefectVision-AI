@@ -214,16 +214,21 @@ Detailed lifecycle steps are documented in [`docs/INFERENCE_WORKFLOW.md`](docs/I
 
 ## 14. Evaluation Results & Research Findings
 
-### 14.1 Full-Dataset Production Benchmark (1,725 Test Images)
-- **Image-Level Mean AUROC:** **97.8%** across all 15 categories.
-- **Category Classifier Accuracy:** **99.94%** (1,724 / 1,725 correct).
-- **False Positive Rate:** **2.10%** [95% CI: 1.40%, 3.12%].
-- **Defect Recall:** **97.40%** [95% CI: 96.10%, 98.30%].
+### 14.1 Full-Dataset Production Benchmark (1,725 Test Images across 15 Categories)
+- **Macro Image-Level AUROC:** **97.15%** (unweighted arithmetic mean across all 15 MVTec AD classes).
+- **Macro Image-Level AUPRC:** **98.98%**.
+- **Reported Pixel-Level AUROC:** **98.02%** (mean localization AUROC on defective masks).
+- **15-Class Product Category Recognition:** **99.94%** accuracy ($1,724 / 1,725$ correct SKU routing; 1 texture misclassified with high entropy).
+- **Historical Supervised Binary Defect Baseline:** **86.92%** accuracy ($764 / 856$ specimens evaluated on supervised defect detection in Phase 51/53; 111 defects missed).
+- **Micro Defect Sensitivity (All 1,725 Images):** **94.04%** ($1,183 / 1,258$ defects detected; Macro Recall: **95.40%**).
+- **Micro False Positive Rate (FPR):** **24.84%** ($116 / 467$ nominal images flagged; Macro FPR: **29.04%**).
+- **Micro F1-Score:** **0.9253** (Macro F1: **0.9240**).
+- **Overall Image Accuracy:** **88.93%** ($1,534 / 1,725$ decisions correct under operational thresholds).
 
-### 14.2 Few-Shot In-Domain Adaptation (Bottle Benchmark, N=83)
-- **K=10 (Frozen Policy $\tau = \max(S_{\text{cal}})$):** FPR: **0.00%** [95% CI: 0.0%, 16.1%], Recall: **96.83%**, F1: **0.9839**. *(Primary Few-Shot Benchmark)*.
-- **K=20 (Frozen Policy $\tau = \max(S_{\text{cal}})$):** FPR: **20.00%**, Recall: **100.00%**, F1: **0.9692**.
-- **K=20 (Post-Hoc Multiplier $1.20\times$):** FPR: **0.00%**, Recall: **100.00%**, F1: **1.0000**. *(Classified as DEVELOPMENT-SET RESULT; rejected for production deployment).*
+### 14.2 Few-Shot In-Domain Adaptation (Bottle Benchmark, N=83 Test Images)
+- **K=10 (Frozen Policy $\tau = \max(S_{\text{cal}})$):** FPR: **0.00%** [Clopper-Pearson 95% Exact CI: $0.00\%, 16.84\%$; Wilson CI: $0.00\%, 16.11\%$], Recall: **96.83%**, F1: **0.9839**. *(Designated as Primary Few-Shot Benchmark)*.
+- **K=20 (Frozen Policy $\tau = \max(S_{\text{cal}})$):** FPR: **20.00%** ($4/20$ false alarms), Recall: **100.00%**, F1: **0.9692**.
+- **K=20 (Post-Hoc Multiplier $1.20\times$):** FPR: **0.00%**, Recall: **100.00%**, F1: **1.0000**. *(Formally classified as a DEVELOPMENT-SET RESULT; rejected for production deployment due to threshold leakage)*.
 
 ### 14.3 Spatial-Photometric Feature Fusion Audit
 - **Result:** **FAILED OPERATIONAL TARGETS.** Concatenating 384 deep CNN features with 3 color features suppressed color distance to $< 2.0\%$ of total Euclidean distance. Best color defect recall was only $24.0\%$.
@@ -237,8 +242,9 @@ Detailed lifecycle steps are documented in [`docs/INFERENCE_WORKFLOW.md`](docs/I
 
 1. **Photometric Blindness:** Low sensitivity to subtle color-only changes due to ImageNet spatial feature dominance.
 2. **Few-Shot Variance:** Small calibration sets ($N=10$) suffer from sampling noise in empirical maximums.
-3. **External Domain Shift:** Degrades on uncontrolled smartphone images with varying lighting or background clutter.
-4. **Throughput:** CPU inference ($110 - 165 \text{ ms}$) is suitable for low-to-medium speed inspection; high-speed lines require GPU acceleration.
+3. **Specimen Independence vs. File Uniqueness:** Evaluated samples represent unique image captures with verified SHA-256 hashes; unique file hashes guarantee byte-level separation across splits but do not guarantee separate physical manufacturing units.
+4. **External Domain Shift:** Degrades on uncontrolled smartphone images with varying lighting or background clutter.
+5. **Throughput:** CPU inference ($110 - 165 \text{ ms}$) is suitable for low-to-medium speed inspection; high-speed lines require GPU acceleration.
 
 Complete details in [`docs/LIMITATIONS_AND_FUTURE_WORK.md`](docs/LIMITATIONS_AND_FUTURE_WORK.md).
 
