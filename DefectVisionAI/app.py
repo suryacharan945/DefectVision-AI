@@ -53,10 +53,12 @@ print(f"Using device: {device}")
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(APP_DIR, "models")
 REPORTS_DIR = os.path.join(APP_DIR, "reports")
-LOGS_DIR = os.path.join(APP_DIR, "logs")
-BATCH_DIR = os.path.join(APP_DIR, "batch_inspections")
-OUTPUTS_DIR = os.path.join(APP_DIR, "outputs")
+DATA_DIR = os.environ.get("DEFECTVISION_DATA_DIR", os.path.join(APP_DIR, "data"))
+LOGS_DIR = os.environ.get("DEFECTVISION_LOGS_DIR", os.path.join(DATA_DIR, "logs"))
+BATCH_DIR = os.environ.get("DEFECTVISION_BATCH_DIR", os.path.join(DATA_DIR, "batch_inspections"))
+OUTPUTS_DIR = os.environ.get("DEFECTVISION_OUTPUTS_DIR", os.path.join(DATA_DIR, "outputs"))
 
+os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(BATCH_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -812,6 +814,9 @@ def readiness_check_endpoint():
     )
 
 @app.get("/api/production-profiles")
+@app.get("/production-profiles")
+@app.get("/api/profiles")
+@app.get("/profiles")
 def list_production_profiles_endpoint():
     """
     Returns list of all registered production inspection profiles.
@@ -825,6 +830,9 @@ def list_production_profiles_endpoint():
     }
 
 @app.get("/api/production-profiles/{profile_id}")
+@app.get("/production-profiles/{profile_id}")
+@app.get("/api/profiles/{profile_id}")
+@app.get("/profiles/{profile_id}")
 def get_production_profile_endpoint(profile_id: str):
     """
     Returns full configuration specification for a given production profile.
@@ -836,6 +844,9 @@ def get_production_profile_endpoint(profile_id: str):
     return profile
 
 @app.post("/api/production-profiles/adapt")
+@app.post("/production-profiles/adapt")
+@app.post("/api/profiles/adapt")
+@app.post("/profiles/adapt")
 async def adapt_product_profile_endpoint(
     product_name: str = Form(...),
     sku: str = Form(...),
@@ -909,6 +920,7 @@ class ProfileUpdatePayload(BaseModel):
 
 
 @app.post("/api/production-profiles/{profile_id}/activate")
+@app.post("/production-profiles/{profile_id}/activate")
 def activate_production_profile_endpoint(profile_id: str):
     engine = get_optical_engine()
     try:
@@ -920,6 +932,7 @@ def activate_production_profile_endpoint(profile_id: str):
 
 
 @app.post("/api/production-profiles/{profile_id}/deactivate")
+@app.post("/production-profiles/{profile_id}/deactivate")
 def deactivate_production_profile_endpoint(profile_id: str):
     engine = get_optical_engine()
     try:
@@ -931,6 +944,7 @@ def deactivate_production_profile_endpoint(profile_id: str):
 
 
 @app.post("/api/production-profiles/{profile_id}/archive")
+@app.post("/production-profiles/{profile_id}/archive")
 def archive_production_profile_endpoint(profile_id: str):
     engine = get_optical_engine()
     try:
@@ -942,6 +956,7 @@ def archive_production_profile_endpoint(profile_id: str):
 
 
 @app.delete("/api/production-profiles/{profile_id}")
+@app.delete("/production-profiles/{profile_id}")
 def delete_production_profile_endpoint(profile_id: str):
     engine = get_optical_engine()
     try:
@@ -953,6 +968,7 @@ def delete_production_profile_endpoint(profile_id: str):
 
 
 @app.put("/api/production-profiles/{profile_id}")
+@app.put("/production-profiles/{profile_id}")
 def update_production_profile_endpoint(profile_id: str, payload: ProfileUpdatePayload):
     engine = get_optical_engine()
     try:
@@ -964,6 +980,7 @@ def update_production_profile_endpoint(profile_id: str, payload: ProfileUpdatePa
 
 
 @app.get("/api/production-profiles/{profile_id}/analytics")
+@app.get("/production-profiles/{profile_id}/analytics")
 def get_production_profile_analytics_endpoint(profile_id: str):
     engine = get_optical_engine()
     try:
@@ -975,6 +992,7 @@ def get_production_profile_analytics_endpoint(profile_id: str):
 
 
 @app.post("/api/production-profiles/{profile_id}/evaluate")
+@app.post("/production-profiles/{profile_id}/evaluate")
 async def evaluate_production_profile_endpoint(
     profile_id: str,
     files: List[UploadFile] = File(...),
@@ -1012,6 +1030,7 @@ async def evaluate_production_profile_endpoint(
 
 
 @app.post("/api/production-profiles/{profile_id}/update-references")
+@app.post("/production-profiles/{profile_id}/update-references")
 async def update_production_profile_references_endpoint(
     profile_id: str,
     files: List[UploadFile] = File(...),

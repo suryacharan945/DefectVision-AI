@@ -109,8 +109,8 @@ Because DefectVision AI requires ~2 GB resident RAM to hold the 15 MVTec memory 
 
 #### Option A: Docker Deployment (Containerized)
 ```bash
-# 1. Build the production container
-docker build -t defectvision-backend:v3.0.0 -f Dockerfile.backend .
+# 1. Build the production container using root Dockerfile
+docker build -t defectvision-backend:v3.0.0 -f Dockerfile .
 
 # 2. Run with volume mount for persistent profiles and data
 docker run -d \
@@ -125,7 +125,7 @@ docker run -d \
 
 #### Option B: Cloud PaaS Deployment (Render / Railway / Fly.io)
 1. Create a **Persistent Web Service** with at least 2 GB RAM (e.g., Render "Standard" plan or Railway 2GB RAM container).
-2. Set Build Command: `pip install -r DefectVisionAI/requirements.txt`
+2. Set Build Command: `pip install -r requirements.txt`
 3. Set Start Command: `cd DefectVisionAI && uvicorn app:app --host 0.0.0.0 --port $PORT`
 4. Configure Environment Variables:
    - `CORS_ORIGINS`: `https://defectvision-ai.vercel.app`

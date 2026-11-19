@@ -21,7 +21,14 @@ export const ConnectionState = {
   MODEL_LOADING: 'MODEL_LOADING',
   READY: 'READY',
   DEGRADED: 'DEGRADED',
-  OFFLINE: 'OFFLINE'
+  OFFLINE: 'OFFLINE',
+  DEMO_MODE: 'DEMO_MODE'
+};
+
+export const Provenance = {
+  LIVE_API: 'LIVE_API',
+  BENCHMARK_ARTIFACT: 'BENCHMARK_ARTIFACT',
+  DEMO_FIXTURE: 'DEMO_FIXTURE'
 };
 
 function resolveApiUrl() {
@@ -86,11 +93,24 @@ const defaultDefectTypes = {
   zipper: 'surface_anomaly'
 };
 
-async function request(endpoint, options = {}) {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+async function request(endpoint, options = {}, timeoutMs = 60000) {
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Canonical route normalization: ensure all queries use the standard /api/ contract
+  if (!cleanEndpoint.startsWith('/api/') && cleanEndpoint !== '/api') {
+    cleanEndpoint = `/api${cleanEndpoint}`;
+  }
   const url = `${BASE_URL}${cleanEndpoint}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchOptions = {
+    ...options,
+    signal: options.signal || controller.signal
+  };
+
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, fetchOptions);
+    clearTimeout(timeoutId);
     const contentType = res.headers.get('content-type') || '';
 
     // If server returned HTML (e.g. Vercel SPA rewrite fallback) or non-OK status
@@ -121,6 +141,14 @@ async function request(endpoint, options = {}) {
 
     return await res.json();
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new ApiError(
+        'Request Timeout',
+        408,
+        `Request to ${cleanEndpoint} timed out after ${timeoutMs / 1000}s.`
+      );
+    }
     if (err instanceof ApiError) throw err;
     throw new ApiError(
       'Network Connection Error',
@@ -189,8 +217,8 @@ export const api = {
 
     if (!rawHealth) {
       return {
-        status: 'offline',
-        connection_state: ConnectionState.OFFLINE,
+        status: _demoModeEnabled ? 'demo' : 'offline',
+        connection_state: _demoModeEnabled ? ConnectionState.DEMO_MODE : ConnectionState.OFFLINE,
         mode: _demoModeEnabled ? 'demo' : 'offline',
         is_live: false,
         device: 'Offline',
@@ -245,7 +273,10 @@ export const api = {
 
     let connectionState = ConnectionState.ONLINE;
     let evaluatedStatus = 'degraded';
-    if (isTrulyReady) {
+    if (_demoModeEnabled) {
+      connectionState = ConnectionState.DEMO_MODE;
+      evaluatedStatus = 'demo';
+    } else if (isTrulyReady) {
       connectionState = ConnectionState.READY;
       evaluatedStatus = 'ready';
     } else if (readyModelsCount > 0 && readyModelsCount < totalCategories) {

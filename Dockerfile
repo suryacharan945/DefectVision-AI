@@ -8,7 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
     HOST=0.0.0.0 \
-    KMP_DUPLICATE_LIB_OK=TRUE
+    KMP_DUPLICATE_LIB_OK=TRUE \
+    DEFECTVISION_DATA_DIR=/app/data \
+    DEFECTVISION_PROFILES_DIR=/app/data/production_profiles
 
 # Install minimal OS dependencies for OpenCV headless, OpenMP, and healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,15 +33,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy backend application source, model weights, and baseline reports
 COPY DefectVisionAI /app
 
-# Ensure runtime output, log, and batch directories exist
-RUN mkdir -p /app/outputs/similarity_search_samples /app/logs /app/batch_inspections
+# Ensure runtime data, profiles, output, log, and batch directories exist
+RUN mkdir -p /app/data /app/data/production_profiles /app/outputs/similarity_search_samples /app/logs /app/batch_inspections
 
 # Expose standard container port
 EXPOSE 8000
 
-# Container healthcheck against /health endpoint
+# Container healthcheck against /api/ready or /health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD curl -f http://localhost:${PORT}/api/ready || curl -f http://localhost:${PORT}/health || exit 1
 
 # Launch production Uvicorn server binding to dynamic cloud host & port
 CMD ["sh", "-c", "uvicorn app:app --host ${HOST} --port ${PORT}"]

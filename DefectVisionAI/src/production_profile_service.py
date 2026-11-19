@@ -66,7 +66,19 @@ class ProductionProfileService:
 
         if not os.path.exists(self.profiles_dir):
             os.makedirs(self.profiles_dir, exist_ok=True)
-            return self.profiles
+
+        # Seed baseline profiles if running with an external persistent storage directory
+        bundled_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "production_profiles")
+        if os.path.exists(bundled_dir) and os.path.abspath(bundled_dir) != os.path.abspath(self.profiles_dir):
+            for entry in os.listdir(bundled_dir):
+                src_path = os.path.join(bundled_dir, entry)
+                dst_path = os.path.join(self.profiles_dir, entry)
+                if os.path.isdir(src_path) and not os.path.exists(dst_path):
+                    try:
+                        shutil.copytree(src_path, dst_path)
+                        logger.info(f"Seeded baseline production profile '{entry}' to persistent volume: {dst_path}")
+                    except Exception as e:
+                        logger.warning(f"Could not seed profile '{entry}': {e}")
 
         for entry in os.listdir(self.profiles_dir):
             profile_path = os.path.join(self.profiles_dir, entry)

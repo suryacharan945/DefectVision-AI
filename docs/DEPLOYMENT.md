@@ -66,10 +66,10 @@ To prevent Vercel's SPA wildcard rewrite from intercepting API calls, `vercel.js
 Because the backend holds ~1.8 GB of resident models in RAM, it requires persistent hosting.
 
 #### Option A: Docker Container
-Use the provided configuration template:
+Use the authoritative root `Dockerfile`:
 ```bash
-# Build the production container
-docker build -t defectvision-backend:v3.0.0 -f Dockerfile.backend .
+# Build the production container from repository root
+docker build -t defectvision-backend:v3.0.0 -f Dockerfile .
 
 # Run with persistent volume mount for profiles and inspection history
 docker run -d \
@@ -89,7 +89,7 @@ docker run -d \
    - `CORS_ORIGINS`: `https://defectvision-ai.vercel.app`
    - `DEFECTVISION_DATA_DIR`: `/data`
    - `PYTHONUNBUFFERED`: `1`
-3. Set Build Command: `pip install -r DefectVisionAI/requirements.txt`
+3. Set Build Command: `pip install -r requirements.txt`
 4. Set Start Command: `cd DefectVisionAI && uvicorn app:app --host 0.0.0.0 --port $PORT`
 5. Attach a persistent volume mounted at `/data` to retain adapted production profiles.
 

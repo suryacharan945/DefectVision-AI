@@ -205,7 +205,7 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
                     ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                     : connState === 'MODEL_LOADING'
                     ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                    : connState === 'DEGRADED' || backendHealth?.mode === 'demo'
+                    : connState === 'DEGRADED' || connState === 'DEMO_MODE' || backendHealth?.mode === 'demo'
                     ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                     : connState === 'CONNECTING'
                     ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
@@ -220,13 +220,13 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
                       ? 'bg-cyan-400 animate-pulse'
                       : connState === 'CONNECTING'
                       ? 'bg-blue-400 animate-pulse'
-                      : connState === 'DEGRADED' || backendHealth?.mode === 'demo'
+                      : connState === 'DEGRADED' || connState === 'DEMO_MODE' || backendHealth?.mode === 'demo'
                       ? 'bg-amber-400'
                       : 'bg-rose-400'
                   }`}
                 />
                 <span>
-                  {backendHealth?.mode === 'demo'
+                  {connState === 'DEMO_MODE' || backendHealth?.mode === 'demo'
                     ? 'DEMO MODE'
                     : connState === 'READY'
                     ? 'READY (15/15)'
