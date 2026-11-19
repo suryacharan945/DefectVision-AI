@@ -13,7 +13,12 @@ import {
   Layers,
   Zap,
   Info,
-  ChevronRight
+  ChevronRight,
+  PlusCircle,
+  Globe,
+  Sliders,
+  Camera,
+  Check
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { CATEGORIES, getCategoryMeta } from '../../utils/categories';
@@ -32,13 +37,31 @@ export default function InspectSection({
 }) {
   const isBackendReady = backendHealth?.status === 'ready';
   const [category, setCategory] = useState('auto');
-  const [routingMode, setRoutingMode] = useState('benchmark'); // 'benchmark' | 'production'
+  const [routingMode, setRoutingMode] = useState('benchmark'); // 'benchmark' | 'production' | 'universal'
   const [productionProfiles, setProductionProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('bottle_001_station_01');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [presets, setPresets] = useState([]);
   const [loadingPresets, setLoadingPresets] = useState(true);
+
+  // Guided Few-Shot Adaptation Drawer / Modal State
+  const [showAdaptModal, setShowAdaptModal] = useState(false);
+  const [adaptForm, setAdaptForm] = useState({
+    product_name: '',
+    sku: '',
+    category: 'bottle',
+    acquisition_type: 'controlled_photography',
+    camera_details: 'CAM-EXT-01 (Stationary Mount)',
+    lighting_details: 'Diffuse Ambient Backlight',
+    calibration_split_ratio: 0.30
+  });
+  const [adaptFiles, setAdaptFiles] = useState([]);
+  const [adaptBuilding, setAdaptBuilding] = useState(false);
+  const [adaptProgress, setAdaptProgress] = useState('');
+  const [adaptResult, setAdaptResult] = useState(null);
+  const [adaptError, setAdaptError] = useState(null);
+  const adaptFileInputRef = useRef(null);
 
   // Inspection states: 'idle' | 'analyzing' | 'completed' | 'error'
   const [status, setStatus] = useState('idle');
@@ -173,7 +196,9 @@ export default function InspectSection({
     try {
       const options = routingMode === 'production'
         ? { profile_id: selectedProfileId, routing_mode: 'production' }
-        : { routing_mode: 'benchmark' };
+        : (routingMode === 'universal'
+            ? { routing_mode: 'universal' }
+            : { routing_mode: 'benchmark' });
 
       const inferenceResult = await api.predict(selectedFile, category, options);
       clearTimeout(stepTimer1);
@@ -191,6 +216,60 @@ export default function InspectSection({
       console.error('Inspection failed:', err);
       setStatus('error');
       setErrorMessage(err.detail || err.message || 'Inspection error occurred. Ensure backend is running.');
+    }
+  };
+
+  // Handle Few-Shot Adaptation Submission
+  const handleAdaptSubmit = async (e) => {
+    e?.preventDefault();
+    if (!adaptForm.product_name.trim()) {
+      setAdaptError('Product Name is required.');
+      return;
+    }
+    if (!adaptForm.sku.trim()) {
+      setAdaptError('SKU / Identifier is required.');
+      return;
+    }
+    if (adaptFiles.length < 2) {
+      setAdaptError('At least 2 normal reference images are required for few-shot adaptation (3-10 recommended).');
+      return;
+    }
+
+    setAdaptError(null);
+    setAdaptBuilding(true);
+    setAdaptProgress('Validating normal reference images...');
+
+    try {
+      const fd = new FormData();
+      fd.append('product_name', adaptForm.product_name.trim());
+      fd.append('sku', adaptForm.sku.trim());
+      fd.append('category', adaptForm.category);
+      fd.append('acquisition_type', adaptForm.acquisition_type);
+      fd.append('camera_details', adaptForm.camera_details);
+      fd.append('lighting_details', adaptForm.lighting_details);
+      fd.append('calibration_split_ratio', String(adaptForm.calibration_split_ratio));
+      fd.append('coreset_ratio', '0.10');
+
+      for (let i = 0; i < adaptFiles.length; i++) {
+        fd.append('files', adaptFiles[i]);
+      }
+
+      setAdaptProgress('Extracting ResNet18 patch features & subsampling coreset...');
+      const res = await api.adaptProductProfile(fd);
+      setAdaptProgress('Calibrating provisional threshold & generating manifest...');
+      setAdaptResult(res);
+
+      // Reload profiles list
+      const profilesData = await api.getProductionProfiles();
+      if (profilesData?.profiles?.length > 0) {
+        setProductionProfiles(profilesData.profiles);
+        setSelectedProfileId(res.profile_id);
+      }
+    } catch (err) {
+      console.error('Adaptation failed:', err);
+      setAdaptError(err.detail || err.message || 'Adaptation build failed.');
+    } finally {
+      setAdaptBuilding(false);
     }
   };
 
@@ -259,8 +338,8 @@ export default function InspectSection({
         </div>
 
         {/* Routing Mode & Profile / Category Routing */}
-        <div className="flex flex-col gap-2 min-w-[320px]">
-          {/* Mode Switcher Tabs */}
+        <div className="flex flex-col gap-2 min-w-[340px]">
+          {/* 3-Mode Switcher Tabs */}
           <div className="flex items-center rounded-xl bg-slate-950 p-1 border border-slate-800">
             <button
               type="button"
@@ -269,13 +348,13 @@ export default function InspectSection({
                 setResult(null);
                 setExplanation(null);
               }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
                 routingMode === 'benchmark'
                   ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Benchmark (15 MVTec AD)
+              Benchmark (15 MVTec)
             </button>
             <button
               type="button"
@@ -284,14 +363,40 @@ export default function InspectSection({
                 setResult(null);
                 setExplanation(null);
               }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
                 routingMode === 'production'
                   ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🏭 Production Profile
+              🏭 Adapted Product
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRoutingMode('universal');
+                setResult(null);
+                setExplanation(null);
+              }}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+                routingMode === 'universal'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🌐 Universal Intake
+            </button>
+          </div>
+          <div className="px-1 text-[11px] text-slate-400 font-sans">
+            {routingMode === 'benchmark' && (
+              <span>Use <strong>Benchmark Mode</strong> for canonical 15 MVTec AD evaluation with frozen baseline thresholds.</span>
+            )}
+            {routingMode === 'production' && (
+              <span>Use <strong>Adapted Product Mode</strong> for target-domain products using calibrated reference memory banks.</span>
+            )}
+            {routingMode === 'universal' && (
+              <span>Use <strong>Universal Intake & Triage</strong> for arbitrary external/smartphone images with automated triage.</span>
+            )}
           </div>
 
           {routingMode === 'benchmark' ? (
@@ -343,16 +448,23 @@ export default function InspectSection({
                 )}
               </span>
             </div>
-          ) : (
+          ) : routingMode === 'production' ? (
             /* Target Domain Production Profile Selection */
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="profile-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
                 <span className="flex items-center gap-1">
                   <span>Target Inspection Profile</span>
                   <span className="text-cyan-400 font-bold">*</span>
                 </span>
-                <Tooltip text="Station & product specific inspection profile with tuned fixed ROI, custom illumination tolerance, and calibrated threshold." />
-              </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAdaptModal(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-mono font-medium hover:underline cursor-pointer"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Adapt New Product</span>
+                </button>
+              </div>
               <div className="relative">
                 <select
                   id="profile-select"
@@ -394,6 +506,44 @@ export default function InspectSection({
                   </div>
                 ) : null;
               })()}
+            </div>
+          ) : (
+            /* Universal Intake & Best-Effort Triage Selection */
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="universal-cat-select" className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="flex items-center gap-1">
+                  <span>Intake & Triage Routing</span>
+                  <span className="text-emerald-400 font-bold">*</span>
+                </span>
+                <Tooltip text="Analyzes object boundaries, image domain, and optical quality. Best-effort triage matches reference profiles or routes to 'REFERENCE PROFILE REQUIRED'." />
+              </label>
+              <div className="relative">
+                <select
+                  id="universal-cat-select"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setResult(null);
+                    setExplanation(null);
+                  }}
+                  className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-sm font-medium text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all cursor-pointer font-sans"
+                >
+                  <option value="auto">⭐ Automated Intake Triage (Default)</option>
+                  <optgroup label="Direct Category Overrides">
+                    {CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} ({c.type})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-400 text-xs">
+                  ▼
+                </div>
+              </div>
+              <span className="text-[11px] text-emerald-400/90 font-mono">
+                Domain-adaptive intake active: foreground extraction & background isolation enabled.
+              </span>
             </div>
           )}
         </div>
@@ -573,7 +723,7 @@ export default function InspectSection({
                 <span>Real Model Execution Offline</span>
               </div>
               <p className="text-slate-300 leading-relaxed">
-                The local Python backend daemon (FastAPI on port 8000) is unreachable. Genuine neural network inference cannot be performed.
+                The local Python backend daemon (FastAPI on port 8001) is unreachable. Genuine neural network inference cannot be performed.
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <button
@@ -678,10 +828,11 @@ export default function InspectSection({
               
               {/* Provenance & Inference Mode Indicator */}
               {result.is_demo ? (
+                /* State C: Demo fixture */
                 <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-mono font-bold text-[10px] shrink-0">
-                      DEMO MODE
+                      DEMO SIMULATION — SYNTHETIC DATA
                     </span>
                     <span className="font-medium">
                       Synthetic client-side simulation. NOT genuine neural network predictions.
@@ -691,18 +842,46 @@ export default function InspectSection({
                     Backend Server Offline
                   </span>
                 </div>
-              ) : (
+              ) : !isBackendReady ? (
+                /* State D: Backend unavailable */
+                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-mono font-bold text-[10px] shrink-0">
+                      BACKEND UNAVAILABLE
+                    </span>
+                    <span className="font-medium">
+                      Backend daemon is unreachable. Real live inference could not be performed.
+                    </span>
+                  </div>
+                </div>
+              ) : result.inference_executed ? (
+                /* State A: Actual live inference */
                 <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold text-[10px] shrink-0">
-                      LIVE INFERENCE
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold text-[10px] shrink-0">
+                      LIVE PATCHCORE INFERENCE
                     </span>
                     <span className="font-mono text-[11px] text-slate-300">
-                      {result.model_id || result.model_selected || `PatchCore-${result.category || result.detected_category || 'Model'}`} (Score: {Number(result.anomaly_score || 0).toFixed(4)} | Threshold: {Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)})
+                      {result.model_id || result.model_selected || `PatchCore-${result.category || result.detected_category || 'Model'}`} (Score: {result.anomaly_score != null ? Number(result.anomaly_score).toFixed(4) : 'N/A'} | Threshold: {result.calibrated_threshold != null ? Number(result.calibrated_threshold).toFixed(4) : (result.anomaly_threshold != null ? Number(result.anomaly_threshold).toFixed(4) : 'N/A')})
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-cyan-400 shrink-0">
                     {(result.inference_latency_ms || result.processing_time_ms || 0).toFixed(1)}ms
+                  </span>
+                </div>
+              ) : (
+                /* State B: Live API response, inference not executed */
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40 text-slate-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px] shrink-0">
+                      LIVE API RESPONSE — INFERENCE NOT EXECUTED
+                    </span>
+                    <span className="font-mono text-[11px] text-amber-200/90">
+                      Stage: {result.rejection_stage || 'QUALITY_GATE'} • {result.rejection_reason || 'Inference halted before PatchCore execution.'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                    Score: N/A | Threshold: N/A
                   </span>
                 </div>
               )}
@@ -747,21 +926,43 @@ export default function InspectSection({
               <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-slate-400">Category:</span>
-                  <strong className="text-white uppercase font-bold">
-                    {result.detected_category || result.category || 'UNKNOWN'}
-                  </strong>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                    {result.category_type || 'Object'}
-                  </span>
-                  <span className="text-violet-300 font-semibold">
-                    {result.category_confidence
-                      ? `${(result.category_confidence * 100).toFixed(1)}%`
-                      : (result.confidence_pct ? `${result.confidence_pct}%` : '')}
-                  </span>
-                  {result.category_status === 'OPERATOR_OVERRIDE' && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                      Override
-                    </span>
+                  {result.routing_mode === 'production' ? (
+                    <>
+                      <strong className="text-white uppercase font-bold">
+                        PROFILE CATEGORY: {(result.expected_profile_category || result.category || 'UNKNOWN').toUpperCase()}
+                      </strong>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                        result.category_status === 'CLASSIFIER_VERIFIED'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {result.category_status === 'CLASSIFIER_VERIFIED' ? 'CLASSIFIER VERIFIED' : 'MISMATCH'}
+                      </span>
+                      {result.category_confidence != null && (
+                        <span className="text-violet-300 font-semibold text-[11px]">
+                          (Classifier: {(result.category_confidence * 100).toFixed(1)}%)
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-white uppercase font-bold">
+                        {result.detected_category || result.category || 'UNKNOWN'}
+                      </strong>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        {result.category_type || 'Object'}
+                      </span>
+                      {result.category_confidence != null && (
+                        <span className="text-violet-300 font-semibold">
+                          {(result.category_confidence * 100).toFixed(1)}%
+                        </span>
+                      )}
+                      {result.category_status === 'OPERATOR_OVERRIDE' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          Override
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -772,28 +973,80 @@ export default function InspectSection({
                       (result.image_quality?.status || result.image_quality_status) === 'PASSED' ||
                       (result.image_quality?.status || result.image_quality_status) === 'OPTICAL_QUALITY_VERIFIED'
                         ? 'text-emerald-400'
+                        : (result.image_quality?.status || result.image_quality_status) === 'SKIPPED_CATEGORY_MISMATCH'
+                        ? 'text-slate-400'
                         : 'text-amber-400'
                     }>
-                      {result.image_quality?.status || result.image_quality_status || 'PASSED'}
+                      {result.image_quality?.status || result.image_quality_status || (result.inference_executed ? 'OPTICAL_QUALITY_VERIFIED' : 'N/A')}
                     </strong>
                   </span>
                   <span>•</span>
                   <span>
                     Score:{' '}
                     <strong className="text-cyan-300">
-                      {result.inference_executed === false
-                        ? 'N/A'
-                        : Number(result.anomaly_score ?? 0).toFixed(4)}
+                      {result.inference_executed && result.anomaly_score != null
+                        ? Number(result.anomaly_score).toFixed(4)
+                        : 'N/A'}
                     </strong>{' '}
                     / Thresh:{' '}
                     <span className="text-slate-300">
-                      {result.inference_executed === false
-                        ? 'N/A'
-                        : Number(result.anomaly_threshold || result.calibrated_threshold || result.optimal_threshold || 1.7452).toFixed(4)}
+                      {result.inference_executed && (result.calibrated_threshold != null || result.anomaly_threshold != null)
+                        ? Number(result.calibrated_threshold || result.anomaly_threshold).toFixed(4)
+                        : 'N/A'}
                     </span>
                   </span>
                 </div>
               </div>
+
+              {/* Universal Intake Diagnostics Card (Domains, Foreground, Quality & Suitability) */}
+              {(result.image_domain || result.foreground_coverage_pct != null || result.routing_mode === 'universal') && (
+                <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col gap-2.5 text-xs font-mono shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Universal Intake & Preprocessing Diagnostics</span>
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                      result.suitability_status === 'SUITABLE' || result.suitability_status === 'SUITABLE_WITH_PREPROCESSING'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    }`}>
+                      {result.suitability_status || 'EVALUATED'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Image Domain</div>
+                      <div className="font-bold text-slate-200 uppercase truncate">
+                        {result.image_domain ? result.image_domain.replace('_', ' ') : 'MVTec Benchmark'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Foreground Area</div>
+                      <div className="font-bold text-cyan-300">
+                        {result.foreground_coverage_pct != null ? `${result.foreground_coverage_pct}%` : 'Full Frame'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Optical Quality</div>
+                      <div className={`font-bold truncate ${
+                        result.image_quality_status === 'OPTICAL_QUALITY_VERIFIED' ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {result.image_quality_status ? result.image_quality_status.replace('REJECT_', '') : 'VERIFIED'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Preprocessing</div>
+                      <div className="font-bold text-slate-300 truncate" title={result.preprocessing_applied ? result.preprocessing_applied.join(', ') : 'None'}>
+                        {result.preprocessing_applied && result.preprocessing_applied.length > 0 && result.preprocessing_applied[0] !== 'none'
+                          ? result.preprocessing_applied.join(', ')
+                          : 'Standard'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Actionable Callout Banner for Quality/Profile Rejection, Review Required or Unsupported */}
               {(result.inference_executed === false || result.verdict === 'REVIEW REQUIRED' || result.verdict === 'UNSUPPORTED') && (
@@ -825,6 +1078,25 @@ export default function InspectSection({
                       <p className="text-[11px] text-amber-300/80 font-sans italic pt-1">
                         * Deep anomaly inference and heatmaps were safely suppressed to avoid displaying misleading artifacts on unverified frames.
                       </p>
+                    )}
+                    {result.verdict === 'UNSUPPORTED' && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdaptForm((prev) => ({
+                              ...prev,
+                              category: result.detected_category !== 'unsupported' && result.detected_category !== 'unknown' ? result.detected_category : 'bottle',
+                              product_name: `${(result.detected_category || 'New Product').toUpperCase()} - Custom Station`
+                            }));
+                            setShowAdaptModal(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-mono text-xs font-semibold shadow transition-all cursor-pointer"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>Adapt Reference Profile For This Product</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1012,6 +1284,314 @@ export default function InspectSection({
         </div>
 
       </div>
+
+      {/* Adapt New Product Guided Few-Shot Modal */}
+      {showAdaptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                  Adapt New Product — Guided Few-Shot Profile Builder
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAdaptModal(false);
+                  setAdaptError(null);
+                  setAdaptResult(null);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {!adaptResult ? (
+              <form onSubmit={handleAdaptSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Product Name <span className="text-cyan-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Clear Glass Bottle 500ml"
+                      value={adaptForm.product_name}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, product_name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Product SKU / Identifier <span className="text-cyan-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. SKU-BTL-EXT-002"
+                      value={adaptForm.sku}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, sku: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Target Category Classification
+                    </label>
+                    <select
+                      value={adaptForm.category}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, category: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label} ({c.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Acquisition Environment
+                    </label>
+                    <select
+                      value={adaptForm.acquisition_type}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, acquisition_type: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    >
+                      <option value="controlled_photography">Controlled Product Photography / Studio</option>
+                      <option value="smartphone">Smartphone / Handheld Camera</option>
+                      <option value="factory_camera">Factory Inspection Station Camera</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Camera Hardware Details
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CAM-EXT-01 (Stationary Top Mount)"
+                      value={adaptForm.camera_details}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, camera_details: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Lighting Profile
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Diffuse Ambient Backlight"
+                      value={adaptForm.lighting_details}
+                      onChange={(e) => setAdaptForm({ ...adaptForm, lighting_details: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-medium text-white focus:outline-none focus:border-cyan-500 font-sans"
+                    />
+                  </div>
+                </div>
+
+                {/* Reference Images Multi-Upload */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Defect-Free Normal Reference Images <span className="text-cyan-400">*</span>
+                  </label>
+                  <div
+                    onClick={() => adaptFileInputRef.current?.click()}
+                    className="p-4 border-2 border-dashed border-slate-700 hover:border-cyan-500/80 rounded-xl bg-slate-950/60 cursor-pointer text-center transition-colors"
+                  >
+                    <input
+                      ref={adaptFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setAdaptFiles(files);
+                      }}
+                      className="hidden"
+                    />
+                    <UploadCloud className="w-6 h-6 text-cyan-400 mx-auto mb-1" />
+                    <span className="text-xs text-slate-300 font-medium block">
+                      {adaptFiles.length > 0
+                        ? `${adaptFiles.length} normal reference images selected`
+                        : 'Click to select multiple normal reference images (minimum 2, 5–15 recommended)'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      PNG, JPG, WebP • Defect-free samples only
+                    </span>
+                  </div>
+                </div>
+
+                {/* Calibration Split Slider */}
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
+                  <div className="flex items-center justify-between mb-1.5 font-mono">
+                    <span className="text-slate-300">Calibration Subset Reservation:</span>
+                    <span className="text-cyan-400 font-bold">{(adaptForm.calibration_split_ratio * 100).toFixed(0)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.20"
+                    max="0.50"
+                    step="0.05"
+                    value={adaptForm.calibration_split_ratio}
+                    onChange={(e) => setAdaptForm({ ...adaptForm, calibration_split_ratio: parseFloat(e.target.value) })}
+                    className="w-full accent-cyan-500 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mt-1">
+                    <span>Memory Bank: {((1 - adaptForm.calibration_split_ratio) * 100).toFixed(0)}%</span>
+                    <span>Isolated Threshold Calibration: {(adaptForm.calibration_split_ratio * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                {/* Safety & Protocol Disclosures */}
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200/90 space-y-1">
+                  <div className="font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                    <span>⚠️ Few-Shot Adaptation Protocol & Safety Disclosures</span>
+                  </div>
+                  <p>
+                    • Frozen ResNet18 backbone is reused (weights are never altered).
+                  </p>
+                  <p>
+                    • Normal calibration subset is kept strictly separate from memory-bank patch vectors.
+                  </p>
+                  <p>
+                    • Resulting profile is tagged <strong>PROVISIONAL ADAPTED REFERENCE PROFILE</strong>. Certified industrial false alarm rates require extensive multi-day validation.
+                  </p>
+                </div>
+
+                {adaptError && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-mono">
+                    Error: {adaptError}
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdaptModal(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={adaptBuilding || adaptFiles.length < 2}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    {adaptBuilding ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>{adaptProgress || 'Building Profile...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="w-4 h-4" />
+                        <span>Generate Adapted Reference Bank</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Success View */
+              <div className="space-y-4 text-xs font-mono">
+                <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <span>Adapted Profile Successfully Built and Registered!</span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Product <strong>{adaptResult.product_name}</strong> (SKU: {adaptResult.sku}) is now active in resident memory.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Profile ID</span>
+                    <strong className="text-cyan-300 truncate block">{adaptResult.profile_id}</strong>
+                  </div>
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Memory Bank Vectors</span>
+                    <strong className="text-white block">{adaptResult.coreset_vectors_count} patches</strong>
+                  </div>
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Provisional Threshold</span>
+                    <strong className="text-emerald-400 block">{adaptResult.calibrated_threshold}</strong>
+                  </div>
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Training Samples</span>
+                    <strong className="text-slate-300 block">{adaptResult.training_samples_count} images</strong>
+                  </div>
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Calibration Samples</span>
+                    <strong className="text-slate-300 block">{adaptResult.calibration_samples_count} images</strong>
+                  </div>
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block">Build Duration</span>
+                    <strong className="text-slate-300 block">{adaptResult.build_duration_sec}s</strong>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] space-y-1">
+                  <span className="text-slate-400 font-bold block mb-1">Artifact Provenance & SHA-256 Checksums:</span>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    • memory_bank.npy: <code className="text-cyan-300">{adaptResult.manifest?.artifacts?.['memory_bank.npy']?.sha256}</code>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    • index.faiss: <code className="text-cyan-300">{adaptResult.manifest?.artifacts?.['index.faiss']?.sha256}</code>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300">
+                  {adaptResult.disclaimer}
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdaptModal(false);
+                      setAdaptResult(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoutingMode('production');
+                      setSelectedProfileId(adaptResult.profile_id);
+                      setShowAdaptModal(false);
+                      setAdaptResult(null);
+                      setResult(null);
+                    }}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Inspect With This Profile</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

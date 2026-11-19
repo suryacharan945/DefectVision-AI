@@ -1,0 +1,10 @@
+stage_id,stage_scope,description,mean_ms,median_ms,std_ms,p95_ms,p99_ms,pct_of_total
+stage_1_base64_decode,HTTP Transport & Ingestion Layer,Base64 decode & OpenCV JPEG decompression,44.83,44.31,3.56,46.3,58.39,23.6
+stage_2_optical_quality_gate,Data Quality & Contract Gate,"Optical Quality Checks (Laplacian blur, brightness, contrast)",57.67,56.86,5.54,62.65,78.07,30.4
+stage_3_preprocessing_tensor,Core Inference Engine,"Resizing (224x224), Color conversion, Normalization & Tensor transfer",4.94,4.75,0.74,5.82,7.96,2.6
+stage_4_feature_extraction,Core Inference Engine,ResNet18 Layer 2 + Layer 3 forward pass,56.7,48.45,21.08,99.16,130.47,29.9
+stage_5_patch_formatting,Core Inference Engine,Channel transposition & memory layout alignment (784 x 384),1.02,0.99,0.16,1.29,1.49,0.5
+stage_6_faiss_nn_search,PatchCore Nearest Neighbor Search,"FAISS exact L2 patch distance search (1,568 bank patches)",17.34,16.7,2.82,21.87,27.99,9.1
+stage_7_heatmap_interpolation,Core Inference Engine,Bilinear upsampling (28x28 -> 224x224) & Gaussian smoothing (sigma=4),3.96,3.91,0.25,4.35,4.45,2.1
+stage_8_serialization_overlay,HTTP Serialization & Visual Presentation Layer,"Jet colormap synthesis, alpha blending & Base64 JPEG encode",3.21,3.18,0.25,3.61,3.86,1.7
+total_end_to_end,Full Application Stack,Total End-to-End Latency (HTTP Payload to Response Ready),189.72,178.78,30.66,234.4,306.61,100.0

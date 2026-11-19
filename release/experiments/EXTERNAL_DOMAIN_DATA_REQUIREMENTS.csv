@@ -1,0 +1,9 @@
+requirement_id,category,parameter,minimum_required,current_inventory,deficit,justification,status
+REQ-01,Physical Independence,Unique Normal Specimens (Training Pool),30,2,28,Avoid memory bank overfitting to surface idiosyncrasies of 1-2 units,BLOCKED — DATA REQUIRED
+REQ-02,Physical Independence,Unique Normal Specimens (Calibration Pool),20,1,19,Ensure statistical validity of extreme value distribution and threshold quantile estimation,BLOCKED — DATA REQUIRED
+REQ-03,Physical Independence,Unique Normal Specimens (Held-out Test),30,0,30,Evaluate true False Alarm Rate (FPR) across unseen physical units,BLOCKED — DATA REQUIRED
+REQ-04,Defect Representation,Unique Physical Defect Specimens (Held-out Test),30,1,29,Evaluate true Defect Recall across genuine physical flaw morphologies (cracks; contamination; deformation),BLOCKED — DATA REQUIRED
+REQ-05,Environmental Stress,Illumination Variation (Lux Range),300 to 500 lux (+- 50 lux),Static (fixed ring light),Missing illumination sweep,Quantify optical robustness across factory shift ambient light changes,BLOCKED — DATA REQUIRED
+REQ-06,Environmental Stress,Standoff Distance Variation (cm),20 +- 5 cm,Fixed 22 cm,Missing optical depth sweep,Characterize PatchCore scale tolerance to focal drift on conveyor,BLOCKED — DATA REQUIRED
+REQ-07,Environmental Stress,Angular Pose Perturbation (degrees),+- 15 degrees,Fixed 0 degrees,Missing rotational sweep,Verify rotational invariance of patch embeddings,BLOCKED — DATA REQUIRED
+REQ-08,Defect Diversity,Defect Sub-Classes Represented,>= 3 distinct classes,1 class (broken neck),Missing surface & contaminant defects,Ensure multi-flaw sensitivity,BLOCKED — DATA REQUIRED

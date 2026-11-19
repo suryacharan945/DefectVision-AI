@@ -1,0 +1,7 @@
+policy_name,formula,threshold_value,origin_stage,leakage_classification,tp,fp,tn,fn,recall,recall_95ci,specificity,fpr,fpr_95ci,f1_score
+Heuristic Additive (+0.10) [Original 2.2],calib_max + 0.10,1.5541,Original Frozen Test,INDEPENDENT EVALUATION,63,4,16,0,1.0,"[0.943, 1.000]",0.8,0.2,"[0.081, 0.416]",0.9692
+Multiplicative Margin (+10%),calib_max * 1.10,1.5995,Post-Hoc Test Evaluation,DEVELOPMENT-SET RESULT,63,3,17,0,1.0,"[0.943, 1.000]",0.85,0.15,"[0.052, 0.360]",0.9767
+Multiplicative Margin (+15%),calib_max * 1.15,1.6722,Post-Hoc Test Evaluation,DEVELOPMENT-SET RESULT,63,1,19,0,1.0,"[0.943, 1.000]",0.95,0.05,"[0.009, 0.236]",0.9921
+Multiplicative Margin (+20%),calib_max * 1.20,1.7449,Post-Hoc Test Evaluation (Selected),DEVELOPMENT-SET RESULT,63,0,20,0,1.0,"[0.943, 1.000]",1.0,0.0,"[0.000, 0.161]",1.0
+Parametric Gaussian (Mean + 3*Std),calib_mean + 3*calib_std,1.566,Post-Hoc Test Evaluation,DEVELOPMENT-SET RESULT,63,4,16,0,1.0,"[0.943, 1.000]",0.8,0.2,"[0.081, 0.416]",0.9692
+Upper Tolerance Bound (99% Coverage / 95% Conf),calib_mean + 3.959*calib_std,1.6301,Formal Frozen Recommendation,FROZEN PROTOCOL,63,3,17,0,1.0,"[0.943, 1.000]",0.85,0.15,"[0.052, 0.360]",0.9767

@@ -1,0 +1,8 @@
+Confusion Matrix: Domain C: Smartphone & Handheld Photos | Few-Shot Adapted Profile (adapt_002)
+Threshold: 1.6410
+                  Predicted NORMAL   Predicted DEFECTIVE
+Actual NORMAL            0                   2
+Actual DEFECTIVE         0                   2
+
+Recall: 100.0%, Specificity: 0.0%, Precision: 50.0%, F1: 0.6667
+AUROC: 0.7500, AUPRC: 0.8333

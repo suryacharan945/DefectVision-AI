@@ -28,6 +28,7 @@ export default defineConfig({
       '/active-learning': 'http://127.0.0.1:8001',
       '/outputs': 'http://127.0.0.1:8001',
       '/stream': 'http://127.0.0.1:8001',
+      '/inspect-frame': 'http://127.0.0.1:8001',
       '/api': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,
