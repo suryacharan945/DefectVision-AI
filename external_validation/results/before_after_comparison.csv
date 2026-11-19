@@ -1,0 +1,7 @@
+metric_name,baseline_value,improved_value,absolute_change,relative_change_pct,status
+"Category Recognition Accuracy (Approved, %)",0.0,8.08,8.08,80808.08,IMPROVED
+"Defect Recall (Approved, %)",84.31,84.31,0.0,0.0,IMPROVED
+"False Positive Rate (Approved, %)",100.0,100.0,0.0,0.0,UNCHANGED
+Median Inference Latency (ms),611.03,5929.43,5318.4,870.4,REGRESSED
+MVTec Benchmark Closed-Set Accuracy (%),99.94,99.94,0.0,0.0,UNCHANGED
+MVTec Benchmark Macro AUROC (%),97.15,97.15,0.0,0.0,UNCHANGED

@@ -31,6 +31,8 @@ pnpm-debug.log*
 # Large intermediate features (> 100MB - prevents GitHub push rejection)
 DefectVisionAI/outputs/padim/features/
 *.npy.tmp
+external_validation/*images/
+external_validation/images/
 
 # Temporary batch inspection runs
 DefectVisionAI/batch_inspections/*/

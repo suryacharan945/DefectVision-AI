@@ -121,6 +121,34 @@ class OpticalInspectionEngine:
     def get_production_profile(self, profile_id):
         return self.profile_service.get_profile(profile_id)
 
+    def activate_production_profile(self, profile_id):
+        return self.profile_service.activate_profile(profile_id)
+
+    def deactivate_production_profile(self, profile_id):
+        return self.profile_service.deactivate_profile(profile_id)
+
+    def archive_production_profile(self, profile_id):
+        return self.profile_service.archive_profile(profile_id)
+
+    def delete_production_profile(self, profile_id):
+        return self.profile_service.delete_profile(profile_id)
+
+    def update_production_profile(self, profile_id, updates):
+        return self.profile_service.update_profile(profile_id, updates)
+
+    def get_production_profile_analytics(self, profile_id):
+        return self.profile_service.get_profile_analytics(profile_id)
+
+    def evaluate_production_profile(self, profile_id, test_images, filenames=None, true_labels=None):
+        return self.profile_service.evaluate_profile(
+            profile_id=profile_id,
+            test_images=test_images,
+            filenames=filenames,
+            true_labels=true_labels,
+            extractor=self.extractor,
+            device=self.device
+        )
+
     def inspect_frame(
         self,
         image_bgr,
@@ -207,6 +235,10 @@ class OpticalInspectionEngine:
             return record
 
         h, w = image_bgr.shape[:2]
+        if max(h, w) > 1024:
+            scale = 1024.0 / max(h, w)
+            image_bgr = cv2.resize(image_bgr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+            h, w = image_bgr.shape[:2]
 
         # =================================================================
         # BRANCH C: UNIVERSAL IMAGE INTAKE & BEST-EFFORT TRIAGE PIPELINE
@@ -870,6 +902,11 @@ class OpticalInspectionEngine:
                 f"and verify camera focus before re-evaluating. {DISCLAIMER}"
             )
 
+            q_cat = operator_category_override if (operator_category_override and operator_category_override in self.registry.get_all_categories()) else "unknown"
+            q_cfg = self.registry.get_category_config(q_cat) if q_cat != "unknown" else {}
+            q_thresh = float(q_cfg.get("calibrated_threshold", 0.0))
+            q_type = q_cfg.get("category_type", "unknown")
+
             record = {
                 "inspection_id": insp_id,
                 "mode": mode,
@@ -879,9 +916,10 @@ class OpticalInspectionEngine:
                 "heatmap_generated": False,
                 "rejection_stage": "quality_gate",
                 "rejection_reason": review_reason,
-                "category": "unknown",
-                "detected_category": "unknown",
-                "category_type": "unknown",
+                "gate_status": "POOR_IMAGE_QUALITY",
+                "category": q_cat,
+                "detected_category": q_cat,
+                "category_type": q_type,
                 "category_confidence": 0.0,
                 "category_status": "SKIPPED_QUALITY_FAILURE",
                 "recognition_status": "SKIPPED_QUALITY_FAILURE",
@@ -892,9 +930,17 @@ class OpticalInspectionEngine:
                 "model_selected": "None",
                 "model_version": "v1.0.0",
                 "anomaly_score": 0.0,
-                "anomaly_threshold": 0.0,
-                "calibrated_threshold": 0.0,
-                "optimal_threshold": 0.0,
+                "anomaly_threshold": q_thresh,
+                "calibrated_threshold": q_thresh,
+                "optimal_threshold": q_thresh,
+                "margin_to_threshold": float(round(0.0 - q_thresh, 4)) if q_thresh > 0 else 0.0,
+                "foreground_detected": False,
+                "foreground_coverage_pct": 0.0,
+                "foreground_masking_applied": False,
+                "foreground_masking_reason": f"Skipped: {review_reason}",
+                "foreground_mask_validity": "SKIPPED",
+                "foreground_mask_b64": None,
+                "connected_components_count": 0,
                 "verdict": verdict,
                 "conclusion": conclusion,
                 "original_image": orig_b64,
@@ -950,6 +996,9 @@ class OpticalInspectionEngine:
                 f"Automatic inspection cannot be safely completed without category support. {DISCLAIMER}"
             )
 
+            cand_cfg = self.registry.get_category_config(candidate_category) if candidate_category in self.registry.get_all_categories() else {}
+            cand_thresh = float(cand_cfg.get("calibrated_threshold", 0.0))
+
             record = {
                 "inspection_id": insp_id,
                 "mode": mode,
@@ -959,6 +1008,7 @@ class OpticalInspectionEngine:
                 "heatmap_generated": False,
                 "rejection_stage": "category_recognition",
                 "rejection_reason": review_reason,
+                "gate_status": category_result.get("gate_status", "UNSUPPORTED_CATEGORY"),
                 "category": "unsupported",
                 "detected_category": "unsupported",
                 "candidate_category": candidate_category,
@@ -973,9 +1023,17 @@ class OpticalInspectionEngine:
                 "model_selected": "None",
                 "model_version": "v1.0.0",
                 "anomaly_score": 0.0,
-                "anomaly_threshold": 0.0,
-                "calibrated_threshold": 0.0,
-                "optimal_threshold": 0.0,
+                "anomaly_threshold": cand_thresh,
+                "calibrated_threshold": cand_thresh,
+                "optimal_threshold": cand_thresh,
+                "margin_to_threshold": float(round(0.0 - cand_thresh, 4)) if cand_thresh > 0 else 0.0,
+                "foreground_detected": False,
+                "foreground_coverage_pct": 0.0,
+                "foreground_masking_applied": False,
+                "foreground_masking_reason": f"Skipped: {review_reason}",
+                "foreground_mask_validity": "SKIPPED",
+                "foreground_mask_b64": None,
+                "connected_components_count": 0,
                 "verdict": verdict,
                 "conclusion": conclusion,
                 "original_image": orig_b64,
@@ -1061,6 +1119,54 @@ class OpticalInspectionEngine:
 
         dist_map, raw_score = patchcore_model.score(fused_emb)
 
+        # Foreground Isolation for Discrete Manufactured Objects (Priority 1)
+        # Suppresses uncalibrated background noise without altering texture evaluations
+        fg_detected = False
+        fg_coverage_pct = 100.0
+        effective_score = raw_score
+        fg_masking_applied = False
+        fg_mask_b64 = None
+        conn_comp_count = 0
+        fg_mask_validity = "TEXTURE_BYPASS" if cat_type == "texture" else "UNPROCESSED"
+        fg_masking_reason = "Texture category: full-field analysis required" if cat_type == "texture" else "Foreground isolation evaluated"
+
+        if cat_type == "object":
+            gray_roi = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+            blurred_roi = cv2.GaussianBlur(gray_roi, (7, 7), 0)
+            _, otsu_t = cv2.threshold(blurred_roi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            b_mean = (otsu_t[0, :].mean() + otsu_t[-1, :].mean() + otsu_t[:, 0].mean() + otsu_t[:, -1].mean()) / 4.0
+            if b_mean > 127:
+                otsu_t = cv2.bitwise_not(otsu_t)
+
+            num_labels, _ = cv2.connectedComponents((otsu_t > 0).astype(np.uint8))
+            conn_comp_count = max(0, int(num_labels) - 1)
+
+            mask_28 = cv2.resize(otsu_t, (GRID_SIZE, GRID_SIZE), interpolation=cv2.INTER_AREA) > 30
+            fg_patches = int(mask_28.sum())
+
+            # Encode binary mask for diagnostic telemetry
+            _, buf_m = cv2.imencode(".png", otsu_t)
+            fg_mask_b64 = "data:image/png;base64," + base64.b64encode(buf_m).decode("utf-8")
+
+            if fg_patches < 15:
+                fg_mask_validity = "INVALID_TOO_SMALL"
+                fg_masking_applied = False
+                fg_masking_reason = f"Foreground component too small ({fg_patches} patches < 15 minimum threshold)"
+            elif fg_patches > 750:
+                fg_mask_validity = "INVALID_TOO_LARGE"
+                fg_masking_applied = False
+                fg_masking_reason = f"Foreground coverage excessive ({fg_patches} patches > 750 maximum threshold, full-field fallback)"
+            else:
+                fg_mask_validity = "VALID"
+                fg_masking_applied = True
+                fg_masking_reason = f"Discrete object isolated with Otsu thresholding ({fg_patches} patches, {conn_comp_count} components)"
+                fg_score = float(np.max(dist_map[mask_28]))
+                fg_detected = True
+                fg_coverage_pct = float(round((fg_patches / (GRID_SIZE * GRID_SIZE)) * 100.0, 2))
+                effective_score = min(raw_score, fg_score)
+
+        gate_status = category_result.get("gate_status", "ACCEPTED")
+
         import scipy.ndimage
         smooth_dist_map = cv2.resize(dist_map, (PC_IMG_SIZE, PC_IMG_SIZE), interpolation=cv2.INTER_CUBIC)
         smooth_dist_map = scipy.ndimage.gaussian_filter(smooth_dist_map, sigma=4.0)
@@ -1071,14 +1177,14 @@ class OpticalInspectionEngine:
 
         baseline_mean = cat_cfg.get("baseline_mean", 1.25)
         baseline_p99 = cat_cfg.get("baseline_p99", 1.65)
-        anomaly_norm = float(normalize_anomaly_score(raw_score, baseline_mean, baseline_p99))
+        anomaly_norm = float(normalize_anomaly_score(effective_score, baseline_mean, baseline_p99))
 
         # Step 5: Decision Fusion Logic
         verdict, severity_level, review_reason, fusion_telemetry = self.fusion_service.evaluate_inspection(
             quality_is_valid=is_quality_valid,
             quality_status=quality_status,
             category_result=category_result,
-            anomaly_score=raw_score,
+            anomaly_score=effective_score,
             calibrated_threshold=calibrated_thresh
         )
 
@@ -1137,12 +1243,14 @@ class OpticalInspectionEngine:
         diagnosis = generate_diagnosis_text(
             verdict=verdict,
             category=detected_category,
-            raw_score=raw_score,
+            raw_score=effective_score,
             threshold=calibrated_thresh,
             defect_area_pct=defect_area_pct,
             severity_level=severity_level,
             review_reason=review_reason
         )
+        if gate_status == "LOW_CONFIDENCE":
+            diagnosis += " [NOTICE: Low-confidence gating triggered due to optical domain variance from reference MVTec standards.]"
 
         record = {
             "inspection_id": insp_id,
@@ -1153,6 +1261,7 @@ class OpticalInspectionEngine:
             "heatmap_generated": True,
             "rejection_stage": None,
             "rejection_reason": None,
+            "gate_status": gate_status,
             "category": detected_category,
             "detected_category": detected_category,
             "category_type": cat_type,
@@ -1167,10 +1276,19 @@ class OpticalInspectionEngine:
             "image_quality_metrics": quality_metrics,
             "severity_level": severity_level,
             "severity_score": sev_score,
-            "anomaly_score": float(round(raw_score, 4)),
+            "raw_anomaly_score": float(round(raw_score, 4)),
+            "anomaly_score": float(round(effective_score, 4)),
             "anomaly_threshold": float(round(calibrated_thresh, 4)),
             "calibrated_threshold": float(round(calibrated_thresh, 4)),
             "optimal_threshold": float(round(calibrated_thresh, 4)),
+            "margin_to_threshold": float(round(effective_score - calibrated_thresh, 4)),
+            "foreground_detected": fg_detected,
+            "foreground_coverage_pct": fg_coverage_pct,
+            "foreground_masking_applied": fg_masking_applied,
+            "foreground_masking_reason": fg_masking_reason,
+            "foreground_mask_validity": fg_mask_validity,
+            "foreground_mask_b64": fg_mask_b64,
+            "connected_components_count": conn_comp_count,
             "anomaly_norm": float(round(anomaly_norm, 2)),
             "defect_area_pct": float(round(defect_area_pct, 2)),
             "confidence_pct": float(round(category_conf * 100, 1)),

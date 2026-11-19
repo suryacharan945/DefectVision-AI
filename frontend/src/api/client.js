@@ -1021,6 +1021,80 @@ export const api = {
   },
 
   /**
+   * Activate a production profile
+   */
+  async activateProfile(profileId) {
+    return await request(`/api/production-profiles/${profileId}/activate`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Deactivate a production profile
+   */
+  async deactivateProfile(profileId) {
+    return await request(`/api/production-profiles/${profileId}/deactivate`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Archive a production profile
+   */
+  async archiveProfile(profileId) {
+    return await request(`/api/production-profiles/${profileId}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Delete a production profile
+   */
+  async deleteProfile(profileId) {
+    return await request(`/api/production-profiles/${profileId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Update profile configuration
+   */
+  async updateProfile(profileId, updates) {
+    return await request(`/api/production-profiles/${profileId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+  },
+
+  /**
+   * Get deep profile analytics and score distributions
+   */
+  async getProfileAnalytics(profileId) {
+    return await request(`/api/production-profiles/${profileId}/analytics`);
+  },
+
+  /**
+   * Evaluate a profile against test images
+   */
+  async evaluateProfile(profileId, formData) {
+    return await request(`/api/production-profiles/${profileId}/evaluate`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  /**
+   * Add reference images to an existing profile and recalibrate
+   */
+  async updateProfileReferences(profileId, formData) {
+    return await request(`/api/production-profiles/${profileId}/update-references`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  /**
    * Run universal intake and preprocessing diagnostics on an uploaded image
    */
   async runIntakeDiagnostics(formData) {

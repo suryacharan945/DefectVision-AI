@@ -863,6 +863,158 @@ async def adapt_product_profile_endpoint(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+class ProfileUpdatePayload(BaseModel):
+    product_name: Optional[str] = None
+    sku: Optional[str] = None
+    inspection_station: Optional[str] = None
+    camera_id: Optional[str] = None
+    lighting_profile: Optional[str] = None
+    acquisition_type: Optional[str] = None
+    quality_config: Optional[Dict[str, Any]] = None
+    threshold_config: Optional[Dict[str, Any]] = None
+    roi_config: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/production-profiles/{profile_id}/activate")
+def activate_production_profile_endpoint(profile_id: str):
+    engine = get_optical_engine()
+    try:
+        return engine.activate_production_profile(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/production-profiles/{profile_id}/deactivate")
+def deactivate_production_profile_endpoint(profile_id: str):
+    engine = get_optical_engine()
+    try:
+        return engine.deactivate_production_profile(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/production-profiles/{profile_id}/archive")
+def archive_production_profile_endpoint(profile_id: str):
+    engine = get_optical_engine()
+    try:
+        return engine.archive_production_profile(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/production-profiles/{profile_id}")
+def delete_production_profile_endpoint(profile_id: str):
+    engine = get_optical_engine()
+    try:
+        return engine.delete_production_profile(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/production-profiles/{profile_id}")
+def update_production_profile_endpoint(profile_id: str, payload: ProfileUpdatePayload):
+    engine = get_optical_engine()
+    try:
+        return engine.update_production_profile(profile_id, payload.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/production-profiles/{profile_id}/analytics")
+def get_production_profile_analytics_endpoint(profile_id: str):
+    engine = get_optical_engine()
+    try:
+        return engine.get_production_profile_analytics(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/production-profiles/{profile_id}/evaluate")
+async def evaluate_production_profile_endpoint(
+    profile_id: str,
+    files: List[UploadFile] = File(...),
+    labels: Optional[str] = Form(None)
+):
+    engine = get_optical_engine()
+    decoded_images = []
+    filenames = []
+    for f in files:
+        contents = await f.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None and img.size > 0:
+            decoded_images.append(img)
+            filenames.append(f.filename or "test_sample.png")
+
+    if not decoded_images:
+        raise HTTPException(status_code=400, detail="No valid test images could be decoded.")
+
+    parsed_labels = None
+    if labels:
+        parsed_labels = [l.strip().upper() for l in labels.split(",")]
+
+    try:
+        return engine.evaluate_production_profile(
+            profile_id=profile_id,
+            test_images=decoded_images,
+            filenames=filenames,
+            true_labels=parsed_labels
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/production-profiles/{profile_id}/update-references")
+async def update_production_profile_references_endpoint(
+    profile_id: str,
+    files: List[UploadFile] = File(...),
+    calibration_split_ratio: float = Form(0.30),
+    coreset_ratio: float = Form(0.10)
+):
+    engine = get_optical_engine()
+    decoded_images = []
+    filenames = []
+    for f in files:
+        contents = await f.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None and img.size > 0:
+            decoded_images.append(img)
+            filenames.append(f.filename or "update_sample.png")
+
+    if not decoded_images:
+        raise HTTPException(status_code=400, detail="No valid reference images could be decoded.")
+
+    try:
+        return engine.profile_service.update_profile_references(
+            profile_id=profile_id,
+            new_normal_images=decoded_images,
+            filenames=filenames,
+            calibration_split_ratio=calibration_split_ratio,
+            coreset_ratio=coreset_ratio,
+            extractor=engine.extractor,
+            device=engine.device
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/intake")
 async def universal_intake_endpoint(
     file: UploadFile = File(...),

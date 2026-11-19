@@ -1,0 +1,68 @@
+{
+  "status": "COLLECTION_COMPLETE",
+  "total_images": 150,
+  "normal_images": 75,
+  "defective_images": 75,
+  "category_breakdown": {
+    "bottle": {
+      "normal": 5,
+      "defective": 5
+    },
+    "cable": {
+      "normal": 5,
+      "defective": 5
+    },
+    "capsule": {
+      "normal": 5,
+      "defective": 5
+    },
+    "carpet": {
+      "normal": 5,
+      "defective": 5
+    },
+    "grid": {
+      "normal": 5,
+      "defective": 5
+    },
+    "hazelnut": {
+      "normal": 5,
+      "defective": 5
+    },
+    "leather": {
+      "normal": 5,
+      "defective": 5
+    },
+    "metal_nut": {
+      "normal": 5,
+      "defective": 5
+    },
+    "pill": {
+      "normal": 5,
+      "defective": 5
+    },
+    "screw": {
+      "normal": 5,
+      "defective": 5
+    },
+    "tile": {
+      "normal": 5,
+      "defective": 5
+    },
+    "toothbrush": {
+      "normal": 5,
+      "defective": 5
+    },
+    "transistor": {
+      "normal": 5,
+      "defective": 5
+    },
+    "wood": {
+      "normal": 5,
+      "defective": 5
+    },
+    "zipper": {
+      "normal": 5,
+      "defective": 5
+    }
+  }
+}

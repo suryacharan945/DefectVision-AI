@@ -1,0 +1,31 @@
+{
+  "total_evaluated": 150,
+  "similarity_groups": {
+    "different_visual_domain": 93,
+    "moderate_similarity": 53,
+    "high_similarity_mvtec_like": 4
+  },
+  "validation_statuses": {
+    "APPROVED_DEFECTIVE": 51,
+    "APPROVED_NORMAL": 48,
+    "UNCERTAIN_OUT_OF_DOMAIN": 31,
+    "REJECTED_QUALITY": 20
+  },
+  "mean_similarity_by_category": {
+    "bottle": 0.4548,
+    "cable": 0.6004,
+    "capsule": 0.5967,
+    "carpet": 0.4195,
+    "grid": 0.4841,
+    "hazelnut": 0.5126,
+    "leather": 0.4253,
+    "metal_nut": 0.523,
+    "pill": 0.5343,
+    "screw": 0.612,
+    "tile": 0.4711,
+    "toothbrush": 0.5673,
+    "transistor": 0.5942,
+    "wood": 0.542,
+    "zipper": 0.5219
+  }
+}

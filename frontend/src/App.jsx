@@ -10,6 +10,7 @@ import ConversationalDashboardSection from './components/sections/Conversational
 import SimilarityExplorerSection from './components/sections/SimilarityExplorerSection';
 import DriftMonitorSection from './components/sections/DriftMonitorSection';
 import ActiveLearningRCASection from './components/sections/ActiveLearningRCASection';
+import ProductProfilesSection from './components/sections/ProductProfilesSection';
 import LiveStreamInspector from './pages/LiveStreamInspector';
 import { api } from './api/client';
 import { ShieldAlert, Info, Cpu, ExternalLink } from 'lucide-react';
@@ -20,6 +21,7 @@ export default function App() {
   const [demoMode, setDemoMode] = useState(api.isDemoMode());
   const [similarityCategory, setSimilarityCategory] = useState('bottle');
   const [ragInitialQuery, setRagInitialQuery] = useState('');
+  const [targetProfileId, setTargetProfileId] = useState(null);
 
   const checkServer = async () => {
     try {
@@ -191,9 +193,20 @@ export default function App() {
                 demoMode={demoMode}
                 onToggleDemoMode={handleToggleDemoMode}
                 onRetryConnection={checkServer}
+                initialProfileId={targetProfileId}
               />
             </div>
           </>
+        )}
+
+        {activeTab === 'profiles' && (
+          <ProductProfilesSection
+            onSelectProfileForInspect={(profileId) => {
+              setTargetProfileId(profileId);
+              setActiveTab('inspect');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         )}
 
         {activeTab === 'live' && (

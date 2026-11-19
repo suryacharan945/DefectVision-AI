@@ -13,6 +13,9 @@ import os
 import json
 import logging
 import hashlib
+import shutil
+import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple, Any
 import cv2
 import numpy as np
@@ -93,6 +96,22 @@ class ProductionProfileService:
         for pid, p in self.profiles.items():
             thresh_cfg = p.get("threshold_config", {})
             model_cfg = p.get("model_config", {})
+            roi_cfg = p.get("roi_config", {})
+            status = p.get("status", "active")
+
+            p_dir = p.get("_profile_dir", "")
+            manifest_path = os.path.join(p_dir, "manifest.json") if p_dir else ""
+            manifest_data = {}
+            if manifest_path and os.path.exists(manifest_path):
+                try:
+                    with open(manifest_path, "r", encoding="utf-8") as mf:
+                        manifest_data = json.load(mf)
+                except Exception:
+                    pass
+
+            mb_file = os.path.join(p_dir, "memory_bank.npy") if p_dir else ""
+            mb_size = os.path.getsize(mb_file) if (mb_file and os.path.exists(mb_file)) else 0
+
             summaries.append({
                 "profile_id": p.get("profile_id", pid),
                 "product_id": p.get("product_id", ""),
@@ -104,10 +123,22 @@ class ProductionProfileService:
                 "camera_id": p.get("camera_id", ""),
                 "lighting_profile": p.get("lighting_profile", ""),
                 "acquisition_type": p.get("acquisition_type", "stationary"),
+                "status": status,
+                "is_active": (status == "active"),
+                "is_adapted": p.get("is_adapted", False),
+                "is_provisional": p.get("is_provisional", False),
+                "disclaimer": p.get("disclaimer", ""),
                 "calibrated_threshold": thresh_cfg.get("calibrated_threshold", 1.50),
                 "target_far": thresh_cfg.get("target_far", 0.01),
                 "model_version": model_cfg.get("model_version", "v1.0.0-prod"),
-                "validation_status": p.get("validation_status", "SIMULATED REFERENCE PROFILE â€” NOT PRODUCTION VALIDATED"),
+                "validation_status": p.get("validation_status", "PROVISIONAL ADAPTED REFERENCE PROFILE"),
+                "training_samples_count": manifest_data.get("training_samples_count", thresh_cfg.get("calibration_sample_count", 0)),
+                "calibration_samples_count": manifest_data.get("calibration_samples_count", thresh_cfg.get("calibration_sample_count", 0)),
+                "coreset_vectors_count": manifest_data.get("coreset_vectors_count", 0),
+                "memory_bank_size_bytes": mb_size,
+                "created_at": manifest_data.get("created_at", thresh_cfg.get("calibration_date", "")),
+                "updated_at": p.get("updated_at", manifest_data.get("created_at", thresh_cfg.get("calibration_date", ""))),
+                "roi_type": roi_cfg.get("type", "fixed_box"),
                 "is_ready": True
             })
         return summaries
@@ -728,6 +759,474 @@ class ProductionProfileService:
             "disclaimer": profile_json_data["disclaimer"],
             "build_duration_sec": round(time.time() - t_start, 2),
             "manifest": manifest_data
+        }
+
+    def activate_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Activates a production profile for live inspection routing."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        profile["status"] = "active"
+        profile["updated_at"] = datetime.now(timezone.utc).isoformat()
+        cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+        logger.info(f"Activated production profile: {profile_id}")
+        return {"status": "success", "profile_id": profile_id, "profile_status": "active"}
+
+    def deactivate_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Deactivates a production profile (temporarily suspended from routing)."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        profile["status"] = "inactive"
+        profile["updated_at"] = datetime.now(timezone.utc).isoformat()
+        cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+        logger.info(f"Deactivated production profile: {profile_id}")
+        return {"status": "success", "profile_id": profile_id, "profile_status": "inactive"}
+
+    def archive_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Archives a production profile and unloads it from resident memory."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        profile["status"] = "archived"
+        profile["updated_at"] = datetime.now(timezone.utc).isoformat()
+        cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+        if profile_id in self.loaded_models:
+            del self.loaded_models[profile_id]
+        logger.info(f"Archived production profile: {profile_id}")
+        return {"status": "success", "profile_id": profile_id, "profile_status": "archived"}
+
+    def delete_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Permanently deletes a production profile directory and unloads its model."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        p_dir = profile.get("_profile_dir")
+        if profile_id in self.loaded_models:
+            del self.loaded_models[profile_id]
+        if profile_id in self.profiles:
+            del self.profiles[profile_id]
+        if p_dir and os.path.exists(p_dir):
+            shutil.rmtree(p_dir)
+        logger.info(f"Deleted production profile: {profile_id}")
+        return {"status": "deleted", "profile_id": profile_id}
+
+    def update_profile(self, profile_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates editable metadata and configuration fields of an existing profile."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        allowed_scalars = ["product_name", "sku", "inspection_station", "camera_id", "lighting_profile", "acquisition_type"]
+        for k in allowed_scalars:
+            if k in updates and updates[k] is not None:
+                profile[k] = updates[k]
+        if "quality_config" in updates and isinstance(updates["quality_config"], dict):
+            profile.setdefault("quality_config", {}).update(updates["quality_config"])
+        if "threshold_config" in updates and isinstance(updates["threshold_config"], dict):
+            profile.setdefault("threshold_config", {}).update(updates["threshold_config"])
+        if "roi_config" in updates and isinstance(updates["roi_config"], dict):
+            profile.setdefault("roi_config", {}).update(updates["roi_config"])
+        profile["updated_at"] = datetime.now(timezone.utc).isoformat()
+        cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+        return profile
+
+    def get_profile_analytics(self, profile_id: str) -> Dict[str, Any]:
+        """Returns deep telemetry, score distributions, and artifact metadata for a profile."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        p_dir = profile.get("_profile_dir", "")
+        manifest_path = os.path.join(p_dir, "manifest.json")
+        threshold_path = os.path.join(p_dir, "threshold.json")
+        manifest = {}
+        threshold_info = {}
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+            except Exception:
+                pass
+        if os.path.exists(threshold_path):
+            try:
+                with open(threshold_path, "r", encoding="utf-8") as f:
+                    threshold_info = json.load(f)
+            except Exception:
+                pass
+
+        model = self.get_profile_model(profile_id)
+        mb_shape = list(model.memory_bank.shape) if (model and model.memory_bank is not None) else []
+        faiss_total = model.index.ntotal if (model and model.index is not None) else 0
+
+        return {
+            "profile_id": profile_id,
+            "product_name": profile.get("product_name"),
+            "sku": profile.get("sku"),
+            "category": profile.get("category"),
+            "status": profile.get("status", "active"),
+            "calibrated_threshold": profile.get("threshold_config", {}).get("calibrated_threshold"),
+            "target_far": profile.get("threshold_config", {}).get("target_far"),
+            "score_metrics": profile.get("threshold_config", {}).get("metrics", {}),
+            "manifest": manifest,
+            "threshold_info": threshold_info,
+            "memory_bank": {
+                "shape": mb_shape,
+                "vectors": faiss_total,
+                "feature_dimension": mb_shape[1] if len(mb_shape) > 1 else 384,
+                "coreset_ratio": profile.get("model_config", {}).get("coreset_ratio", 0.10)
+            },
+            "roi_config": profile.get("roi_config", {}),
+            "quality_config": profile.get("quality_config", {})
+        }
+
+    def evaluate_profile(
+        self,
+        profile_id: str,
+        test_images: List[np.ndarray],
+        filenames: Optional[List[str]] = None,
+        true_labels: Optional[List[str]] = None,
+        extractor=None,
+        device=None
+    ) -> Dict[str, Any]:
+        """
+        Evaluates a batch of test images against the profile's PatchCore memory bank and threshold.
+        Returns accuracy, precision, recall, specificity, F1, and per-sample predictions.
+        """
+        import torch
+
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+        model = self.get_profile_model(profile_id)
+        if not model:
+            raise ValueError(f"Could not load model for profile '{profile_id}'.")
+
+        thresh = float(profile.get("threshold_config", {}).get("calibrated_threshold", 1.50))
+        roi_cfg = profile.get("roi_config", {})
+
+        if extractor is None:
+            from src.patchcore import PatchCoreExtractor
+            torch_dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+            extractor = PatchCoreExtractor(grid_size=profile.get("model_config", {}).get("grid_size", 28)).to(torch_dev)
+            extractor.eval()
+        else:
+            torch_dev = next(extractor.parameters()).device
+
+        PC_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        PC_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        PC_IMG_SIZE = 224
+
+        sample_results = []
+        scores = []
+        latencies = []
+
+        for idx, img in enumerate(test_images):
+            fname = filenames[idx] if (filenames and idx < len(filenames)) else f"test_{idx:03d}.png"
+            t0 = time.perf_counter()
+
+            if "relative_bbox" in roi_cfg:
+                rx, ry, rw, rh = roi_cfg["relative_bbox"]
+                h_img, w_img = img.shape[:2]
+                cx1 = int(rx * w_img)
+                cy1 = int(ry * h_img)
+                cx2 = min(w_img, cx1 + int(rw * w_img))
+                cy2 = min(h_img, cy1 + int(rh * h_img))
+                roi = img[cy1:cy2, cx1:cx2]
+            else:
+                roi = img
+
+            rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+            resized = cv2.resize(rgb, (PC_IMG_SIZE, PC_IMG_SIZE)).astype(np.float32) / 255.0
+            norm = (resized - PC_MEAN) / PC_STD
+            tensor = torch.from_numpy(norm).permute(2, 0, 1).unsqueeze(0).float().to(torch_dev)
+
+            with torch.no_grad():
+                fused = extractor(tensor)[0].cpu().numpy()
+            _, score = model.score(fused)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+            raw_score = float(score)
+            is_defective = bool(raw_score >= thresh)
+            pred_verdict = "DEFECTIVE" if is_defective else "NORMAL"
+
+            ground_truth = true_labels[idx].upper() if (true_labels and idx < len(true_labels) and true_labels[idx]) else None
+            is_correct = (pred_verdict == ground_truth) if ground_truth in ["NORMAL", "DEFECTIVE"] else None
+
+            sample_results.append({
+                "filename": fname,
+                "anomaly_score": round(raw_score, 4),
+                "threshold": round(thresh, 4),
+                "verdict": pred_verdict,
+                "ground_truth": ground_truth,
+                "is_correct": is_correct,
+                "latency_ms": round(elapsed_ms, 2)
+            })
+            scores.append(raw_score)
+            latencies.append(elapsed_ms)
+
+        metrics = {}
+        labeled_count = sum(1 for s in sample_results if s["ground_truth"] in ["NORMAL", "DEFECTIVE"])
+        if labeled_count > 0:
+            tp = sum(1 for s in sample_results if s["verdict"] == "DEFECTIVE" and s["ground_truth"] == "DEFECTIVE")
+            tn = sum(1 for s in sample_results if s["verdict"] == "NORMAL" and s["ground_truth"] == "NORMAL")
+            fp = sum(1 for s in sample_results if s["verdict"] == "DEFECTIVE" and s["ground_truth"] == "NORMAL")
+            fn = sum(1 for s in sample_results if s["verdict"] == "NORMAL" and s["ground_truth"] == "DEFECTIVE")
+
+            total_labeled = tp + tn + fp + fn
+            acc = (tp + tn) / max(1, total_labeled)
+            prec = tp / max(1, (tp + fp)) if (tp + fp) > 0 else 0.0
+            rec = tp / max(1, (tp + fn)) if (tp + fn) > 0 else 0.0
+            spec = tn / max(1, (tn + fp)) if (tn + fp) > 0 else 0.0
+            f1 = (2 * prec * rec) / max(1e-6, (prec + rec)) if (prec + rec) > 0 else 0.0
+
+            metrics = {
+                "total_evaluated": len(test_images),
+                "labeled_count": labeled_count,
+                "accuracy": round(acc, 4),
+                "precision": round(prec, 4),
+                "recall": round(rec, 4),
+                "specificity": round(spec, 4),
+                "f1_score": round(f1, 4),
+                "confusion_matrix": {"TP": tp, "TN": tn, "FP": fp, "FN": fn}
+            }
+        else:
+            metrics = {
+                "total_evaluated": len(test_images),
+                "defective_count": sum(1 for s in sample_results if s["verdict"] == "DEFECTIVE"),
+                "normal_count": sum(1 for s in sample_results if s["verdict"] == "NORMAL")
+            }
+
+        metrics["mean_score"] = round(float(np.mean(scores)), 4) if scores else 0.0
+        metrics["std_score"] = round(float(np.std(scores)), 4) if len(scores) > 1 else 0.0
+        metrics["mean_latency_ms"] = round(float(np.mean(latencies)), 2) if latencies else 0.0
+
+        return {
+            "profile_id": profile_id,
+            "threshold": thresh,
+            "metrics": metrics,
+            "samples": sample_results
+        }
+
+    def update_profile_references(
+        self,
+        profile_id: str,
+        new_normal_images: List[np.ndarray],
+        filenames: Optional[List[str]] = None,
+        calibration_split_ratio: float = 0.30,
+        coreset_ratio: float = 0.10,
+        extractor=None,
+        device=None
+    ) -> Dict[str, Any]:
+        """
+        Adds additional normal reference images to an existing profile, rebuilding
+        the coreset memory bank and re-calibrating the provisional threshold.
+        """
+        import torch
+        import faiss
+
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise ValueError(f"Profile '{profile_id}' not found.")
+
+        dest_dir = profile.get("_profile_dir")
+        if not dest_dir or not os.path.exists(dest_dir):
+            raise ValueError(f"Directory missing for profile '{profile_id}'.")
+
+        # Extract features for new valid images
+        from src.universal_intake_service import UniversalImageIntakeService
+        intake_service = UniversalImageIntakeService()
+
+        valid_samples = []
+        for idx, img_bgr in enumerate(new_normal_images):
+            fname = filenames[idx] if (filenames and idx < len(filenames)) else f"update_sample_{idx:03d}.png"
+            intake_res = intake_service.process_image(img_bgr, inspection_mode="production")
+            if intake_res["image_quality_status"] == "OPTICAL_QUALITY_VERIFIED" or intake_res["suitability_status"] in ["SUITABLE", "SUITABLE_WITH_PREPROCESSING"]:
+                valid_samples.append({"filename": fname, "img_bgr": img_bgr, "intake": intake_res})
+
+        if not valid_samples:
+            raise ValueError("None of the uploaded update images passed optical quality verification.")
+
+        # Split update samples into training and calibration
+        cal_count = max(1, int(round(len(valid_samples) * calibration_split_ratio)))
+        train_count = max(1, len(valid_samples) - cal_count)
+        train_samples = valid_samples[:train_count]
+        cal_samples = valid_samples[train_count:]
+
+        # Feature extraction
+        grid_size = profile.get("model_config", {}).get("grid_size", 28)
+        if extractor is None:
+            from src.patchcore import PatchCoreExtractor
+            torch_dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+            extractor = PatchCoreExtractor(grid_size=grid_size).to(torch_dev)
+            extractor.eval()
+        else:
+            torch_dev = next(extractor.parameters()).device
+
+        PC_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        PC_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        PC_IMG_SIZE = 224
+        roi_config = profile.get("roi_config", {})
+
+        new_patches_list = []
+        for s in train_samples:
+            img = s["img_bgr"]
+            if "relative_bbox" in roi_config:
+                rx, ry, rw, rh = roi_config["relative_bbox"]
+                h_img, w_img = img.shape[:2]
+                cx1 = int(rx * w_img)
+                cy1 = int(ry * h_img)
+                cx2 = min(w_img, cx1 + int(rw * w_img))
+                cy2 = min(h_img, cy1 + int(rh * h_img))
+                roi = img[cy1:cy2, cx1:cx2]
+            else:
+                roi = img
+
+            rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+            resized = cv2.resize(rgb, (PC_IMG_SIZE, PC_IMG_SIZE)).astype(np.float32) / 255.0
+            norm = (resized - PC_MEAN) / PC_STD
+            tensor = torch.from_numpy(norm).permute(2, 0, 1).unsqueeze(0).float().to(torch_dev)
+
+            with torch.no_grad():
+                fused = extractor(tensor)[0].cpu().numpy()
+            C, g, _ = fused.shape
+            patches = fused.reshape(C, g * g).T.astype(np.float32)
+            new_patches_list.append(patches)
+
+        new_raw_patches = np.vstack(new_patches_list)
+
+        # Merge with existing memory bank
+        existing_mb_path = os.path.join(dest_dir, "memory_bank.npy")
+        if os.path.exists(existing_mb_path):
+            existing_mb = np.load(existing_mb_path)
+            combined_bank = np.vstack([existing_mb, new_raw_patches])
+        else:
+            combined_bank = new_raw_patches
+
+        total_patches, dim = combined_bank.shape
+        target_k = max(1, int(round(total_patches * coreset_ratio)))
+
+        if total_patches > target_k:
+            rng = np.random.RandomState(42)
+            indices = [int(rng.randint(total_patches))]
+            min_dists = np.linalg.norm(combined_bank - combined_bank[indices[0]], axis=1)
+            for _ in range(1, target_k):
+                next_idx = int(np.argmax(min_dists))
+                indices.append(next_idx)
+                new_dists = np.linalg.norm(combined_bank - combined_bank[next_idx], axis=1)
+                min_dists = np.minimum(min_dists, new_dists)
+            coreset_bank = combined_bank[indices].astype(np.float32)
+        else:
+            coreset_bank = combined_bank.astype(np.float32)
+
+        # Build FAISS Index
+        index = faiss.IndexFlatL2(dim)
+        index.add(coreset_bank)
+
+        mb_file = os.path.join(dest_dir, "memory_bank.npy")
+        faiss_file = os.path.join(dest_dir, "index.faiss")
+        np.save(mb_file, coreset_bank)
+        faiss.write_index(index, faiss_file)
+
+        # Calibrate on held-out samples
+        from src.patchcore import PatchCoreModel
+        temp_model = PatchCoreModel()
+        temp_model.memory_bank = coreset_bank
+        temp_model.grid_size = grid_size
+        temp_model.index = index
+
+        cal_scores = []
+        for s in cal_samples:
+            img = s["img_bgr"]
+            if "relative_bbox" in roi_config:
+                rx, ry, rw, rh = roi_config["relative_bbox"]
+                h_img, w_img = img.shape[:2]
+                cx1 = int(rx * w_img)
+                cy1 = int(ry * h_img)
+                cx2 = min(w_img, cx1 + int(rw * w_img))
+                cy2 = min(h_img, cy1 + int(rh * h_img))
+                roi = img[cy1:cy2, cx1:cx2]
+            else:
+                roi = img
+
+            rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+            resized = cv2.resize(rgb, (PC_IMG_SIZE, PC_IMG_SIZE)).astype(np.float32) / 255.0
+            norm = (resized - PC_MEAN) / PC_STD
+            tensor = torch.from_numpy(norm).permute(2, 0, 1).unsqueeze(0).float().to(torch_dev)
+            with torch.no_grad():
+                fused = extractor(tensor)[0].cpu().numpy()
+            _, score = temp_model.score(fused)
+            cal_scores.append(float(score))
+
+        cal_arr = np.array(cal_scores, dtype=np.float32)
+        cal_mean = float(np.mean(cal_arr))
+        cal_std = float(np.std(cal_arr)) if len(cal_arr) > 1 else 0.05
+        cal_max = float(np.max(cal_arr))
+
+        if len(cal_arr) >= 10:
+            calibrated_threshold = float(round(float(np.percentile(cal_arr, 99)) + 0.3 * cal_std, 4))
+        else:
+            calibrated_threshold = float(round(cal_max + max(0.08, 0.5 * cal_std), 4))
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        current_ver = profile.get("model_config", {}).get("model_version", "v1.0.0-adapted")
+        new_ver = current_ver.replace("v1.0.0", "v1.1.0")
+
+        profile.setdefault("threshold_config", {})
+        profile["threshold_config"]["calibrated_threshold"] = calibrated_threshold
+        profile["threshold_config"]["calibration_sample_count"] = profile["threshold_config"].get("calibration_sample_count", 0) + len(cal_samples)
+        profile["threshold_config"]["calibration_date"] = now_iso
+        profile["threshold_config"]["metrics"] = {
+            "mean": round(cal_mean, 4),
+            "std": round(cal_std, 4),
+            "max": round(cal_max, 4)
+        }
+        profile["model_config"]["model_version"] = new_ver
+        profile["updated_at"] = now_iso
+
+        cfg_file = os.path.join(dest_dir, "profile.json")
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+
+        # Update manifest
+        manifest_file = os.path.join(dest_dir, "manifest.json")
+        manifest_data = {}
+        if os.path.exists(manifest_file):
+            with open(manifest_file, "r", encoding="utf-8") as mf:
+                manifest_data = json.load(mf)
+        manifest_data["updated_at"] = now_iso
+        manifest_data["model_version"] = new_ver
+        manifest_data["calibrated_threshold"] = calibrated_threshold
+        manifest_data["training_samples_count"] = manifest_data.get("training_samples_count", 0) + len(train_samples)
+        manifest_data["calibration_samples_count"] = manifest_data.get("calibration_samples_count", 0) + len(cal_samples)
+        manifest_data["coreset_vectors_count"] = int(coreset_bank.shape[0])
+        manifest_data["artifacts"] = {
+            "memory_bank.npy": {"sha256": compute_file_sha256(mb_file), "size_bytes": os.path.getsize(mb_file)},
+            "index.faiss": {"sha256": compute_file_sha256(faiss_file), "size_bytes": os.path.getsize(faiss_file)},
+            "profile.json": {"sha256": compute_file_sha256(cfg_file), "size_bytes": os.path.getsize(cfg_file)}
+        }
+        with open(manifest_file, "w", encoding="utf-8") as mf:
+            json.dump(manifest_data, mf, indent=2)
+
+        # Invalidate cached model so it reloads fresh
+        if profile_id in self.loaded_models:
+            del self.loaded_models[profile_id]
+        self.reload_profiles()
+
+        return {
+            "status": "success",
+            "profile_id": profile_id,
+            "new_samples_added": len(valid_samples),
+            "total_coreset_vectors": int(coreset_bank.shape[0]),
+            "new_calibrated_threshold": calibrated_threshold,
+            "version": new_ver,
+            "updated_at": now_iso
         }
 
 

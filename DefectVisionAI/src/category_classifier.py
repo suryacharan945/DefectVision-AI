@@ -157,6 +157,7 @@ class CategoryRecognitionService:
                     "confidence": 0.0,
                     "confidence_threshold": self.confidence_threshold,
                     "is_supported": False,
+                    "gate_status": "UNSUPPORTED_CATEGORY",
                     "normalized_entropy": 1.0,
                     "energy_score": 0.0,
                     "prototype_similarity": None,
@@ -173,6 +174,7 @@ class CategoryRecognitionService:
                 "confidence": 0.0,
                 "confidence_threshold": self.confidence_threshold,
                 "is_supported": False,
+                "gate_status": "POOR_IMAGE_QUALITY",
                 "normalized_entropy": 1.0,
                 "energy_score": 0.0,
                 "prototype_similarity": None,
@@ -210,33 +212,57 @@ class CategoryRecognitionService:
             proto = self.prototypes[top_cat]
             proto_sim = float(np.dot(norm_feat, proto))
 
-        # Multi-criterion Open-Set Rejection Rule
-        passes_prob = bool(top_prob >= self.confidence_threshold)
-        passes_entropy = bool(norm_entropy <= 0.60)
-        passes_energy = bool(energy <= -6.50)
-        passes_proto = bool(proto_sim >= 0.65) if proto_sim is not None else True
+        # Margin between top two classes
+        sorted_probs = np.sort(probs)[::-1]
+        second_prob = float(sorted_probs[1]) if len(sorted_probs) > 1 else 0.0
+        prob_margin = float(top_prob - second_prob)
 
-        is_supported = bool(passes_prob and passes_entropy and passes_energy and passes_proto)
-        status = "RECOGNIZED" if is_supported else "UNSUPPORTED_OR_UNCERTAIN"
+        # Multi-tier Structured Confidence Gating (Priority 2 & 4)
+        is_unsupported = bool(top_prob < 0.35 or energy > -5.20 or norm_entropy > 0.80 or (proto_sim is not None and proto_sim < 0.30))
+        is_ambiguous = bool(not is_unsupported and (prob_margin < 0.08 or norm_entropy > 0.65))
+        is_accepted = bool(
+            top_prob >= self.confidence_threshold and
+            norm_entropy <= 0.60 and
+            (energy <= -5.50 or (proto_sim is not None and proto_sim >= 0.55))
+        )
+
+        if is_unsupported:
+            gate_status = "UNSUPPORTED_CATEGORY"
+            is_supported = False
+            final_cat = "unknown"
+        elif is_ambiguous:
+            gate_status = "AMBIGUOUS_INPUT"
+            is_supported = False
+            final_cat = "unknown"
+        elif is_accepted:
+            gate_status = "ACCEPTED"
+            is_supported = True
+            final_cat = top_cat
+        else:
+            gate_status = "LOW_CONFIDENCE"
+            is_supported = True
+            final_cat = top_cat
 
         all_probs = {self.id_to_cat[i]: float(round(float(probs[i]), 4)) for i in range(len(probs))}
 
         return {
-            "category": top_cat if is_supported else "unknown",
+            "category": final_cat,
             "candidate_category": top_cat,
             "category_type": cat_type if is_supported else "unknown",
             "confidence": float(round(top_prob, 4)),
             "confidence_threshold": float(round(self.confidence_threshold, 4)),
             "is_supported": is_supported,
+            "gate_status": gate_status,
+            "prob_margin": float(round(prob_margin, 4)),
             "normalized_entropy": float(round(norm_entropy, 4)),
             "energy_score": float(round(energy, 4)),
             "prototype_similarity": float(round(proto_sim, 4)) if proto_sim is not None else None,
             "rejection_criteria": {
-                "passes_prob": passes_prob,
-                "passes_entropy": passes_entropy,
-                "passes_energy": passes_energy,
-                "passes_prototype": passes_proto
+                "passes_prob": bool(top_prob >= self.confidence_threshold),
+                "passes_entropy": bool(norm_entropy <= 0.60),
+                "passes_energy": bool(energy <= -5.50),
+                "passes_prototype": bool(proto_sim >= 0.55) if proto_sim is not None else True
             },
-            "status": status,
+            "status": gate_status,
             "probabilities": all_probs
         }

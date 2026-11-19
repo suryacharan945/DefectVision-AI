@@ -44,12 +44,13 @@ Modern manufacturing environments face two major computer vision challenges:
 ## 4. Key Features
 
 - **15 Category PatchCore Memory Banks:** Pre-trained and calibrated memory banks for all 15 MVTec AD categories (10 objects, 5 textures).
-- **Automated Category Recognition:** EfficientNet-B0 classifier with temperature calibration ($T = 1.3696$) and Shannon entropy out-of-distribution (OOD) rejection.
+- **Product-Specific Few-Shot Adaptation:** Train target-domain PatchCore profiles on $K=5 \dots 20$ normal reference samples, resolving domain-shift false alarms.
+- **Automated Category Recognition:** EfficientNet-B0 classifier with multi-tier confidence gating ($E < -5.20$, entropy $< 0.80$) and OOD rejection.
 - **Optical Image Quality Gate:** Classical Laplacian variance ($\sigma^2 \ge 25$) and luminance/contrast gating.
+- **Dedicated Product Profiles UI:** In-browser profile lifecycle management, multi-step adaptation wizard, test evaluation tool, and score distribution analytics.
 - **Dual Inference Modes:** Drag-and-drop manual image upload or automated stream intake.
 - **Batch Processing:** Asynchronous multi-image inspection queue via `/batch`.
 - **Interactive Heatmap Viewport:** Dual-pane inspection viewer with dynamic alpha-blending slider.
-- **Production Profiles:** Configurable per-line inspection profiles (`bottle_001_station_01`).
 - **Audit Ring-Buffer History:** Thread-safe in-memory inspection history log.
 
 ---

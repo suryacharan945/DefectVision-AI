@@ -34,6 +34,7 @@ export default function InspectSection({
   demoMode,
   onToggleDemoMode,
   onRetryConnection,
+  initialProfileId,
 }) {
   const isBackendReady = backendHealth?.status === 'ready';
   const [category, setCategory] = useState('auto');
@@ -99,6 +100,13 @@ export default function InspectSection({
     }
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (initialProfileId) {
+      setRoutingMode('production');
+      setSelectedProfileId(initialProfileId);
+    }
+  }, [initialProfileId]);
 
   // Handle file selection
   const handleFileChange = (e) => {

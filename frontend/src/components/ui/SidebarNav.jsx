@@ -14,7 +14,8 @@ import {
   X,
   Server,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Boxes
 } from 'lucide-react';
 
 export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
@@ -25,6 +26,7 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
       group: 'Core Inspection',
       items: [
         { id: 'inspect', label: 'Specimen Inspection', icon: ShieldCheck, tag: 'P0' },
+        { id: 'profiles', label: 'Product Profiles', icon: Boxes, tag: 'ADAPT' },
         { id: 'live', label: 'Live Optical Stream', icon: Video, tag: 'LIVE', isLive: true },
         { id: 'models', label: 'Models Leaderboard', icon: Cpu, tag: 'P0' },
         { id: 'history', label: 'History Browser', icon: FileSearch, tag: 'P0' },

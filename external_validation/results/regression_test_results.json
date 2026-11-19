@@ -1,0 +1,441 @@
+{
+  "timestamp": "2026-11-19T14:36:52Z",
+  "test_suite_version": "v1.0.0-rc1",
+  "backend_url": "http://127.0.0.1:8001/api/inspect-frame",
+  "tests": {
+    "test1_category_recognition": {
+      "description": "Category recognition accuracy on reference nominal samples",
+      "categories_tested": 15,
+      "correct_predictions": 15,
+      "accuracy_pct": 100.0,
+      "pass_criterion": "accuracy >= 93.3% (14/15)",
+      "passed": true,
+      "details": {
+        "bottle": {
+          "expected": "bottle",
+          "detected": "bottle",
+          "confidence": 0.9991,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "cable": {
+          "expected": "cable",
+          "detected": "cable",
+          "confidence": 0.9996,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "capsule": {
+          "expected": "capsule",
+          "detected": "capsule",
+          "confidence": 0.9973,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "carpet": {
+          "expected": "carpet",
+          "detected": "carpet",
+          "confidence": 0.9934,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "grid": {
+          "expected": "grid",
+          "detected": "grid",
+          "confidence": 0.999,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "hazelnut": {
+          "expected": "hazelnut",
+          "detected": "hazelnut",
+          "confidence": 0.9999,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "leather": {
+          "expected": "leather",
+          "detected": "leather",
+          "confidence": 0.9996,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "metal_nut": {
+          "expected": "metal_nut",
+          "detected": "metal_nut",
+          "confidence": 0.9934,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "pill": {
+          "expected": "pill",
+          "detected": "pill",
+          "confidence": 0.9976,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "screw": {
+          "expected": "screw",
+          "detected": "screw",
+          "confidence": 0.9989,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "tile": {
+          "expected": "tile",
+          "detected": "tile",
+          "confidence": 0.9974,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "toothbrush": {
+          "expected": "toothbrush",
+          "detected": "toothbrush",
+          "confidence": 0.993,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "transistor": {
+          "expected": "transistor",
+          "detected": "transistor",
+          "confidence": 0.9991,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "wood": {
+          "expected": "wood",
+          "detected": "wood",
+          "confidence": 0.9954,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        },
+        "zipper": {
+          "expected": "zipper",
+          "detected": "zipper",
+          "confidence": 0.9985,
+          "gate_status": "ACCEPTED",
+          "pass": true
+        }
+      }
+    },
+    "test2_normal_classification": {
+      "description": "Normal specimen classification consistency (nominal false positive suppression)",
+      "samples_tested": 15,
+      "correctly_classified_normal": 13,
+      "specificity_pct": 86.67,
+      "fpr_pct": 13.33,
+      "pass_criterion": "specificity >= 80.0%",
+      "passed": true,
+      "details": {
+        "bottle": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.3151,
+          "threshold": 1.4666,
+          "margin": -0.1515,
+          "pass": true
+        },
+        "cable": {
+          "verdict": "NORMAL",
+          "anomaly_score": 2.0148,
+          "threshold": 2.4577,
+          "margin": -0.4429,
+          "pass": true
+        },
+        "capsule": {
+          "verdict": "NORMAL",
+          "anomaly_score": 0.9611,
+          "threshold": 1.1502,
+          "margin": -0.1891,
+          "pass": true
+        },
+        "carpet": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.1064,
+          "threshold": 1.3543,
+          "margin": -0.2479,
+          "pass": true
+        },
+        "grid": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.3666,
+          "threshold": 1.4634,
+          "margin": -0.0968,
+          "pass": true
+        },
+        "hazelnut": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.972,
+          "threshold": 2.3403,
+          "margin": -0.3683,
+          "pass": true
+        },
+        "leather": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.0891,
+          "threshold": 1.1136,
+          "margin": -0.0245,
+          "pass": true
+        },
+        "metal_nut": {
+          "verdict": "REVIEW REQUIRED",
+          "anomaly_score": 1.815,
+          "threshold": 1.8271,
+          "margin": -0.0121,
+          "pass": true
+        },
+        "pill": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.6168,
+          "threshold": 1.7575,
+          "margin": -0.1407,
+          "pass": true
+        },
+        "screw": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.2165,
+          "threshold": 1.4684,
+          "margin": -0.2519,
+          "pass": true
+        },
+        "tile": {
+          "verdict": "REVIEW REQUIRED",
+          "anomaly_score": 1.4862,
+          "threshold": 1.4735,
+          "margin": 0.0127,
+          "pass": false
+        },
+        "toothbrush": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.4119,
+          "threshold": 1.4593,
+          "margin": -0.0474,
+          "pass": true
+        },
+        "transistor": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.5463,
+          "threshold": 1.7787,
+          "margin": -0.2324,
+          "pass": true
+        },
+        "wood": {
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 1.3855,
+          "threshold": 1.344,
+          "margin": 0.0415,
+          "pass": false
+        },
+        "zipper": {
+          "verdict": "NORMAL",
+          "anomaly_score": 1.0745,
+          "threshold": 1.1627,
+          "margin": -0.0882,
+          "pass": true
+        }
+      }
+    },
+    "test3_defect_recall": {
+      "description": "Defect detection sensitivity on physical anomaly test specimens",
+      "defects_tested": 15,
+      "defects_detected": 14,
+      "recall_pct": 93.33,
+      "pass_criterion": "recall >= 86.6% (13/15)",
+      "passed": true,
+      "details": {
+        "bottle": {
+          "specimen": "broken_large",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 3.3946,
+          "threshold": 1.4666,
+          "margin": 1.928,
+          "pass": true
+        },
+        "cable": {
+          "specimen": "combined",
+          "verdict": "NORMAL",
+          "anomaly_score": 2.4065,
+          "threshold": 2.4577,
+          "margin": -0.0512,
+          "pass": false
+        },
+        "capsule": {
+          "specimen": "faulty_imprint",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 1.9063,
+          "threshold": 1.1502,
+          "margin": 0.7561,
+          "pass": true
+        },
+        "carpet": {
+          "specimen": "cut",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.3092,
+          "threshold": 1.3543,
+          "margin": 0.9549,
+          "pass": true
+        },
+        "grid": {
+          "specimen": "metal_contamination",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.2154,
+          "threshold": 1.4634,
+          "margin": 0.752,
+          "pass": true
+        },
+        "hazelnut": {
+          "specimen": "crack",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.7763,
+          "threshold": 2.3403,
+          "margin": 0.436,
+          "pass": true
+        },
+        "leather": {
+          "specimen": "fold",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.0725,
+          "threshold": 1.1136,
+          "margin": 0.9589,
+          "pass": true
+        },
+        "metal_nut": {
+          "specimen": "color",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.5668,
+          "threshold": 1.8271,
+          "margin": 0.7397,
+          "pass": true
+        },
+        "pill": {
+          "specimen": "color",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.539,
+          "threshold": 1.7575,
+          "margin": 0.7815,
+          "pass": true
+        },
+        "screw": {
+          "specimen": "scratch_neck",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 1.9688,
+          "threshold": 1.4684,
+          "margin": 0.5004,
+          "pass": true
+        },
+        "tile": {
+          "specimen": "glue_strip",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.7193,
+          "threshold": 1.4735,
+          "margin": 1.2458,
+          "pass": true
+        },
+        "toothbrush": {
+          "specimen": "defective",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 3.0705,
+          "threshold": 1.4593,
+          "margin": 1.6112,
+          "pass": true
+        },
+        "transistor": {
+          "specimen": "bent_lead",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.7817,
+          "threshold": 1.7787,
+          "margin": 1.003,
+          "pass": true
+        },
+        "wood": {
+          "specimen": "hole",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 2.6133,
+          "threshold": 1.344,
+          "margin": 1.2693,
+          "pass": true
+        },
+        "zipper": {
+          "specimen": "fabric_interior",
+          "verdict": "DEFECTIVE",
+          "anomaly_score": 1.5837,
+          "threshold": 1.1627,
+          "margin": 0.421,
+          "pass": true
+        }
+      }
+    },
+    "test4_heatmap_integrity": {
+      "description": "Defect heatmap localization generation and base64 payload serialization",
+      "heatmap_flag": true,
+      "payload_prefix_valid": true,
+      "payload_length_bytes": 94847,
+      "passed": true
+    },
+    "test5_quality_gate_stress": {
+      "description": "Optical quality gate validation against blur, extreme luminance, and flat color",
+      "blur_rejection": {
+        "passed": true,
+        "gate": "POOR_IMAGE_QUALITY",
+        "verdict": "REVIEW REQUIRED"
+      },
+      "underexposed_rejection": {
+        "passed": true,
+        "gate": "POOR_IMAGE_QUALITY",
+        "verdict": "REVIEW REQUIRED"
+      },
+      "overexposed_rejection": {
+        "passed": true,
+        "gate": "POOR_IMAGE_QUALITY",
+        "verdict": "REVIEW REQUIRED"
+      },
+      "flat_color_rejection": {
+        "passed": true,
+        "gate": "POOR_IMAGE_QUALITY",
+        "verdict": "REVIEW REQUIRED"
+      },
+      "passed": true
+    },
+    "test6_unsupported_category_gating": {
+      "description": "Open-set out-of-distribution rejection of non-industrial arbitrary noise",
+      "detected_category": "leather",
+      "gate_status": "LOW_CONFIDENCE",
+      "verdict": "DEFECTIVE",
+      "passed": false
+    },
+    "test7_ambiguous_input_handling": {
+      "description": "Gating behavior on composite ambiguous specimens",
+      "gate_status": "ACCEPTED",
+      "passed": false
+    },
+    "test8_latency_benchmark": {
+      "description": "End-to-end HTTP request processing latency (50 iterations)",
+      "iterations": 50,
+      "p50_latency_ms": 2079.46,
+      "p90_latency_ms": 2222.97,
+      "p99_latency_ms": 2312.72,
+      "mean_latency_ms": 2042.06,
+      "pass_criterion": "p50 < 350ms, p99 < 1200ms",
+      "passed": false
+    },
+    "test9_concurrent_requests": {
+      "description": "Server stability and data isolation under 5 concurrent threads",
+      "total_requests": 10,
+      "successful_requests": 10,
+      "errors": 0,
+      "passed": true
+    },
+    "test10_model_persistence": {
+      "description": "SHA-256 cryptographic hash verification of neural checkpoints and resident memory banks",
+      "category_classifier_sha256": "d898699903427007fd221b1a8741fe620121bb1feea730b27dabd3a8af65a34e",
+      "memory_bank_count": 15,
+      "all_memory_banks_present": true,
+      "passed": true
+    }
+  },
+  "summary": {
+    "total_tests": 10,
+    "passed_tests": 7,
+    "failed_tests": 3,
+    "overall_status": "FAILED"
+  }
+}
