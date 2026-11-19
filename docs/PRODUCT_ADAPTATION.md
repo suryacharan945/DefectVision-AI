@@ -81,3 +81,4 @@ flowchart TD
 - **Sample Size:** For initial prototyping, $K=5$ normal images suffices. For certified line deployment, collect $K \ge 20$ normal images spanning daylight, night shift, and minor conveyor vibration.
 - **Lighting Consistency:** Keep illumination steady. If lighting changes, create a separate profile or update references via `/api/production-profiles/{id}/update-references`.
 - **Foreground Masking:** Ensure the target object occupies at least 15% of the frame. Textures automatically bypass bounding box cropping.
+- **Storage Persistence:** In containerized deployments (Docker, Kubernetes), mount a persistent volume to `DEFECTVISION_DATA_DIR` or `DEFECTVISION_PROFILES_DIR` to preserve adapted profile artifacts across container restarts. Profiles strip local runtime paths before persisting to disk, ensuring complete deployment portability.

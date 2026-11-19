@@ -37,3 +37,9 @@ sha256sum models/production_profiles/bottle_sku_btl_adapt_002/memory_bank.npy
 ```
 
 The system automatically checks these hashes upon profile loading to guard against silent data corruption.
+
+---
+
+## 4. Production API Model Telemetry
+
+The live backend exposes `model_version: "v1.0.0-rc1"` and `backend_version: "3.0.0"` in `/api/ready` and `/api/health`, enabling edge clients to verify that the persistent server is running the certified frozen baseline.

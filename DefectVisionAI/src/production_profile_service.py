@@ -23,15 +23,41 @@ import numpy as np
 logger = logging.getLogger("defectvision.production_profile")
 
 
+def _clean_profile_for_disk(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Returns a clean copy of the profile dictionary stripped of internal runtime keys."""
+    return {k: v for k, v in profile.items() if not k.startswith("_")}
+
+
 class ProductionProfileService:
     def __init__(self, profiles_dir: Optional[str] = None):
         if profiles_dir is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            profiles_dir = os.path.join(base_dir, "models", "production_profiles")
+            env_profiles = os.environ.get("DEFECTVISION_PROFILES_DIR")
+            env_data = os.environ.get("DEFECTVISION_DATA_DIR")
+            if env_profiles:
+                profiles_dir = env_profiles
+            elif env_data:
+                profiles_dir = os.path.join(env_data, "profiles")
+            else:
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                profiles_dir = os.path.join(base_dir, "models", "production_profiles")
         self.profiles_dir = profiles_dir
         self.profiles: Dict[str, Dict[str, Any]] = {}
         self.loaded_models: Dict[str, Any] = {}
         self.reload_profiles()
+
+    def is_storage_writable(self) -> bool:
+        """Verifies that the profile storage directory exists and is writable for persistence."""
+        try:
+            os.makedirs(self.profiles_dir, exist_ok=True)
+            test_path = os.path.join(self.profiles_dir, ".write_probe")
+            with open(test_path, "w", encoding="utf-8") as f:
+                f.write("probe")
+            if os.path.exists(test_path):
+                os.remove(test_path)
+            return True
+        except Exception as e:
+            logger.warning(f"Profile storage directory {self.profiles_dir} is not writable: {e}")
+            return False
 
     def reload_profiles(self) -> Dict[str, Dict[str, Any]]:
         """Scans the profiles directory and loads all valid profile definitions."""
@@ -770,7 +796,7 @@ class ProductionProfileService:
         profile["updated_at"] = datetime.now(timezone.utc).isoformat()
         cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(profile, f, indent=2)
+            json.dump(_clean_profile_for_disk(profile), f, indent=2)
         logger.info(f"Activated production profile: {profile_id}")
         return {"status": "success", "profile_id": profile_id, "profile_status": "active"}
 
@@ -783,7 +809,7 @@ class ProductionProfileService:
         profile["updated_at"] = datetime.now(timezone.utc).isoformat()
         cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(profile, f, indent=2)
+            json.dump(_clean_profile_for_disk(profile), f, indent=2)
         logger.info(f"Deactivated production profile: {profile_id}")
         return {"status": "success", "profile_id": profile_id, "profile_status": "inactive"}
 
@@ -796,7 +822,7 @@ class ProductionProfileService:
         profile["updated_at"] = datetime.now(timezone.utc).isoformat()
         cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(profile, f, indent=2)
+            json.dump(_clean_profile_for_disk(profile), f, indent=2)
         if profile_id in self.loaded_models:
             del self.loaded_models[profile_id]
         logger.info(f"Archived production profile: {profile_id}")
@@ -835,7 +861,7 @@ class ProductionProfileService:
         profile["updated_at"] = datetime.now(timezone.utc).isoformat()
         cfg_file = os.path.join(profile["_profile_dir"], "profile.json")
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(profile, f, indent=2)
+            json.dump(_clean_profile_for_disk(profile), f, indent=2)
         return profile
 
     def get_profile_analytics(self, profile_id: str) -> Dict[str, Any]:
@@ -1192,7 +1218,7 @@ class ProductionProfileService:
 
         cfg_file = os.path.join(dest_dir, "profile.json")
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(profile, f, indent=2)
+            json.dump(_clean_profile_for_disk(profile), f, indent=2)
 
         # Update manifest
         manifest_file = os.path.join(dest_dir, "manifest.json")

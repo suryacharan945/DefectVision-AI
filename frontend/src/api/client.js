@@ -15,8 +15,33 @@ import fallbackSeverityLogs from '../data/severity_logs.json';
 import fallbackBatches from '../data/batch_list.json';
 import fallbackDemoBatch from '../data/batch_demo_150img_batch.json';
 
-const rawBaseUrl = import.meta.env.VITE_API_URL || '';
-const BASE_URL = rawBaseUrl.trim().replace(/\/+$/, '');
+export const ConnectionState = {
+  CONNECTING: 'CONNECTING',
+  ONLINE: 'ONLINE',
+  MODEL_LOADING: 'MODEL_LOADING',
+  READY: 'READY',
+  DEGRADED: 'DEGRADED',
+  OFFLINE: 'OFFLINE'
+};
+
+function resolveApiUrl() {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl || typeof envUrl !== 'string') {
+    return '';
+  }
+  const clean = envUrl.trim().replace(/\/+$/, '');
+  try {
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      new URL(clean);
+      return clean;
+    }
+  } catch (e) {
+    console.warn('[DefectVision API] Invalid VITE_API_URL format:', clean, e);
+  }
+  return clean;
+}
+
+const BASE_URL = resolveApiUrl();
 
 // Explicit Demo Mode State Management
 // Fresh local development sessions default to LIVE mode (false)
@@ -164,11 +189,13 @@ export const api = {
 
     if (!rawHealth) {
       return {
-        status: 'unavailable',
-        mode: _demoModeEnabled ? 'demo' : 'unavailable',
+        status: 'offline',
+        connection_state: ConnectionState.OFFLINE,
+        mode: _demoModeEnabled ? 'demo' : 'offline',
         is_live: false,
         device: 'Offline',
         version: '3.0.0',
+        backend_version: '3.0.0',
         categories_count: 0,
         total_supported_categories: 15,
         ready_category_models_count: 0,
@@ -177,8 +204,8 @@ export const api = {
         optical_engine_ready: false,
         thresholds_ready: false,
         llm_loaded: false,
-        api_url: BASE_URL || 'http://127.0.0.1:8001',
-        error: fetchError || 'Backend offline or unreachable on port 8001'
+        api_url: BASE_URL || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://127.0.0.1:8001'),
+        error: fetchError || 'FastAPI backend is offline or unreachable.'
       };
     }
 
@@ -186,10 +213,11 @@ export const api = {
     if (typeof rawHealth !== 'object' || rawHealth === null) {
       return {
         status: 'degraded',
+        connection_state: ConnectionState.DEGRADED,
         mode: 'degraded',
         is_live: false,
         device: 'Unknown',
-        api_url: BASE_URL || 'Local Host (Port 8001)',
+        api_url: BASE_URL || 'Backend Server',
         error: 'Malformed backend health response: payload is not a valid object.'
       };
     }
@@ -203,7 +231,7 @@ export const api = {
     const backendReportedStatus = String(rawHealth.status || '').toLowerCase();
 
     // Truthful operational readiness evaluation (Phase 5):
-    // Only 'ready' when backend explicitly reports ready, optical engine is ready,
+    // Only 'READY' when backend explicitly reports ready, optical engine is ready,
     // classifier is loaded, calibrated thresholds are available, and ALL 15 category memory banks are confirmed ready.
     const isTrulyReady = (
       backendReportedStatus === 'ready' &&
@@ -215,18 +243,26 @@ export const api = {
       totalCategories === 15
     );
 
+    let connectionState = ConnectionState.ONLINE;
     let evaluatedStatus = 'degraded';
     if (isTrulyReady) {
+      connectionState = ConnectionState.READY;
       evaluatedStatus = 'ready';
+    } else if (readyModelsCount > 0 && readyModelsCount < totalCategories) {
+      connectionState = ConnectionState.MODEL_LOADING;
+      evaluatedStatus = 'model_loading';
     } else if (backendReportedStatus === 'not_ready' || readyModelsCount === 0 || !opticalEngineReady) {
+      connectionState = ConnectionState.ONLINE;
       evaluatedStatus = 'not_ready';
     } else {
+      connectionState = ConnectionState.DEGRADED;
       evaluatedStatus = 'degraded';
     }
 
     return {
       ...rawHealth,
       status: evaluatedStatus,
+      connection_state: connectionState,
       raw_backend_status: backendReportedStatus,
       mode: isTrulyReady ? 'live' : evaluatedStatus,
       is_live: isTrulyReady,
@@ -237,7 +273,7 @@ export const api = {
       ready_category_models_count: readyModelsCount,
       total_supported_categories: totalCategories,
       device: rawHealth.device || 'CPU',
-      api_url: BASE_URL || 'Local Host (Port 8001)'
+      api_url: BASE_URL || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://127.0.0.1:8001')
     };
   },
 

@@ -83,19 +83,50 @@ Permanently deletes profile files and unloads the model from RAM.
 
 ---
 
-## 3. System Health Endpoint
+## 3. System Health & Readiness Endpoints
 
-### `GET /api/health`
-Returns runtime status, loaded models, memory banks, and hardware readiness.
+### `GET /api/ready` (or `/ready`)
+Production readiness probe verifying resident model memory. Returns HTTP 200 when all 15 category models, calibrated thresholds, and FAISS indices are resident in RAM; returns HTTP 503 if any model failed to load.
+
 ```json
 {
   "status": "ready",
+  "process_reachable": true,
   "service": "DefectVision AI — Live Inference Server",
-  "version": "3.0.0",
+  "backend_version": "3.0.0",
+  "model_version": "v1.0.0-rc1",
   "device": "cpu",
   "total_supported_categories": 15,
   "ready_category_models_count": 15,
   "all_required_models_ready": true,
-  "production_profiles_count": 2
+  "thresholds_ready": true,
+  "faiss_indexes_loaded": 15,
+  "profile_storage_writable": true,
+  "model_loading_failures": [],
+  "categories_status": {
+    "bottle": true, "cable": true, "capsule": true, "carpet": true, "grid": true,
+    "hazelnut": true, "leather": true, "metal_nut": true, "pill": true, "screw": true,
+    "tile": true, "toothbrush": true, "transistor": true, "wood": true, "zipper": true
+  },
+  "production_profiles_count": 2,
+  "production_profiles": [
+    "bottle_001_station_01",
+    "bottle_sku_btl_adapt_002"
+  ]
 }
 ```
+
+### `GET /api/health` (or `/health`)
+Liveness probe indicating process reachability and subsystem status.
+
+---
+
+## 4. Optical Inspection History & Status
+
+### `GET /api/optical-inspection/model-status`
+Returns baseline statistics, token counts, and calibrated thresholds across all 15 categories.
+
+### `GET /api/optical-inspection/history`
+Returns real-time session inspection records and statistics.
+
+For comprehensive route matrices and integration details, consult [`release/production_upgrade/API_INTEGRATION_REPORT.md`](../release/production_upgrade/API_INTEGRATION_REPORT.md).

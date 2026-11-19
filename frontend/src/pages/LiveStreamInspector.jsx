@@ -202,7 +202,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       // Top-Right
       ctx.beginPath();
       ctx.moveTo(roiX + roiW - bLen, roiY);
-      ctx.lineTo(roiX + roiW);
+      ctx.lineTo(roiX + roiW, roiY);
       ctx.lineTo(roiX + roiW, roiY + bLen);
       ctx.stroke();
 
@@ -216,7 +216,7 @@ export default function LiveStreamInspector({ onNavigateToRAG, onNavigateToSimil
       // Bottom-Right
       ctx.beginPath();
       ctx.moveTo(roiX + roiW - bLen, roiY + roiH);
-      ctx.lineTo(roiX + roiW);
+      ctx.lineTo(roiX + roiW, roiY + roiH);
       ctx.lineTo(roiX + roiW, roiY + roiH - bLen);
       ctx.stroke();
 

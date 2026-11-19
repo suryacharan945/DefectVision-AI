@@ -49,7 +49,8 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
     },
   ];
 
-  const isOnline = backendHealth && backendHealth.status === 'ready';
+  const connState = backendHealth?.connection_state || (backendHealth ? (backendHealth.status === 'ready' ? 'READY' : 'OFFLINE') : 'CONNECTING');
+  const isOnline = connState === 'READY';
 
   const handleSelectTab = (id) => {
     onTabChange(id);
@@ -200,27 +201,43 @@ export default function SidebarNav({ activeTab, onTabChange, backendHealth }) {
               <span className="text-slate-400 text-[10px] uppercase">Engine Status</span>
               <span
                 className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  isOnline
+                  connState === 'READY'
                     ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                    : backendHealth?.mode === 'demo'
+                    : connState === 'MODEL_LOADING'
+                    ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                    : connState === 'DEGRADED' || backendHealth?.mode === 'demo'
                     ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    : connState === 'CONNECTING'
+                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                     : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                 }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isOnline
+                    connState === 'READY'
                       ? 'bg-emerald-400 animate-ping'
-                      : backendHealth?.mode === 'demo'
+                      : connState === 'MODEL_LOADING'
+                      ? 'bg-cyan-400 animate-pulse'
+                      : connState === 'CONNECTING'
+                      ? 'bg-blue-400 animate-pulse'
+                      : connState === 'DEGRADED' || backendHealth?.mode === 'demo'
                       ? 'bg-amber-400'
                       : 'bg-rose-400'
                   }`}
                 />
                 <span>
-                  {isOnline
-                    ? 'ONLINE (LIVE ML)'
-                    : backendHealth?.mode === 'demo'
+                  {backendHealth?.mode === 'demo'
                     ? 'DEMO MODE'
+                    : connState === 'READY'
+                    ? 'READY (15/15)'
+                    : connState === 'MODEL_LOADING'
+                    ? 'LOADING MODELS'
+                    : connState === 'ONLINE'
+                    ? 'ONLINE (INIT)'
+                    : connState === 'DEGRADED'
+                    ? 'DEGRADED'
+                    : connState === 'CONNECTING'
+                    ? 'CONNECTING'
                     : 'OFFLINE'}
                 </span>
               </span>

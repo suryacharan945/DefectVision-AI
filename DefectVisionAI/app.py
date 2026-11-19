@@ -748,11 +748,18 @@ def get_system_health():
     else:
         operational_status = "degraded"
 
+    model_loading_failures = [cat for cat in known_categories if not categories_status.get(cat, False)]
+    storage_writable = False
+    if engine_init and hasattr(engine, "profile_service") and hasattr(engine.profile_service, "is_storage_writable"):
+        storage_writable = engine.profile_service.is_storage_writable()
+
     return {
         "status": operational_status,
         "process_reachable": True,
-        "service": "DefectVision AI â€” Live Inference Server",
+        "service": "DefectVision AI — Live Inference Server",
         "version": "3.0.0",
+        "backend_version": "3.0.0",
+        "model_version": "v1.0.0-rc1",
         "device": str(device),
         "optical_engine_initialized": engine_init,
         "optical_engine_ready": bool(engine_init and all_models_ready and classifier_ready),
@@ -762,6 +769,9 @@ def get_system_health():
         "ready_category_models_count": ready_models_count,
         "all_required_models_ready": all_models_ready,
         "thresholds_ready": thresholds_ready,
+        "faiss_indexes_loaded": len(loaded_faiss_indices),
+        "profile_storage_writable": storage_writable,
+        "model_loading_failures": model_loading_failures,
         "categories": known_categories,
         "categories_status": categories_status,
         "production_profiles_count": prod_profiles_count,
@@ -778,6 +788,28 @@ def get_system_health():
 @app.get("/api/")
 def read_root():
     return get_system_health()
+
+@app.get("/ready")
+@app.get("/api/ready")
+def readiness_check_endpoint():
+    """
+    Production container readiness probe.
+    Returns HTTP 200 when all core inference engines (PatchCore 15-category bank,
+    EfficientNet-B0 classifier, calibrated thresholds) are fully resident and ready.
+    Returns HTTP 503 if any subsystem is offline or degraded.
+    """
+    health = get_system_health()
+    if health.get("status") == "ready":
+        return JSONResponse(status_code=200, content=health)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": health.get("status", "not_ready"),
+            "ready": False,
+            "detail": "Inference engine is not fully initialized. Subsystems offline or degraded.",
+            "health": health
+        }
+    )
 
 @app.get("/api/production-profiles")
 def list_production_profiles_endpoint():
@@ -1046,6 +1078,7 @@ async def universal_intake_endpoint(
     intake_res_clean = {k: v for k, v in intake_res.items() if k != "preprocessed_bgr"}
     return intake_res_clean
 
+@app.post("/api/predict")
 @app.post("/predict")
 async def predict_endpoint(
     file: UploadFile = File(...),
@@ -1264,6 +1297,7 @@ def process_batch_worker(batch_id, files_data, category):
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
+@app.post("/api/batch")
 @app.post("/batch")
 async def batch_endpoint(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...), category: str = Form(...)):
     if category not in known_categories:
@@ -1280,6 +1314,7 @@ async def batch_endpoint(background_tasks: BackgroundTasks, files: list[UploadFi
     background_tasks.add_task(process_batch_worker, batch_id, files_data, category)
     return {"batch_id": batch_id, "status": "queued"}
 
+@app.get("/api/batch/{batch_id}/status")
 @app.get("/batch/{batch_id}/status")
 def batch_status_endpoint(batch_id: str):
     if batch_id not in active_batches:
@@ -1292,6 +1327,7 @@ def batch_status_endpoint(batch_id: str):
         raise HTTPException(status_code=404, detail="Batch job not found.")
     return active_batches[batch_id]
 
+@app.post("/api/similarity")
 @app.post("/similarity")
 async def similarity_endpoint(file: UploadFile = File(...), category: str = Form(...)):
     if category not in known_categories:
@@ -1335,6 +1371,7 @@ class ExplainPayload(BaseModel):
     defect_area_pct: float
     confidence_pct: float
 
+@app.post("/api/explain")
 @app.post("/explain")
 def explain_endpoint(payload: ExplainPayload):
     if llm_loaded:
@@ -1367,6 +1404,7 @@ def explain_endpoint(payload: ExplainPayload):
 class RagPayload(BaseModel):
     question: str
 
+@app.post("/api/rag/ask")
 @app.post("/rag/ask")
 def rag_ask_endpoint(payload: RagPayload):
     # Semantic retrieval from KB
@@ -1429,6 +1467,7 @@ def rag_ask_endpoint(payload: RagPayload):
 class AskPayload(BaseModel):
     question: str
 
+@app.post("/api/dashboard/ask")
 @app.post("/dashboard/ask")
 def ask_dashboard_endpoint(payload: AskPayload):
     question = payload.question
@@ -1492,6 +1531,7 @@ def ask_dashboard_endpoint(payload: AskPayload):
             "intent": intent
         }
 
+@app.post("/api/rca/ask")
 @app.post("/rca/ask")
 def ask_rca_endpoint(payload: AskPayload):
     question = payload.question
@@ -1533,12 +1573,14 @@ def ask_rca_endpoint(payload: AskPayload):
             "analysis_type": "rca"
         }
 
+@app.get("/api/models/comparison")
 @app.get("/models/comparison")
 def get_models_comparison():
     df = pd.read_csv(os.path.join(REPORTS_DIR, "step8_model_comparison_FAIR.csv"))
     df = df.fillna("")
     return df.to_dict("records")
 
+@app.get("/api/severity/logs")
 @app.get("/severity/logs")
 def get_severity_logs(category: str = None, severity_level: str = None, page: int = 1, page_size: int = 20):
     df = pd.read_csv(os.path.join(LOGS_DIR, "step9_severity_log.csv"))
@@ -1597,12 +1639,14 @@ def get_severity_logs(category: str = None, severity_level: str = None, page: in
         "total_pages": total_pages
     }
 
+@app.get("/api/drift")
 @app.get("/drift")
 def get_drift():
     df = pd.read_csv(os.path.join(LOGS_DIR, "step12_drift_log_v3.csv"))
     df = df.fillna("")
     return df.to_dict("records")
 
+@app.get("/api/rag/entries")
 @app.get("/rag/entries")
 def get_rag_entries():
     kb_path = os.path.join(MODELS_DIR, "rag_knowledge_base", "defect_knowledge_base.csv")
@@ -1612,6 +1656,7 @@ def get_rag_entries():
         return df.to_dict("records")
     return []
 
+@app.get("/api/categories/samples")
 @app.get("/categories/samples")
 def get_category_samples():
     samples_dir = os.path.join("outputs", "similarity_search_samples")
@@ -1628,6 +1673,7 @@ def get_category_samples():
         })
     return results
 
+@app.get("/api/active-learning/sensitivity")
 @app.get("/active-learning/sensitivity")
 def get_active_learning_sensitivity():
     sens_path = os.path.join(REPORTS_DIR, "step11_threshold_sensitivity.csv")
@@ -1637,6 +1683,7 @@ def get_active_learning_sensitivity():
         return df.to_dict("records")
     return []
 
+@app.get("/api/reports/summary")
 @app.get("/reports/summary")
 def get_reports_summary():
     summary_path = os.path.join(REPORTS_DIR, "final_research_summary.json")
@@ -1645,6 +1692,7 @@ def get_reports_summary():
             return json.load(f)
     return {}
 
+@app.get("/api/reports/auroc-matrix")
 @app.get("/reports/auroc-matrix")
 def get_auroc_matrix():
     auroc_path = os.path.join(REPORTS_DIR, "step8_per_category_auroc_matrix.csv")
@@ -1654,6 +1702,7 @@ def get_auroc_matrix():
         return df.to_dict("records")
     return []
 
+@app.get("/api/samples/presets")
 @app.get("/samples/presets")
 def get_sample_presets():
     """Curated list of test samples across categories for 1-click inspection."""
@@ -1690,6 +1739,7 @@ def get_sample_presets():
             })
     return samples
 
+@app.get("/api/batch/list")
 @app.get("/batch/list")
 def list_batches():
     """Returns past and active batch inspections."""
@@ -1718,6 +1768,7 @@ def list_batches():
     batches.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return batches
 
+@app.get("/api/similarity/category/{category}")
 @app.get("/similarity/category/{category}")
 def get_category_similarity_gallery(category: str):
     """Returns representative gallery items from the category FAISS index."""

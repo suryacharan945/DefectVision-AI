@@ -48,6 +48,8 @@ Modern manufacturing environments face two major computer vision challenges:
 - **Automated Category Recognition:** EfficientNet-B0 classifier with multi-tier confidence gating ($E < -5.20$, entropy $< 0.80$) and OOD rejection.
 - **Optical Image Quality Gate:** Classical Laplacian variance ($\sigma^2 \ge 25$) and luminance/contrast gating.
 - **Dedicated Product Profiles UI:** In-browser profile lifecycle management, multi-step adaptation wizard, test evaluation tool, and score distribution analytics.
+- **Full-Stack Decoupled Deployment:** Persistent FastAPI backend running 15 resident memory banks + FAISS indices paired with a Vercel-deployed React frontend (`https://defectvision-ai.vercel.app/`).
+- **Resilient Connection Lifecycle:** 6-stage frontend state machine (`CONNECTING`, `ONLINE`, `MODEL_LOADING`, `READY`, `DEGRADED`, `OFFLINE`) with readiness health probes (`/api/ready`).
 - **Dual Inference Modes:** Drag-and-drop manual image upload or automated stream intake.
 - **Batch Processing:** Asynchronous multi-image inspection queue via `/batch`.
 - **Interactive Heatmap Viewport:** Dual-pane inspection viewer with dynamic alpha-blending slider.
@@ -239,7 +241,24 @@ Detailed lifecycle steps are documented in [`docs/INFERENCE_WORKFLOW.md`](docs/I
 
 ---
 
-## 15. Known Limitations
+## 15. Production Architecture & Full-Stack Deployment
+
+DefectVision AI is architected as a decoupled, multi-tier system separating static edge presentation from persistent machine learning inference:
+
+- **Frontend Presentation Tier (Vercel):** Single-page React application hosted at [`https://defectvision-ai.vercel.app/`](https://defectvision-ai.vercel.app/). Includes real-time camera streaming, interactive heatmap overlays, and the Product Profiles management console.
+- **Persistent Backend Tier (FastAPI):** High-throughput Python service running on persistent containerized or cloud infrastructure. Retains all 15 MVTec memory banks, FAISS `IndexFlatL2` galleries, the EfficientNet classifier, and target-domain profiles resident in RAM (~1.8 GB).
+- **Readiness Probes & Route Matrix:** Dual routing (`/api/*` and `/*`), with readiness health checking (`/api/ready`) validating that all 15 models are operational before traffic dispatch.
+- **Configuration Template:** See [`production.env.example`](production.env.example) for container environment variables.
+- **Production Audit & Runbooks:**
+  - [`release/production_upgrade/PRODUCTION_ARCHITECTURE.md`](release/production_upgrade/PRODUCTION_ARCHITECTURE.md): Complete architecture specification, lifecycle states, and latency characteristics.
+  - [`release/production_upgrade/DEPLOYMENT_VERIFICATION.md`](release/production_upgrade/DEPLOYMENT_VERIFICATION.md): Public audit findings, Vercel edge rewrite fixes, and cloud deployment guides.
+  - [`release/production_upgrade/API_INTEGRATION_REPORT.md`](release/production_upgrade/API_INTEGRATION_REPORT.md): Route catalog and schema contracts.
+  - [`release/production_upgrade/END_TO_END_TEST_REPORT.md`](release/production_upgrade/END_TO_END_TEST_REPORT.md): 40/40 test suite verification and build logs.
+  - [`release/production_upgrade/PUBLIC_REPOSITORY_SECURITY_AUDIT.md`](release/production_upgrade/PUBLIC_REPOSITORY_SECURITY_AUDIT.md): File size, secret scan, and path sanitization audit.
+
+---
+
+## 16. Known Limitations
 
 1. **Photometric Blindness:** Low sensitivity to subtle color-only changes due to ImageNet spatial feature dominance.
 2. **Few-Shot Variance:** Small calibration sets ($N=10$) suffer from sampling noise in empirical maximums.
